@@ -1,3 +1,9 @@
+"""
+Document ingestion pipeline with:
+- OCR fallback for scanned PDFs (requires Tesseract installed)
+- Hash-based deduplication (skip unchanged files)
+- Multi-format support: PDF, Word, Excel, PPT, TXT/MD
+"""
 import hashlib
 import json
 from pathlib import Path
@@ -29,6 +35,8 @@ from config import (
 HASH_INDEX = CHROMA_DIR / "_ingested.json"
 
 
+# ── Utilities ────────────────────────────────────────────────────────────
+
 def _file_hash(path: Path) -> str:
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -47,20 +55,63 @@ def _save_hashes(hashes: dict) -> None:
     HASH_INDEX.write_text(json.dumps(hashes, indent=2))
 
 
-def _loader_for(path: Path):
+# ── OCR helper ───────────────────────────────────────────────────────────
+
+def _is_scanned_pdf(path: Path) -> bool:
+    """Return True if PDF has little or no extractable text (likely scanned)."""
+    try:
+        import fitz
+        doc = fitz.open(str(path))
+        total_chars = sum(len(page.get_text().strip()) for page in doc)
+        doc.close()
+        return total_chars < 100 * len(doc)  # <100 chars/page avg → scanned
+    except Exception:
+        return False
+
+
+def _ocr_pdf(path: Path) -> list[Document]:
+    """OCR a scanned PDF using Tesseract via pdf2image + pytesseract."""
+    docs = []
+    try:
+        import pytesseract
+        from pdf2image import convert_from_path
+
+        images = convert_from_path(str(path), dpi=300)
+        for i, img in enumerate(images):
+            text = pytesseract.image_to_string(img, lang="eng")
+            if text.strip():
+                docs.append(Document(
+                    page_content=text,
+                    metadata={"source": path.name, "page": i + 1, "ocr": True},
+                ))
+    except ImportError:
+        # Tesseract/pdf2image not installed — fall back to PyMuPDF
+        docs = PyMuPDFLoader(str(path)).load()
+    except Exception:
+        docs = PyMuPDFLoader(str(path)).load()
+    return docs
+
+
+# ── Loaders ──────────────────────────────────────────────────────────────
+
+def _loader_for(path: Path) -> list[Document]:
     ext = path.suffix.lower()
     if ext == ".pdf":
-        return PyMuPDFLoader(str(path))
+        if _is_scanned_pdf(path):
+            return _ocr_pdf(path)
+        return PyMuPDFLoader(str(path)).load()
     if ext in {".docx", ".doc"}:
-        return Docx2txtLoader(str(path))
+        return Docx2txtLoader(str(path)).load()
     if ext in {".txt", ".md"}:
-        return TextLoader(str(path), encoding="utf-8")
+        return TextLoader(str(path), encoding="utf-8").load()
     if ext == ".xlsx":
-        return UnstructuredExcelLoader(str(path), mode="elements")
+        return UnstructuredExcelLoader(str(path), mode="elements").load()
     if ext == ".pptx":
-        return UnstructuredPowerPointLoader(str(path))
+        return UnstructuredPowerPointLoader(str(path)).load()
     raise ValueError(f"Unsupported file type: {ext}")
 
+
+# ── Vector store ─────────────────────────────────────────────────────────
 
 def get_vectorstore() -> Chroma:
     embeddings = OllamaEmbeddings(model=EMBED_MODEL, base_url=OLLAMA_BASE_URL)
@@ -71,8 +122,9 @@ def get_vectorstore() -> Chroma:
     )
 
 
-def _load_and_split(path: Path) -> list[Document]:
-    docs = _loader_for(path).load()
+# ── Splitter ─────────────────────────────────────────────────────────────
+
+def _split(docs: list[Document], source_name: str) -> list[Document]:
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE,
         chunk_overlap=CHUNK_OVERLAP,
@@ -80,21 +132,24 @@ def _load_and_split(path: Path) -> list[Document]:
     )
     chunks = splitter.split_documents(docs)
     for i, c in enumerate(chunks):
-        c.metadata["source"] = path.name
+        c.metadata["source"] = source_name
         c.metadata["chunk_id"] = i
     return chunks
 
 
+# ── Public API ───────────────────────────────────────────────────────────
+
 def ingest_paths(paths: Iterable[Path], progress=None) -> dict:
     vs = get_vectorstore()
     hashes = _load_hashes()
-    stats = {"added": 0, "skipped": 0, "failed": []}
+    stats = {"added": 0, "skipped": 0, "failed": [], "ocr_used": []}
     paths = list(paths)
+
     for idx, p in enumerate(paths):
         if progress:
             progress(idx, len(paths), p.name)
         if p.suffix.lower() not in SUPPORTED_EXTS:
-            stats["failed"].append(f"{p.name} (unsupported)")
+            stats["failed"].append(f"{p.name} (unsupported type)")
             continue
         try:
             h = _file_hash(p)
@@ -103,24 +158,26 @@ def ingest_paths(paths: Iterable[Path], progress=None) -> dict:
                 continue
             if p.name in hashes:
                 vs.delete(where={"source": p.name})
-            chunks = _load_and_split(p)
+
+            raw_docs = _loader_for(p)
+            # Track if OCR was used
+            if raw_docs and raw_docs[0].metadata.get("ocr"):
+                stats["ocr_used"].append(p.name)
+
+            chunks = _split(raw_docs, p.name)
             if not chunks:
-                stats["failed"].append(f"{p.name} (empty)")
+                stats["failed"].append(f"{p.name} (empty after parsing)")
                 continue
             vs.add_documents(chunks)
             hashes[p.name] = h
             stats["added"] += 1
         except Exception as e:
             stats["failed"].append(f"{p.name} ({e})")
+
     _save_hashes(hashes)
     if progress:
         progress(len(paths), len(paths), "done")
     return stats
-
-
-def ingest_uploads_dir() -> dict:
-    files = [p for p in UPLOADS_DIR.iterdir() if p.is_file()]
-    return ingest_paths(files)
 
 
 def list_indexed() -> list[str]:
@@ -149,4 +206,5 @@ def clear_all() -> None:
 
 
 if __name__ == "__main__":
-    print(ingest_uploads_dir())
+    files = [p for p in UPLOADS_DIR.iterdir() if p.is_file()]
+    print(ingest_paths(files))
