@@ -32,27 +32,32 @@
 }
 
 html.light {
-  --bg-base:        #f7f7f8;
-  --bg-rail:        #ffffff;
-  --bg-panel:       #ffffff;
-  --bg-panel-2:     #fafafa;
-  --bg-surface:     rgba(15,23,42,0.04);
-  --bg-surface-2:   rgba(15,23,42,0.07);
-  --bg-surface-3:   rgba(15,23,42,0.10);
-  --border:         rgba(15,23,42,0.08);
-  --border-2:       rgba(15,23,42,0.10);
-  --border-strong:  rgba(15,23,42,0.18);
-  --text:           rgba(15,23,42,0.88);
-  --text-muted:     rgba(15,23,42,0.60);
-  --text-faded:     rgba(15,23,42,0.42);
-  --text-ghost:     rgba(15,23,42,0.28);
-  --text-vanish:    rgba(15,23,42,0.18);
-  --user-bubble-bg: rgba(99,102,241,0.12);
-  --user-bubble-bd: rgba(99,102,241,0.30);
+  /* Slightly differentiated panel/rail so the sidebar is visually distinct
+     from the chat surface — pure white on white reads as a single blob. */
+  --bg-base:        #ffffff;
+  --bg-rail:        #f4f4f6;
+  --bg-panel:       #fafafb;
+  --bg-panel-2:     #ffffff;
+  /* Hover/active surfaces tuned for visibility on white. */
+  --bg-surface:     rgba(15,23,42,0.05);
+  --bg-surface-2:   rgba(15,23,42,0.08);
+  --bg-surface-3:   rgba(15,23,42,0.12);
+  /* Slightly stronger borders — 0.08 on white is invisible. */
+  --border:         rgba(15,23,42,0.10);
+  --border-2:       rgba(15,23,42,0.14);
+  --border-strong:  rgba(15,23,42,0.24);
+  /* Text ramp — boost lower tiers so faded text is still readable on white. */
+  --text:           rgba(15,23,42,0.92);
+  --text-muted:     rgba(15,23,42,0.66);
+  --text-faded:     rgba(15,23,42,0.52);
+  --text-ghost:     rgba(15,23,42,0.40);
+  --text-vanish:    rgba(15,23,42,0.28);
+  --user-bubble-bg: rgba(99,102,241,0.14);
+  --user-bubble-bd: rgba(99,102,241,0.35);
   --spotlight: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99,102,241,0.10) 0%, transparent 70%);
-  --scrollbar:      #d4d4d8;
-  --shadow-card:    0 1px 3px rgba(15,23,42,0.08), 0 0 0 1px rgba(15,23,42,0.04);
-  --shadow-modal:   0 25px 50px -12px rgba(15,23,42,0.25);
+  --scrollbar:      #c7c7ce;
+  --shadow-card:    0 1px 2px rgba(15,23,42,0.06), 0 0 0 1px rgba(15,23,42,0.05);
+  --shadow-modal:   0 25px 50px -12px rgba(15,23,42,0.18);
   color-scheme: light;
 }
 
@@ -100,28 +105,31 @@ body {
    so it remains white on colored backgrounds (AI avatar gradient, send
    button, indigo nav badges, brand box). Page-level uses of text-white
    that need theme-awareness are switched to `text-app` in the JSX. */
-html.light .text-white\/90   { color: rgba(15,23,42,0.88); }
-html.light .text-white\/85   { color: rgba(15,23,42,0.85); }
-html.light .text-white\/80   { color: rgba(15,23,42,0.80); }
-html.light .text-white\/70   { color: rgba(15,23,42,0.72); }
-html.light .text-white\/65   { color: rgba(15,23,42,0.68); }
-html.light .text-white\/60   { color: rgba(15,23,42,0.62); }
-html.light .text-white\/55   { color: rgba(15,23,42,0.58); }
-html.light .text-white\/50   { color: rgba(15,23,42,0.55); }
-html.light .text-white\/45   { color: rgba(15,23,42,0.50); }
-html.light .text-white\/40   { color: rgba(15,23,42,0.45); }
-html.light .text-white\/35   { color: rgba(15,23,42,0.42); }
-html.light .text-white\/30   { color: rgba(15,23,42,0.38); }
-html.light .text-white\/25   { color: rgba(15,23,42,0.34); }
-html.light .text-white\/20   { color: rgba(15,23,42,0.30); }
-html.light .text-white\/15   { color: rgba(15,23,42,0.25); }
+/* Opacity-bearing white tints — boosted so faded text still reads on white.
+   Values are higher than the dark-mode original because slate-900 at low
+   opacity reads much fainter on white than white-at-same-opacity on black. */
+html.light .text-white\/90   { color: rgba(15,23,42,0.90); }
+html.light .text-white\/85   { color: rgba(15,23,42,0.88); }
+html.light .text-white\/80   { color: rgba(15,23,42,0.82); }
+html.light .text-white\/70   { color: rgba(15,23,42,0.74); }
+html.light .text-white\/65   { color: rgba(15,23,42,0.70); }
+html.light .text-white\/60   { color: rgba(15,23,42,0.66); }
+html.light .text-white\/55   { color: rgba(15,23,42,0.62); }
+html.light .text-white\/50   { color: rgba(15,23,42,0.58); }
+html.light .text-white\/45   { color: rgba(15,23,42,0.54); }
+html.light .text-white\/40   { color: rgba(15,23,42,0.50); }
+html.light .text-white\/35   { color: rgba(15,23,42,0.46); }
+html.light .text-white\/30   { color: rgba(15,23,42,0.44); }
+html.light .text-white\/25   { color: rgba(15,23,42,0.40); }
+html.light .text-white\/20   { color: rgba(15,23,42,0.36); }
+html.light .text-white\/15   { color: rgba(15,23,42,0.32); }
 
 html.light .hover\:text-white:hover     { color: rgba(15,23,42,0.92); }
-html.light .hover\:text-white\/90:hover { color: rgba(15,23,42,0.88); }
-html.light .hover\:text-white\/80:hover { color: rgba(15,23,42,0.82); }
-html.light .hover\:text-white\/70:hover { color: rgba(15,23,42,0.72); }
-html.light .hover\:text-white\/60:hover { color: rgba(15,23,42,0.62); }
-html.light .hover\:text-white\/50:hover { color: rgba(15,23,42,0.55); }
+html.light .hover\:text-white\/90:hover { color: rgba(15,23,42,0.90); }
+html.light .hover\:text-white\/80:hover { color: rgba(15,23,42,0.84); }
+html.light .hover\:text-white\/70:hover { color: rgba(15,23,42,0.76); }
+html.light .hover\:text-white\/60:hover { color: rgba(15,23,42,0.68); }
+html.light .hover\:text-white\/50:hover { color: rgba(15,23,42,0.60); }
 
 html.light .bg-white\/5      { background-color: rgba(15,23,42,0.04); }
 html.light .bg-white\/10     { background-color: rgba(15,23,42,0.06); }
