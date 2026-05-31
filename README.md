@@ -1,318 +1,383 @@
-# 📚 Office RAG — AI Document Assistant
+# ERAG — Office RAG Assistant
 
-> Chat with your office documents using AI. Ask questions, get instant answers with source citations. Everything runs locally — no data ever leaves your machine.
+An end-to-end Retrieval-Augmented Generation (RAG) system for office documents. Upload PDFs, Word docs, spreadsheets, slides, and text files; ask questions in natural language; get grounded answers with inline source citations. Built with a React + Tailwind frontend and a FastAPI + LangChain + Chroma backend.
 
-![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
-![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
-![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![Ollama](https://img.shields.io/badge/Ollama-000000?style=for-the-badge)
-![Groq](https://img.shields.io/badge/Groq-FF6B35?style=for-the-badge)
-![ChromaDB](https://img.shields.io/badge/ChromaDB-7B2D8B?style=for-the-badge)
+The retrieval pipeline is what makes this more than a toy: **Query Rewriting → HyDE → Hybrid (BM25 + Vector) → RRF → Cross-encoder Reranking → CRAG-lite filtering**, each step independently toggleable.
 
 ---
 
-## ✨ Features
+## Table of Contents
 
-| Feature | Description |
-|---|---|
-| 💬 **Multi-turn Memory** | Remembers context across follow-up questions — ask "tell me more" without repeating yourself |
-| ⚡ **Fast Responses** | Powered by Groq's LLM API (llama-3.1-8b-instant) for near-instant streaming answers |
-| 🔍 **Hybrid Search** | BM25 keyword + vector search fused via Reciprocal Rank Fusion (RRF) for best of both worlds |
-| 📎 **Smart Citations** | Every answer shows expandable source cards with file name, page number, and full chunk text |
-| 🧠 **Auto-Summary** | One-click AI summary for each uploaded document — instantly know what's inside |
-| 🎙️ **Voice Input** | Speak your questions via the browser's Web Speech API (Chrome/Edge) |
-| 🔍 **OCR Support** | Scanned PDFs are detected and processed via Tesseract OCR (graceful fallback if not installed) |
-| 📂 **Cross-doc Queries** | Ask questions that span multiple documents simultaneously |
-| 🔒 **Privacy First** | Documents never leave your machine. Only small matched text snippets reach Groq |
-| 🗂️ **Multi-format** | PDF, Word (.docx/.doc), Excel (.xlsx), PowerPoint (.pptx), Markdown, TXT |
-| 🔄 **Deduplication** | Re-uploading unchanged files skips re-ingestion automatically (SHA-256 hash) |
-| 🌗 **Beautiful Dark UI** | NexChat-inspired design with black background, indigo accents, icon-only sidebar |
+- [Features](#features)
+- [Architecture](#architecture)
+- [Project Layout](#project-layout)
+- [Tech Stack](#tech-stack)
+- [Setup](#setup)
+- [Configuration](#configuration)
+- [Backend — Deep Dive](#backend--deep-dive)
+- [RAG Pipeline — Deep Dive](#rag-pipeline--deep-dive)
+- [Frontend — Deep Dive](#frontend--deep-dive)
+- [Authentication & Roles](#authentication--roles)
+- [API Reference](#api-reference)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
-## 🏗️ Architecture
+## Features
+
+**Document handling**
+- Multi-format ingestion: PDF, DOCX, XLSX, PPTX, TXT, MD
+- Automatic OCR fallback for scanned PDFs (via Tesseract + pdf2image)
+- SHA-256 hash-based deduplication — re-uploading an unchanged file is a no-op
+- Auto-generated 4–5 bullet document summaries after ingestion
+- Per-document department + tags metadata, editable in place
+
+**Retrieval**
+- Query rewriting (LLM expands acronyms, fixes typos, sharpens keywords)
+- HyDE — embeds a hypothetical answer instead of the raw query for vector search
+- Hybrid BM25 + dense-vector retrieval fused via Reciprocal Rank Fusion
+- Cross-encoder reranking with `ms-marco-MiniLM-L-6-v2`
+- CRAG-lite: drops chunks below a relevance threshold; warns the user on low-confidence answers
+- Every stage is independently toggleable in `config.py`
+
+**Chat**
+- Streaming responses over Server-Sent Events
+- Multi-turn conversation memory (last 6 turns)
+- Inline source citations with page numbers, previews, and OCR badges
+- Click a citation → opens the source PDF in an in-app viewer at the cited page
+
+**Access control**
+- Role-based access: per-user `departments` whitelist and `can_upload` flag
+- Header-based user switching (`X-User`) — drop-in replacement seam for SSO / SAML / OAuth
+- All retrieval and document endpoints are scoped to a user's allowed departments
+
+**UX**
+- Dark / light theme toggle
+- Department filter dropdown
+- Drag-and-drop upload zone
+- Sidebar with per-document chips for department & tags, plus delete / summarize actions
+
+---
+
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        YOUR MACHINE                         │
-│                                                             │
-│  ┌──────────────┐      ┌───────────────────────────────┐    │
-│  │  React UI    │ ←──► │      FastAPI Backend           │    │
-│  │  Port 5173   │      │      Port 8000 (SSE stream)    │    │
-│  └──────────────┘      └──────────┬────────────────────┘    │
-│                                   │                         │
-│              ┌────────────────────┼──────────────┐          │
-│              ▼                    ▼              ▼          │
-│      ┌──────────────┐  ┌──────────────┐  ┌────────────────┐ │
-│      │  ChromaDB    │  │    Ollama    │  │    Uploads     │ │
-│      │  (vectors)   │  │ nomic-embed  │  │  (your docs)   │ │
-│      └──────────────┘  └──────────────┘  └────────────────┘ │
-│              │                                               │
-│              ▼  BM25 + Vector → RRF Fusion                  │
-└──────────────────────────────┬──────────────────────────────┘
-                               │ Only matched text snippets (~500 words)
-                               ▼
-                      ┌─────────────────┐
-                      │   Groq API      │
-                      │ llama-3.1-8b    │
-                      └─────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                         Browser (React)                         │
+│  ChatPanel · Sidebar · PdfViewer · UserPicker · ThemeToggle     │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ HTTP + SSE   X-User header
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                       FastAPI  (main.py)                        │
+│  /chat  /upload  /documents  /summary  /users  /me  /departments│
+│            └─ auth.py: role + department gating                 │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+        ┌──────────────────┼─────────────────────┐
+        ▼                  ▼                     ▼
+   ingest.py           rag.py              data/uploads/
+   (loaders, OCR,      (Query Rewrite,     (raw files served
+    splitter,          HyDE, Hybrid+RRF,    via /files)
+    Chroma writer)     Reranker, CRAG,
+                       LLM streaming)
+        │                  │
+        ▼                  ▼
+   ┌──────────────────────────────┐
+   │   Chroma  (data/chroma_db)   │
+   │   nomic-embed-text (Ollama)  │
+   └──────────────────────────────┘
+
+LLM provider:
+  - Groq (default)  → llama-3.1-8b-instant
+  - Ollama fallback → qwen2.5:3b
 ```
 
 ---
 
-## 🛠️ Tech Stack
+## Project Layout
 
-| Layer | Technology | Purpose |
-|---|---|---|
-| **Frontend** | React + Vite + Tailwind CSS | Chat UI with streaming |
-| **Backend** | FastAPI + Uvicorn | REST API + SSE token streaming |
-| **LLM** | Groq (llama-3.1-8b-instant) | Fast AI responses |
-| **Embeddings** | nomic-embed-text via Ollama | Local vector generation (768-dim) |
-| **Vector Store** | ChromaDB | Semantic similarity search |
-| **Keyword Search** | BM25 (rank-bm25) | Keyword + exact match retrieval |
-| **Reranking** | Reciprocal Rank Fusion (RRF) | Fuse BM25 + vector results |
-| **PDF parsing** | PyMuPDF | Extract text from PDFs |
-| **OCR** | Tesseract + pdf2image | Scanned PDF text extraction |
-| **Word parsing** | python-docx | Extract text from .docx |
-| **Excel parsing** | openpyxl | Extract data from .xlsx |
-| **Voice input** | Web Speech API | Browser-native mic transcription |
-
----
-
-## ⚙️ Setup
-
-### Prerequisites
-
-- Python 3.10+
-- Node.js 18+
-- [Ollama](https://ollama.com/download/windows) installed and running
-- Free [Groq API key](https://console.groq.com)
-- *(Optional)* [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki) for scanned PDF support
-
----
-
-### Step 1 — Install Ollama & pull embedding model
-
-Download and install Ollama from https://ollama.com/download/windows, then run:
-
-```powershell
-ollama pull nomic-embed-text
+```
+ERAG/
+├── main.py                  # FastAPI app, all HTTP endpoints
+├── rag.py                   # Retrieval pipeline + LLM streaming
+├── ingest.py                # Loaders, splitter, OCR, Chroma writer
+├── auth.py                  # X-User header → role + department gating
+├── config.py                # All knobs: paths, models, flags, thresholds
+├── users.json               # Demo users (admin, CEO, dept leads)
+├── requirements.txt
+├── data/
+│   ├── uploads/             # Raw user files (served at /files)
+│   ├── chroma_db/           # Vector store + ingest index
+│   └── chroma_db/_ingested.json   # name → {hash, dept, tags, chunks, …}
+└── frontend/
+    ├── package.json
+    ├── tailwind.config.js
+    ├── vite.config.js
+    └── src/
+        ├── App.jsx
+        ├── main.jsx
+        ├── index.css
+        └── components/
+            ├── ChatPanel.jsx
+            ├── Sidebar.jsx
+            ├── Message.jsx
+            ├── PdfViewer.jsx
+            ├── UserPicker.jsx
+            ├── ThemeToggle.jsx
+            └── Dropdown.jsx
 ```
 
-> `nomic-embed-text` (~274 MB) generates embeddings locally — your documents are **never** sent to any embedding server.
+---
+
+## Tech Stack
+
+**Backend**
+- Python 3.11
+- FastAPI + uvicorn (server, SSE streaming)
+- LangChain 0.3 (loaders, splitter, prompt templating)
+- Chroma 0.5 (persistent vector DB)
+- Ollama (embeddings via `nomic-embed-text`; optional local LLM)
+- Groq SDK (default LLM provider; `llama-3.1-8b-instant`)
+- `sentence-transformers` (`cross-encoder/ms-marco-MiniLM-L-6-v2` reranker)
+- `rank_bm25` for keyword search
+- PyMuPDF, docx2txt, openpyxl, unstructured (multi-format parsing)
+- pytesseract + pdf2image (OCR fallback)
+
+**Frontend**
+- React 19 + Vite
+- Tailwind CSS 3
+- axios (HTTP)
+- react-markdown (assistant message rendering)
+- react-pdf (PDF viewer panel)
+- react-dropzone (upload zone)
+- lucide-react (icons)
 
 ---
 
-### Step 2 — Clone & install Python backend
+## Setup
 
-```powershell
-git clone https://github.com/farooq07/erag.git
-cd erag
+### 1. Prerequisites
+
+- **Python 3.11+**
+- **Node 18+** (for the frontend)
+- **Ollama** running locally at `http://127.0.0.1:11434`
+  - Pull the embedding model: `ollama pull nomic-embed-text`
+  - (Optional) pull a chat model for local fallback: `ollama pull qwen2.5:3b`
+- **Groq API key** (default LLM provider) — get one at https://console.groq.com
+- **(Optional) Tesseract** — only needed if you upload scanned PDFs
+  - Windows: https://github.com/UB-Mannheim/tesseract/wiki
+  - Also install `poppler` for `pdf2image`
+
+### 2. Backend
+
+```bash
+git clone <repo-url> ERAG
+cd ERAG
 
 python -m venv .venv
-.venv\Scripts\Activate.ps1
-
+.venv\Scripts\activate          # PowerShell: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+
+# Set your Groq key (or skip and set LLM_PROVIDER="ollama" in config.py)
+echo GROQ_API_KEY=gsk_xxxxx > .env
+
+python main.py
+# → http://127.0.0.1:8000
 ```
 
----
+First chat request will download the cross-encoder (~90 MB) into `~/.cache/huggingface`. One-time.
 
-### Step 3 — Configure environment
+### 3. Frontend
 
-Create a `.env` file in the project root:
-
-```env
-GROQ_API_KEY=your_groq_api_key_here
-```
-
-Get your free key at → https://console.groq.com/keys
-
----
-
-### Step 4 — Install frontend dependencies
-
-```powershell
+```bash
 cd frontend
 npm install
-```
-
----
-
-### Step 5 — (Optional) Install Tesseract for OCR
-
-For scanned PDF support, install Tesseract on Windows:
-1. Download from https://github.com/UB-Mannheim/tesseract/wiki
-2. Install to default path (`C:\Program Files\Tesseract-OCR\`)
-3. Also install [Poppler for Windows](https://github.com/oschwartz10612/poppler-windows/releases) and add it to PATH
-
-> Without Tesseract, the app still works — scanned PDFs will simply return less text. Regular PDFs are unaffected.
-
----
-
-## 🚀 Running the App
-
-You need **two terminals** running simultaneously:
-
-**Terminal 1 — Backend:**
-```powershell
-cd erag
-.venv\Scripts\Activate.ps1
-python main.py
-```
-
-**Terminal 2 — Frontend:**
-```powershell
-cd erag/frontend
 npm run dev
+# → http://127.0.0.1:5173
 ```
 
-Open your browser at **http://localhost:5173** 🎉
+The dev server proxies API calls to `http://127.0.0.1:8000`.
 
 ---
 
-## 📖 How to Use
+## Configuration
 
-### Uploading Documents
-1. Click the **folder icon** in the sidebar or the **+** button
-2. Drag & drop or browse to select files (PDF, Word, Excel, PPT, TXT)
-3. Files are chunked, embedded and stored locally
-4. Click the ✨ **sparkle icon** next to any file to see its AI-generated summary
+All knobs live in [`config.py`](config.py):
 
-### Chatting
-- Type a question and press **Enter** (or **Shift+Enter** for a new line)
-- Click the **mic icon** 🎙️ to use voice input (Chrome/Edge only)
-- Ask follow-up questions naturally — context is remembered across the conversation
-- Click **"N sources"** under any answer to expand source cards with exact page references
+| Setting | Default | Purpose |
+|---|---|---|
+| `LLM_PROVIDER` | `"groq"` | `"groq"` or `"ollama"` |
+| `GROQ_MODEL` | `"llama-3.1-8b-instant"` | Groq chat model |
+| `LLM_MODEL` | `"qwen2.5:3b"` | Ollama fallback model |
+| `EMBED_MODEL` | `"nomic-embed-text"` | Ollama embedding model |
+| `CHUNK_SIZE` / `CHUNK_OVERLAP` | `800` / `120` | Recursive splitter |
+| `TOP_K` | `5` | Final chunks sent to the LLM |
+| `DEPARTMENTS` | HR, Accounts, Finance, IT, Legal, Operations, General | Document tags |
+| **`QUERY_REWRITE_ENABLED`** | `True` | LLM rewrites the question before retrieval |
+| **`HYDE_ENABLED`** | `True` | Embed a hypothetical answer for vector search |
+| **`RERANKER_ENABLED`** | `True` | Cross-encoder rescore over the fused pool |
+| **`CRAG_ENABLED`** | `True` | Filter low-relevance chunks + low-confidence warning |
+| `CRAG_THRESHOLD` | `0.3` | Min sigmoid-normalised cross-encoder score to keep |
+| `CRAG_MIN_CHUNKS` | `2` | Below this many survivors → low-confidence flag |
+| `RERANK_POOL` | `10` | Fused pool size handed to the reranker |
+| `RERANKER_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | Reranker checkpoint |
 
-### Example Questions
-```
-What is the annual leave policy?
-How many sick days do employees get?
-Summarize the Q3 financial report
-What are the working hours and overtime rules?
-List all HR policies across all documents
-Compare the leave policies in the two uploaded documents
-```
-
----
-
-## 📁 Project Structure
-
-```
-erag/
-├── main.py              # FastAPI backend — endpoints + SSE streaming
-├── rag.py               # Hybrid retrieval (BM25+vector RRF) + LLM chain
-├── ingest.py            # Document parsing + OCR + embedding pipeline
-├── config.py            # All configuration (models, paths, chunk settings)
-├── requirements.txt     # Python dependencies
-├── .env                 # API keys — gitignored, never committed
-├── data/
-│   ├── uploads/         # Your uploaded documents (gitignored)
-│   └── chroma_db/       # Local vector index (gitignored)
-└── frontend/
-    ├── src/
-    │   ├── App.jsx                # Root state + API calls + streaming
-    │   ├── components/
-    │   │   ├── Sidebar.jsx        # File panel + auto-summary + settings
-    │   │   ├── ChatPanel.jsx      # Chat UI + voice input + message list
-    │   │   └── Message.jsx        # Message bubbles + source citation cards
-    │   └── index.css              # Tailwind + custom animations
-    ├── package.json
-    └── vite.config.js
-```
+Flip any of the four pipeline flags to `False` to disable that stage — no code changes needed.
 
 ---
 
-## 🔒 Security & Privacy
+## Backend — Deep Dive
 
-| What | Where it stays |
-|---|---|
-| Your uploaded files | On your machine in `data/uploads/` |
-| Document embeddings | On your machine in `data/chroma_db/` |
-| Text sent to Groq | ~500 words of matched snippets per query only |
-| Your Groq API key | In `.env` (gitignored — never committed) |
+### `main.py` — FastAPI app
 
-**For fully offline/sensitive documents**: switch to local-only mode in `config.py`:
+- `GET /users` — demo user list for the picker
+- `GET /me` — resolved current user (via `X-User` header)
+- `GET /departments` — full list, default, current user's allowed subset, `can_upload`
+- `GET /documents` — documents visible to the current user (department-scoped)
+- `POST /upload` — multipart files + `department` + `tags`; runs ingest pipeline; returns updated visible doc list
+- `PATCH /documents/{name}` — change department / tags; re-stamps Chroma chunks
+- `DELETE /documents/{name}` — removes chunks + raw file
+- `POST /clear` — Admin-only nuke of the whole collection
+- `POST /summary` — 4-5 bullet summary of a specific document
+- `POST /chat` — SSE stream: emits `sources` event first, then `token` events, then `done`
 
-```python
-LLM_PROVIDER = "ollama"
-LLM_MODEL = "qwen2.5:3b"   # or llama3.2, mistral, etc.
-```
+Streaming bridges a sync generator (`answer_stream`) to an async queue so tokens flush as they arrive from the LLM.
 
-Then pull the model:
-```powershell
-ollama pull qwen2.5:3b
-```
+### `ingest.py`
 
----
+- `_loader_for(path)` — dispatches to the right LangChain loader per extension
+- `_is_scanned_pdf(path)` — opens with PyMuPDF; if < 100 chars/page it's treated as scanned
+- `_ocr_pdf(path)` — pdf2image → pytesseract; tags chunks with `ocr: True` metadata
+- `_split()` — `RecursiveCharacterTextSplitter` (800 / 120), stamps `source`, `chunk_id`, `department`, `tags`
+- `ingest_paths()` — hashes file, skips if unchanged AND dept/tags unchanged; on update deletes old chunks then re-adds
+- `_ingested.json` — name → `{hash, department, tags, uploaded_at, chunks, size}`
 
-## 🔧 Configuration
+### `auth.py`
 
-Edit `config.py` to customize:
-
-```python
-# LLM provider — "groq" (fast) or "ollama" (fully local)
-LLM_PROVIDER = "groq"
-GROQ_MODEL = "llama-3.1-8b-instant"    # Groq model name
-LLM_MODEL = "qwen2.5:3b"               # Ollama fallback model
-
-# Embedding model (must be pulled in Ollama)
-EMBED_MODEL = "nomic-embed-text"
-
-# Chunking settings
-CHUNK_SIZE = 800       # Characters per chunk
-CHUNK_OVERLAP = 120    # Overlap between adjacent chunks
-TOP_K = 5              # Number of chunks retrieved per query
-```
+The whole file is ~60 lines. `get_current_user` is the FastAPI dependency used by every protected endpoint; replace its body with your SSO/JWT logic and the rest of the codebase doesn't change.
 
 ---
 
-## 🐛 Troubleshooting
+## RAG Pipeline — Deep Dive
 
-**Backend not reachable / "Could not reach backend"**
-```powershell
-cd erag && .venv\Scripts\Activate.ps1 && python main.py
-# Verify it's running at http://localhost:8000/documents
-```
+A `/chat` call walks through five stages. The numbered tags match the `# [TAG]` comments in [`rag.py`](rag.py).
 
-**Port 8000 already in use**
-```powershell
-Get-NetTCPConnection -LocalPort 8000 | Select-Object OwningProcess
-Stop-Process -Id <PID> -Force
-```
+### 1. `# [QUERY REWRITE]`
 
-**Ollama not found / embedding errors**
-```powershell
-ollama list          # Should show nomic-embed-text
-ollama serve         # Start Ollama if not running
-```
+`_rewrite_query(question)` — small LLM call that expands acronyms, fixes typos, and makes the question keyword-rich. Output is bounded to 500 chars; on any error it falls back to the raw question. Results cached in-process so the same question doesn't trigger two LLM calls (one in `retrieve()` for sources, one in `answer_stream()` for tokens).
 
-**Groq 404 / model not found**
-- Make sure `GROQ_API_KEY` is set in `.env`
-- Valid Groq model names: `llama-3.1-8b-instant`, `llama-3.3-70b-versatile`, `mixtral-8x7b-32768`
-- You can change the model live in the **Settings** panel in the sidebar
+### 2. `# [HYDE]`
 
-**Voice input not working**
-- Voice requires Chrome or Edge (Firefox doesn't support Web Speech API)
-- Allow microphone permissions when the browser prompts
+`_generate_hyde(question)` — LLM writes a 2–3 sentence plausible passage that would *appear* in an office document and answer the question. The embedding of this passage is closer in vector space to real chunks than the raw query is. Used **only** for the vector branch — BM25 still gets the real (rewritten) query because keywords matter for lexical match.
 
-**OCR not working on scanned PDFs**
-- Install Tesseract from https://github.com/UB-Mannheim/tesseract/wiki
-- Install Poppler and add its `bin/` folder to your system PATH
-- Without these, scanned PDFs fall back to PyMuPDF (may return empty text)
+Chroma path: `vs._embedding_function.embed_query(hyde_text)` → `vs.similarity_search_by_vector(vec, k=k*4, filter=dept_filter)`.
 
-**Slow responses**
-- Use the smallest Groq model: `llama-3.1-8b-instant`
-- Reduce `TOP_K` in `config.py` (e.g. `TOP_K = 3`)
+Also cached.
 
----
+### 3. Hybrid retrieval + RRF (`hybrid_retrieve`)
 
-## 📄 License
+- Vector branch: HyDE-augmented `similarity_search_by_vector`, k=20
+- BM25 branch: `BM25Okapi` over the (department-scoped) corpus, top-20 by score
+- Reciprocal Rank Fusion: `score = Σ 1 / (60 + rank + 1)` across branches
+- Pool size: `max(TOP_K, RERANK_POOL)` so the reranker has room to work
 
-MIT License — free to use, modify and distribute.
+### 4. `# [RERANKER]`
+
+`_score_pairs(question, docs)` lazy-loads `cross-encoder/ms-marco-MiniLM-L-6-v2` (cached as a module-level singleton). Each `(query, chunk)` pair gets a logit; sigmoid-normalised to `[0, 1]`. Docs are reordered by this score. On model load failure it returns `0.5` for everything so the user still gets *an* answer.
+
+### 5. `# [CRAG]`
+
+CRAG-lite filtering using the cross-encoder scores:
+- Drop chunks with `score < CRAG_THRESHOLD` (0.3 by default)
+- If fewer than `CRAG_MIN_CHUNKS` (2) survive → set `low_confidence=True` and fall back to the **top-k of the unfiltered list** so we never leave the user empty-handed
+- `answer_stream` prepends a ⚠️ low-confidence warning to the streamed response
+
+### 6. Generation
+
+Top-K (5) chunks formatted as `[1] source.pdf (page 3)\n<content>`. Last 6 turns of history pasted into the system prompt. LLM streams tokens via `chain.stream()`; main.py forwards each token as an SSE `token` event.
 
 ---
 
-<div align="center">
-  Built with ❤️ using React · FastAPI · Groq · Ollama · ChromaDB
-</div>
+## Frontend — Deep Dive
+
+Single-page React 19 app under `frontend/`. State lives in `App.jsx` and is drilled down to:
+
+- **`UserPicker`** — header dropdown to switch identity. Stores `X-User` in `localStorage`; axios interceptor adds it to every request.
+- **`Sidebar`** — drag-and-drop upload (`react-dropzone`), department picker, per-document cards with chips for dept + tags, summary trigger, delete button.
+- **`ChatPanel`** — input box, voice input (browser Speech Recognition API), department scope dropdown, model picker, message list.
+- **`Message`** — `react-markdown` for assistant text; expandable source-citation cards with file name, page number, OCR badge, and preview snippet. Clicking a citation opens `PdfViewer`.
+- **`PdfViewer`** — `react-pdf`-backed modal that loads `/files/<name>` and jumps to the cited page.
+- **`ThemeToggle`** — dark / light, persisted in `localStorage`.
+
+SSE handling: `ChatPanel` uses `fetch()` with a streaming reader, parses each `data: {...}` line, dispatches on `type`:
+- `sources` → renders citation cards immediately, before any tokens arrive
+- `token` → appends to the in-flight assistant message
+- `done` → marks streaming complete
+
+---
+
+## Authentication & Roles
+
+Identities come from [`users.json`](users.json). Seven demo users ship with the repo:
+
+| ID | Role | Departments | Can upload |
+|---|---|---|---|
+| `admin` | Admin | all | ✅ |
+| `ceo` | CEO | all | ❌ |
+| `hr_manager` | HR Manager | HR, General | ✅ |
+| `finance_director` | Finance Director | Finance, Accounts, General | ✅ |
+| `it_lead` | IT Lead | IT, General | ✅ |
+| `legal_counsel` | Legal Counsel | Legal, General | ✅ |
+| `ops_lead` | Operations Lead | Operations, General | ✅ |
+
+Every backend endpoint that touches documents calls `assert_can_access` / `assert_can_upload`. Retrieval (`hybrid_retrieve`) takes `allowed_departments` and intersects it with the user-chosen scope — there is no way to retrieve a chunk you aren't allowed to see, even via crafted requests.
+
+To plug in real auth: replace `get_current_user` in `auth.py` with your token/SSO validation. The rest of the codebase reads `user["role"]`, `user["departments"]`, and `user["can_upload"]` — keep those keys.
+
+---
+
+## API Reference
+
+| Method | Path | Body / Form | Notes |
+|---|---|---|---|
+| GET | `/users` | — | Demo user list |
+| GET | `/me` | — | Resolved current user |
+| GET | `/departments` | — | Full list, default, current user's allowed, `can_upload` |
+| GET | `/documents` | — | User-visible documents |
+| POST | `/upload` | `files[], department, tags` | Multipart; runs ingest |
+| PATCH | `/documents/{name}` | `{department?, tags?}` | Re-stamps chunks |
+| DELETE | `/documents/{name}` | — | Removes chunks + raw file |
+| POST | `/clear` | — | Admin only — wipes collection |
+| POST | `/summary` | `{filename, model}` | 4–5 bullet summary |
+| POST | `/chat` | `{question, model, history, department?}` | SSE stream |
+
+All endpoints accept (and most require) an `X-User: <id>` header.
+
+---
+
+## Troubleshooting
+
+**Groq dependency conflict during `pip install -r requirements.txt`**
+The `langchain-groq==1.1.2` pin clashes with newer `langchain-core`. If your env is already working, you can ignore the resolver error; pip will leave the working versions in place. Otherwise, loosen the pin: `langchain-groq>=1.1.2`.
+
+**Cross-encoder downloads on every restart**
+It shouldn't — it's cached in `~/.cache/huggingface`. If you see repeated downloads, check `HF_HOME` env var and disk space.
+
+**OCR is slow / fails**
+Tesseract + poppler must both be on `PATH`. Test with `tesseract --version` and `pdftoppm -v`. On Windows install both via the official installers.
+
+**Empty answers on a known-good question**
+Likely the CRAG threshold is too aggressive. Lower `CRAG_THRESHOLD` in `config.py` (try 0.2), or set `CRAG_ENABLED = False` to bypass filtering.
+
+**Ollama "connection refused"**
+The backend assumes Ollama at `http://127.0.0.1:11434`. Start it (`ollama serve`) or change `OLLAMA_BASE_URL` in `config.py`.
+
+**Chroma collection is stale / weird**
+`POST /clear` (as Admin) wipes both the vector store and the raw uploads. Or delete `data/chroma_db/` and `data/uploads/` manually and restart.
+
+---
+
+## License
+
+MIT.

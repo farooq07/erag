@@ -27,4 +27,24 @@ TOP_K = 5
 
 COLLECTION_NAME = "office_docs"
 
+# ── Advanced retrieval feature flags ────────────────────────────────────
+# Toggle each independently. All default ON.
+QUERY_REWRITE_ENABLED = True   # LLM rewrites/expands the query before retrieval
+HYDE_ENABLED = True            # Hypothetical Document Embeddings for vector search
+RERANKER_ENABLED = True        # Cross-encoder reranks fused results
+CRAG_ENABLED = True            # Corrective-RAG: filter low-relevance chunks + warn
+
+CRAG_THRESHOLD = 0.3           # Min relevance score (0-1) to keep a chunk
+CRAG_MIN_CHUNKS = 2            # Below this many surviving chunks → low-confidence
+RERANK_POOL = 10               # How many fused candidates the reranker sees
+RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
 SUPPORTED_EXTS = {".pdf", ".docx", ".doc", ".txt", ".md", ".xlsx", ".pptx"}
+
+# Departments — used to categorise uploads and scope retrieval.
+DEPARTMENTS = ["HR", "Accounts", "Finance", "IT", "Legal", "Operations", "General"]
+DEFAULT_DEPARTMENT = "General"
+
+# Role-based access — demo users live in users.json next to this file.
+# In production this is where SSO / SAML / OAuth identity hooks in.
+USERS_FILE = ROOT / "users.json"

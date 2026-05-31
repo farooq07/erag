@@ -1,0 +1,53 @@
+{
+  "users": [
+    {
+      "id": "admin",
+      "name": "Alex Admin",
+      "role": "Admin",
+      "departments": ["HR", "Accounts", "Finance", "IT", "Legal", "Operations", "General"],
+      "can_upload": true
+    },
+    {
+      "id": "ceo",
+      "name": "Cara Chen",
+      "role": "CEO",
+      "departments": ["HR", "Accounts", "Finance", "IT", "Legal", "Operations", "General"],
+      "can_upload": false
+    },
+    {
+      "id": "hr_manager",
+      "name": "Helen Rivera",
+      "role": "HR Manager",
+      "departments": ["HR", "General"],
+      "can_upload": true
+    },
+    {
+      "id": "finance_director",
+      "name": "Frank Dawson",
+      "role": "Finance Director",
+      "departments": ["Finance", "Accounts", "General"],
+      "can_upload": true
+    },
+    {
+      "id": "it_lead",
+      "name": "Ivy Tanaka",
+      "role": "IT Lead",
+      "departments": ["IT", "General"],
+      "can_upload": true
+    },
+    {
+      "id": "legal_counsel",
+      "name": "Leo Castro",
+      "role": "Legal Counsel",
+      "departments": ["Legal", "General"],
+      "can_upload": true
+    },
+    {
+      "id": "ops_lead",
+      "name": "Olivia Perez",
+      "role": "Operations Lead",
+      "departments": ["Operations", "General"],
+      "can_upload": true
+    }
+  ]
+}
