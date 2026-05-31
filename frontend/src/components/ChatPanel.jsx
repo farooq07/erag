@@ -3,6 +3,7 @@ import { ArrowUp, Mic, MicOff, Sparkles, FileText, Zap, Shield, RotateCcw, Build
 import Message from "./Message";
 import Dropdown, { DEPT_DOT } from "./Dropdown";
 import UserPicker from "./UserPicker";
+import ThemeToggle from "./ThemeToggle";
 
 const SUGGESTIONS = [
   { icon: "📋", text: "Summarize the key policies in all documents" },
@@ -132,6 +133,7 @@ export default function ChatPanel({
           {currentUser && (
             <UserPicker user={currentUser} users={users} onChange={onUserChange} />
           )}
+          <ThemeToggle />
         </div>
       </div>
 
