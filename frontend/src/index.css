@@ -92,6 +92,46 @@ body {
 .text-vanish     { color: var(--text-vanish); }
 .spotlight       { background: var(--spotlight); }
 
+/* ── Light-mode overrides for hardcoded white tints ───────────────── */
+/* Components were authored dark-first with text-white/XX, bg-white/XX,
+   etc. In light mode those become white-on-white. Remap them to dark
+   tints with matching opacity so we don't have to touch 74 callsites. */
+html.light .text-white       { color: rgba(15,23,42,0.92); }
+html.light .text-white\/90   { color: rgba(15,23,42,0.88); }
+html.light .text-white\/85   { color: rgba(15,23,42,0.85); }
+html.light .text-white\/80   { color: rgba(15,23,42,0.80); }
+html.light .text-white\/70   { color: rgba(15,23,42,0.72); }
+html.light .text-white\/65   { color: rgba(15,23,42,0.68); }
+html.light .text-white\/60   { color: rgba(15,23,42,0.62); }
+html.light .text-white\/55   { color: rgba(15,23,42,0.58); }
+html.light .text-white\/50   { color: rgba(15,23,42,0.55); }
+html.light .text-white\/45   { color: rgba(15,23,42,0.50); }
+html.light .text-white\/40   { color: rgba(15,23,42,0.45); }
+html.light .text-white\/35   { color: rgba(15,23,42,0.42); }
+html.light .text-white\/30   { color: rgba(15,23,42,0.38); }
+html.light .text-white\/25   { color: rgba(15,23,42,0.34); }
+html.light .text-white\/20   { color: rgba(15,23,42,0.30); }
+html.light .text-white\/15   { color: rgba(15,23,42,0.25); }
+
+html.light .hover\:text-white:hover     { color: rgba(15,23,42,0.92); }
+html.light .hover\:text-white\/90:hover { color: rgba(15,23,42,0.88); }
+html.light .hover\:text-white\/80:hover { color: rgba(15,23,42,0.82); }
+html.light .hover\:text-white\/70:hover { color: rgba(15,23,42,0.72); }
+html.light .hover\:text-white\/60:hover { color: rgba(15,23,42,0.62); }
+html.light .hover\:text-white\/50:hover { color: rgba(15,23,42,0.55); }
+
+html.light .bg-white\/5      { background-color: rgba(15,23,42,0.04); }
+html.light .bg-white\/10     { background-color: rgba(15,23,42,0.06); }
+html.light .bg-white\/20     { background-color: rgba(15,23,42,0.10); }
+html.light .bg-white\/50     { background-color: rgba(15,23,42,0.35); }
+html.light .hover\:bg-white\/5:hover  { background-color: rgba(15,23,42,0.04); }
+html.light .hover\:bg-white\/10:hover { background-color: rgba(15,23,42,0.08); }
+
+html.light .border-white\/5  { border-color: rgba(15,23,42,0.06); }
+html.light .border-white\/10 { border-color: rgba(15,23,42,0.10); }
+html.light .border-white\/20 { border-color: rgba(15,23,42,0.16); }
+html.light .hover\:border-white\/20:hover { border-color: rgba(15,23,42,0.20); }
+
 /* ── Streaming caret ──────────────────────────────────────────────── */
 @keyframes caret-pulse {
   0%, 100% { opacity: 0.85; transform: scaleY(1); }
