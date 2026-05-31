@@ -147,7 +147,7 @@ export default function ChatPanel({
               </div>
               <div className="absolute inset-0 rounded-2xl bg-indigo-500/20 blur-2xl -z-10 scale-150" />
             </div>
-            <h1 className="text-2xl font-semibold text-white mb-2 tracking-tight">Office RAG</h1>
+            <h1 className="text-2xl font-semibold text-app mb-2 tracking-tight">Office RAG</h1>
             <p className="text-sm text-white/30 mb-10 max-w-sm leading-relaxed">
               {hasDocs
                 ? "Documents ready. Ask anything — I remember context across follow-up questions."

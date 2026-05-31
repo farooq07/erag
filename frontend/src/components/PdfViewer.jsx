@@ -89,7 +89,7 @@ export default function PdfViewer({ open, source, onClose }) {
       style={{ animation: "fade-in 180ms ease-out" }}
     >
       <div
-        className="relative w-full max-w-5xl h-[92vh] bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl shadow-black/80 flex flex-col overflow-hidden"
+        className="relative w-full max-w-5xl h-[92vh] bg-panel border border-app-2 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
         style={{ animation: "scale-in 200ms cubic-bezier(0.16, 1, 0.3, 1)" }}
       >
@@ -138,7 +138,7 @@ export default function PdfViewer({ open, source, onClose }) {
         </div>
 
         {/* PDF area */}
-        <div className="flex-1 overflow-auto bg-neutral-900 custom-scroll flex justify-center p-6">
+        <div className="flex-1 overflow-auto bg-base custom-scroll flex justify-center p-6">
           {!isPdf ? (
             <NonPdfFallback source={source} />
           ) : loadError ? (
@@ -167,7 +167,7 @@ export default function PdfViewer({ open, source, onClose }) {
 
         {/* Footer: page nav */}
         {isPdf && numPages > 0 && (
-          <div className="flex items-center justify-center gap-3 px-5 py-3 border-t border-white/[0.06] bg-[#080808]">
+          <div className="flex items-center justify-center gap-3 px-5 py-3 border-t border-app-2 bg-rail">
             <IconBtn title="Previous page (←)" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
               <ChevronLeft size={15} />
             </IconBtn>
@@ -244,7 +244,7 @@ function ViewerLoading() {
 
 function NonPdfFallback({ source }) {
   return (
-    <div className="max-w-2xl w-full bg-[#0d0d0d] border border-white/[0.06] rounded-xl p-6 text-white/70 text-sm">
+    <div className="max-w-2xl w-full bg-panel-2 border border-app-2 rounded-xl p-6 text-app text-sm">
       <p className="text-xs text-white/40 uppercase tracking-widest mb-3">Chunk preview</p>
       <p className="whitespace-pre-wrap font-mono text-[12.5px] leading-relaxed text-white/65">
         {source.chunk || source.preview}

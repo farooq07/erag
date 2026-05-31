@@ -101,9 +101,8 @@ export default function Dropdown({
           tabIndex={-1}
           onKeyDown={onMenuKey}
           className={`absolute z-50 mt-1.5 min-w-full w-max max-w-[260px]
-            bg-[#0d0d0d]/95 backdrop-blur-xl border border-white/[0.08]
-            rounded-xl shadow-2xl shadow-black/60 overflow-hidden
-            ring-1 ring-white/[0.02]
+            bg-panel-2/95 backdrop-blur-xl border border-app-2
+            rounded-xl shadow-2xl overflow-hidden
             ${align === "right" ? "right-0" : "left-0"}
             ${menuClassName}`}
           style={{ animation: "dd-pop 140ms cubic-bezier(0.16, 1, 0.3, 1)" }}

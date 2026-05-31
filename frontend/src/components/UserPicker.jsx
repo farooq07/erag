@@ -54,7 +54,7 @@ export default function UserPicker({ user, users, onChange }) {
 
       {open && (
         <div
-          className="absolute right-0 top-full mt-1.5 w-80 bg-[#0d0d0d]/95 backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-2xl shadow-black/70 overflow-hidden z-50"
+          className="absolute right-0 top-full mt-1.5 w-80 bg-panel-2/95 backdrop-blur-xl border border-app-2 rounded-xl shadow-2xl overflow-hidden z-50"
           style={{ animation: "up-pop 160ms cubic-bezier(0.16, 1, 0.3, 1)" }}
         >
           <div className="px-3 py-2 border-b border-white/[0.06] flex items-center gap-1.5">

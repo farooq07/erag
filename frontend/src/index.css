@@ -95,8 +95,11 @@ body {
 /* ── Light-mode overrides for hardcoded white tints ───────────────── */
 /* Components were authored dark-first with text-white/XX, bg-white/XX,
    etc. In light mode those become white-on-white. Remap them to dark
-   tints with matching opacity so we don't have to touch 74 callsites. */
-html.light .text-white       { color: rgba(15,23,42,0.92); }
+   tints with matching opacity so we don't have to touch every callsite.
+   Note: pure `.text-white` (no /opacity) is intentionally NOT overridden
+   so it remains white on colored backgrounds (AI avatar gradient, send
+   button, indigo nav badges, brand box). Page-level uses of text-white
+   that need theme-awareness are switched to `text-app` in the JSX. */
 html.light .text-white\/90   { color: rgba(15,23,42,0.88); }
 html.light .text-white\/85   { color: rgba(15,23,42,0.85); }
 html.light .text-white\/80   { color: rgba(15,23,42,0.80); }
@@ -131,6 +134,15 @@ html.light .border-white\/5  { border-color: rgba(15,23,42,0.06); }
 html.light .border-white\/10 { border-color: rgba(15,23,42,0.10); }
 html.light .border-white\/20 { border-color: rgba(15,23,42,0.16); }
 html.light .hover\:border-white\/20:hover { border-color: rgba(15,23,42,0.20); }
+
+/* Lighter modal scrim in light mode (otherwise bg-black/80 looks oppressive) */
+html.light .bg-black\/80 { background-color: rgba(15,23,42,0.45); }
+html.light .bg-black\/70 { background-color: rgba(15,23,42,0.40); }
+html.light .bg-black\/40 { background-color: rgba(15,23,42,0.20); }
+html.light .shadow-black\/80,
+html.light .shadow-black\/70,
+html.light .shadow-black\/60,
+html.light .shadow-black\/40 { --tw-shadow-color: rgba(15,23,42,0.18); }
 
 /* ── Streaming caret ──────────────────────────────────────────────── */
 @keyframes caret-pulse {
