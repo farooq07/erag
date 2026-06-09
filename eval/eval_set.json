@@ -1,21 +1,72 @@
 {
   "_instructions": [
-    "Add one entry per question. 'expected_sources' must match filenames in data/uploads/.",
-    "Run:  python eval/eval_runner.py",
-    "Flag sweep: python eval/eval_runner.py --flag-combos",
-    "Single query test: python eval/eval_runner.py --question 'leave policy'"
+    "Replace the placeholder entries below with real Q&A pairs from your documents.",
+    "Each entry needs: 'question' (what a user would ask), 'expected_sources' (exact filenames",
+    "  from data/uploads/ that should appear in the top-k results), and 'department' (optional).",
+    "Aim for 30-50 entries covering a mix of departments and question types.",
+    "",
+    "Run retrieval eval:        python eval/eval_runner.py",
+    "Run with faithfulness:     python eval/eval_runner.py --faithfulness",
+    "Sweep all flag combos:     python eval/eval_runner.py --flag-combos",
+    "Flag sweep + faithfulness: python eval/eval_runner.py --flag-combos --faithfulness",
+    "Filter one question:       python eval/eval_runner.py --question 'leave policy'",
+    "Change top-k:              python eval/eval_runner.py --k 10",
+    "",
+    "Scoring guide:",
+    "  hit_rate    — 1.0 if any expected_source appears in retrieved top-k",
+    "  mrr         — mean reciprocal rank (1.0 = expected source is rank #1)",
+    "  faithfulness— LLM judge 0-1: are all answer claims grounded in context?",
+    "",
+    "Entries with '_example' anywhere in the object are automatically skipped."
   ],
   "questions": [
     {
-      "_example": "replace this block with real entries from your documents",
+      "_example": "HR — fact lookup",
       "question": "What is the annual leave entitlement for full-time employees?",
       "expected_sources": ["HR_Leave_Policy_2024.pdf"],
       "department": "HR"
     },
     {
+      "_example": "HR — procedure",
+      "question": "How do employees apply for parental leave?",
+      "expected_sources": ["HR_Leave_Policy_2024.pdf"],
+      "department": "HR"
+    },
+    {
+      "_example": "Accounts — number lookup",
       "question": "What are the payment terms for vendor invoices?",
       "expected_sources": ["Accounts_Payable_Guidelines.pdf"],
       "department": "Accounts"
+    },
+    {
+      "_example": "Accounts — policy",
+      "question": "What is the approval threshold for purchase orders over $10,000?",
+      "expected_sources": ["Accounts_Payable_Guidelines.pdf"],
+      "department": "Accounts"
+    },
+    {
+      "_example": "Finance — comparative",
+      "question": "How did Q3 revenue compare to Q2?",
+      "expected_sources": ["Q3_Financial_Report.pdf"],
+      "department": "Finance"
+    },
+    {
+      "_example": "IT — procedure",
+      "question": "What is the process for requesting a new software license?",
+      "expected_sources": ["IT_Asset_Management_Policy.pdf"],
+      "department": "IT"
+    },
+    {
+      "_example": "Legal — definition",
+      "question": "What are the confidentiality obligations under the NDA template?",
+      "expected_sources": ["Standard_NDA_Template.docx"],
+      "department": "Legal"
+    },
+    {
+      "_example": "cross-department — tests that the right doc wins across depts",
+      "question": "What is the company's data retention policy?",
+      "expected_sources": ["Data_Retention_Policy.pdf"],
+      "department": null
     }
   ]
 }
