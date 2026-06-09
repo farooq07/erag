@@ -8,6 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
 
 from auth import (
     allowed_departments,
@@ -44,6 +46,17 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+
+class _StripApiPrefix(BaseHTTPMiddleware):
+    """Rewrite /api/... → /... so the built frontend and the dev-proxy both work."""
+    async def dispatch(self, request: StarletteRequest, call_next):
+        if request.url.path.startswith("/api/"):
+            request.scope["path"] = request.url.path[4:]
+        return await call_next(request)
+
+
+app.add_middleware(_StripApiPrefix)
 
 app.mount("/files", StaticFiles(directory=str(UPLOADS_DIR)), name="files")
 
@@ -278,6 +291,21 @@ async def chat(req: ChatRequest, user: dict = Depends(get_current_user)):
     return StreamingResponse(stream(), media_type="text/event-stream")
 
 
+# ── SPA static serving (must be LAST — catch-all would shadow API routes) ──
+_DIST = Path(__file__).parent / "frontend" / "dist"
+if _DIST.exists():
+    from fastapi.responses import FileResponse
+    app.mount("/assets", StaticFiles(directory=str(_DIST / "assets")), name="assets")
+
+    @app.get("/favicon.svg", include_in_schema=False)
+    async def favicon():
+        return FileResponse(str(_DIST / "favicon.svg"))
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str):
+        return FileResponse(str(_DIST / "index.html"))
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000, reload=False)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)
