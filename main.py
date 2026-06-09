@@ -219,7 +219,7 @@ async def chat(req: ChatRequest, user: dict = Depends(get_current_user)):
 
     async def stream():
         # 1. Emit sources first.
-        docs = retrieve(req.question, department=req.department, allowed_departments=allowed)
+        docs = retrieve(req.question, department=req.department, allowed_departments=allowed, history=req.history)
         sources = [
             {
                 "source": d.metadata.get("source", "?"),

@@ -1,7 +1,7 @@
 """
 RAG pipeline with:
 - Multi-turn memory (conversation history)
-- Query rewriting (LLM-based expansion / decomposition)
+- Query rewriting (LLM-based expansion / decomposition, history-aware)
 - HyDE (Hypothetical Document Embeddings) for vector search
 - Hybrid search (BM25 + vector, fused via RRF)
 - Cross-encoder reranking (ms-marco-MiniLM-L-6-v2)
@@ -78,32 +78,59 @@ def _cache_set(cache: dict, key: str, val: str) -> None:
     cache[key] = val
 
 
-def _rewrite_query(question: str, model: str | None = None) -> str:
-    """Expand acronyms, fix typos, normalise the question for retrieval.
+def _rewrite_query(
+    question: str,
+    history: list[dict] | None = None,
+    model: str | None = None,
+) -> str:
+    """Expand acronyms, resolve follow-up references, normalise for retrieval.
 
-    Keeps it short — we are NOT decomposing into multiple queries here, since
-    the downstream BM25/vector retrieval handles compound questions well once
-    the keywords are clean.
+    When history is provided, the rewriter resolves pronouns and implicit
+    references ("what about Q3?") into self-contained keyword-rich queries
+    before BM25/vector search fires on them.
     """
     if not QUERY_REWRITE_ENABLED or not question.strip():
         return question
-    if question in _REWRITE_CACHE:
-        return _REWRITE_CACHE[question]
+
+    history_tail = ""
+    if history:
+        recent = history[-(4 * 2):]
+        history_tail = " | ".join(
+            f"{m['role'][:1].upper()}:{m['content'][:150]}" for m in recent
+        )
+
+    cache_key = f"{question}||{history_tail}"
+    if cache_key in _REWRITE_CACHE:
+        return _REWRITE_CACHE[cache_key]
+
     try:
         llm = _get_llm(model, streaming=False)
+        if history_tail:
+            system_msg = (
+                "You rewrite follow-up questions into standalone retrieval queries "
+                "for a document search system. Given the conversation history, "
+                "resolve all pronouns, references, and implicit context in the latest "
+                "question. Make it fully self-contained and keyword-rich (under 40 words). "
+                "Output ONLY the rewritten question — no preface, no quotes."
+            )
+            user_msg = f"History:\n{history_tail}\n\nLatest question: {question}"
+        else:
+            system_msg = (
+                "You rewrite user questions for a document-retrieval system. "
+                "Expand acronyms, fix typos, and make the question explicit and "
+                "keyword-rich. Keep it under 30 words. Output ONLY the rewritten "
+                "question — no preface, no quotes, no explanation."
+            )
+            user_msg = question
+
         prompt = ChatPromptTemplate.from_messages([
-            ("system",
-             "You rewrite user questions for a document-retrieval system. "
-             "Expand acronyms, fix typos, and make the question explicit and "
-             "keyword-rich. Keep it under 30 words. Output ONLY the rewritten "
-             "question — no preface, no quotes, no explanation."),
+            ("system", system_msg),
             ("user", "{q}"),
         ])
-        out = (prompt | llm).invoke({"q": question}).content.strip()
-        # Defensive: if model returned something weird/empty, fall back.
+        out = (prompt | llm).invoke({"q": user_msg}).content.strip()
         if not out or len(out) > 500:
             out = question
-        _cache_set(_REWRITE_CACHE, question, out)
+        _cache_set(_REWRITE_CACHE, cache_key, out)
         return out
     except Exception:
         return question
@@ -177,6 +204,49 @@ def _score_pairs(question: str, docs: list[Document]) -> list[float]:
         return [0.5] * len(docs)
 
 
+# ── BM25 corpus cache ────────────────────────────────────────────────────
+# Built once from the full Chroma collection; invalidated by ingest/delete.
+# Avoids O(corpus) tokenization + Chroma I/O on every /chat request.
+
+_BM25_CACHE: dict | None = None  # {"corpus": list[str], "metas": list[dict], "bm25": BM25Okapi}
+
+
+def invalidate_bm25_cache() -> None:
+    """Drop the cached BM25 index. Called by ingest after corpus mutations."""
+    global _BM25_CACHE
+    _BM25_CACHE = None
+
+
+def _get_bm25_cache() -> dict:
+    global _BM25_CACHE
+    if _BM25_CACHE is not None:
+        return _BM25_CACHE
+    vs = get_vectorstore()
+    col = vs._collection.get(include=["documents", "metadatas"])
+    corpus: list[str] = col.get("documents") or []
+    metas: list[dict] = col.get("metadatas") or []
+    bm25 = None
+    if corpus:
+        from rank_bm25 import BM25Okapi
+        bm25 = BM25Okapi([d.lower().split() for d in corpus])
+    _BM25_CACHE = {"corpus": corpus, "metas": metas, "bm25": bm25}
+    return _BM25_CACHE
+
+
+def _meta_matches_filter(meta: dict, dept_filter: dict | None) -> bool:
+    if dept_filter is None:
+        return True
+    val = dept_filter.get("department")
+    if val is None:
+        return True
+    doc_dept = meta.get("department", "")
+    if isinstance(val, str):
+        return doc_dept == val
+    if isinstance(val, dict):
+        return doc_dept in val.get("$in", [])
+    return False
+
+
 # ── Hybrid search (BM25 + Vector → RRF) ─────────────────────────────────
 
 def _rrf_score(rank: int, k: int = 60) -> float:
@@ -235,26 +305,25 @@ def hybrid_retrieve(
     else:
         vector_docs = vs.similarity_search(question, k=k * 4, filter=dept_filter)
 
-    # BM25 keyword search over the (optionally scoped) collection
+    # BM25 keyword search — uses the cached full-corpus index.
+    # Department filtering is applied post-scoring so the index is shared
+    # across all user scopes and only built once per ingest cycle.
     try:
-        from rank_bm25 import BM25Okapi
-        get_kwargs = {"include": ["documents", "metadatas"]}
-        if dept_filter:
-            get_kwargs["where"] = dept_filter
-        col = vs._collection.get(**get_kwargs)
-        corpus = col["documents"]
-        metas = col["metadatas"]
-
-        if corpus:
-            tokenized = [d.lower().split() for d in corpus]
-            bm25 = BM25Okapi(tokenized)
-            scores = bm25.get_scores(question.lower().split())
-            top_idx = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[: k * 4]
-            bm25_docs = [
-                Document(page_content=corpus[i], metadata=metas[i])
-                for i in top_idx
-                if scores[i] > 0
-            ]
+        cache = _get_bm25_cache()
+        if cache["bm25"] is not None:
+            scores = cache["bm25"].get_scores(question.lower().split())
+            top_idx = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
+            bm25_docs = []
+            for i in top_idx:
+                if len(bm25_docs) >= k * 4:
+                    break
+                if scores[i] <= 0:
+                    break
+                if not _meta_matches_filter(cache["metas"][i], dept_filter):
+                    continue
+                bm25_docs.append(
+                    Document(page_content=cache["corpus"][i], metadata=cache["metas"][i])
+                )
         else:
             bm25_docs = []
     except Exception:
@@ -287,10 +356,11 @@ def _retrieve_pipeline(
     k: int = TOP_K,
     department: str | None = None,
     allowed_departments: list[str] | None = None,
+    history: list[dict] | None = None,
 ) -> tuple[list[Document], bool]:
     """Full retrieval pipeline. Returns (docs, low_confidence)."""
-    # [QUERY REWRITE] runs first so all downstream steps see the cleaned query.
-    effective_q = _rewrite_query(question) if QUERY_REWRITE_ENABLED else question
+    # [QUERY REWRITE] resolves follow-up references using history, then cleans.
+    effective_q = _rewrite_query(question, history=history) if QUERY_REWRITE_ENABLED else question
 
     docs = hybrid_retrieve(
         effective_q, k=k,
@@ -355,10 +425,12 @@ def retrieve(
     k: int = TOP_K,
     department: str | None = None,
     allowed_departments: list[str] | None = None,
+    history: list[dict] | None = None,
 ) -> list[Document]:
     docs, _ = _retrieve_pipeline(
         question, k=k,
         department=department, allowed_departments=allowed_departments,
+        history=history,
     )
     return docs
 
@@ -373,6 +445,7 @@ def answer_stream(
     docs, low_confidence = _retrieve_pipeline(
         question,
         department=department, allowed_departments=allowed_departments,
+        history=history,
     )
     if not docs:
         scope = f" for the **{department}** department" if department and department.lower() != "all" else ""

@@ -1,0 +1,21 @@
+{
+  "_instructions": [
+    "Add one entry per question. 'expected_sources' must match filenames in data/uploads/.",
+    "Run:  python eval/eval_runner.py",
+    "Flag sweep: python eval/eval_runner.py --flag-combos",
+    "Single query test: python eval/eval_runner.py --question 'leave policy'"
+  ],
+  "questions": [
+    {
+      "_example": "replace this block with real entries from your documents",
+      "question": "What is the annual leave entitlement for full-time employees?",
+      "expected_sources": ["HR_Leave_Policy_2024.pdf"],
+      "department": "HR"
+    },
+    {
+      "question": "What are the payment terms for vendor invoices?",
+      "expected_sources": ["Accounts_Payable_Guidelines.pdf"],
+      "department": "Accounts"
+    }
+  ]
+}

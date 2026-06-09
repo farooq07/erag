@@ -218,6 +218,12 @@ def ingest_paths(
             stats["failed"].append(f"{p.name} ({e})")
 
     _save_index(index)
+    if stats["added"]:
+        try:
+            from rag import invalidate_bm25_cache
+            invalidate_bm25_cache()
+        except ImportError:
+            pass
     if progress:
         progress(len(paths), len(paths), "done")
     return stats
@@ -269,6 +275,11 @@ def update_document_meta(name: str, department: str | None = None, tags: list[st
     entry["department"] = new_dept
     entry["tags"] = new_tags
     _save_index(index)
+    try:
+        from rag import invalidate_bm25_cache
+        invalidate_bm25_cache()
+    except ImportError:
+        pass
 
 
 def remove_document(name: str) -> None:
@@ -280,6 +291,11 @@ def remove_document(name: str) -> None:
     f = UPLOADS_DIR / name
     if f.exists():
         f.unlink()
+    try:
+        from rag import invalidate_bm25_cache
+        invalidate_bm25_cache()
+    except ImportError:
+        pass
 
 
 def clear_all() -> None:
@@ -290,6 +306,11 @@ def clear_all() -> None:
     for f in UPLOADS_DIR.iterdir():
         if f.is_file():
             f.unlink()
+    try:
+        from rag import invalidate_bm25_cache
+        invalidate_bm25_cache()
+    except ImportError:
+        pass
 
 
 if __name__ == "__main__":

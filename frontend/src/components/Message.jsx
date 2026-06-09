@@ -9,7 +9,7 @@ export default function Message({ msg, onOpenSource }) {
   if (isUser) {
     return (
       <div className="flex justify-end mb-5 user-pop">
-        <div className="max-w-[78%] bg-indigo-600/20 border border-indigo-500/20 text-white/85 rounded-2xl rounded-tr-sm px-4 py-3 text-sm leading-relaxed shadow-lg shadow-indigo-900/20">
+        <div className="max-w-[78%] bg-indigo-500/15 dark:bg-indigo-600/20 border border-indigo-500/30 dark:border-indigo-500/20 text-indigo-950 dark:text-white/85 rounded-2xl rounded-tr-sm px-4 py-3 text-sm leading-relaxed shadow-lg shadow-indigo-900/10 dark:shadow-indigo-900/20">
           {msg.content}
         </div>
       </div>
@@ -78,7 +78,7 @@ function SourceCard({ source: s, index, onOpenSource }) {
         className="flex items-center gap-2 px-3 py-2.5 cursor-pointer"
         onClick={() => setExpanded((e) => !e)}
       >
-        <span className="w-5 h-5 rounded-md bg-indigo-600/20 text-indigo-400 text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+        <span className="w-5 h-5 rounded-md bg-indigo-500/15 dark:bg-indigo-600/20 text-indigo-800 dark:text-indigo-400 text-[10px] font-bold flex items-center justify-center flex-shrink-0">
           {index + 1}
         </span>
         <FileText size={11} className="text-indigo-400/70 flex-shrink-0" />
@@ -95,7 +95,7 @@ function SourceCard({ source: s, index, onOpenSource }) {
 
         {/* Page badge */}
         {s.page !== "?" && (
-          <span className="text-[10px] text-indigo-300/60 bg-indigo-900/30 border border-indigo-500/20 px-2 py-0.5 rounded-full flex-shrink-0">
+          <span className="text-[10px] text-indigo-800 dark:text-indigo-300/60 bg-indigo-500/15 dark:bg-indigo-900/30 border border-indigo-500/30 dark:border-indigo-500/20 px-2 py-0.5 rounded-full flex-shrink-0">
             p.{s.page}
           </span>
         )}
@@ -112,7 +112,7 @@ function SourceCard({ source: s, index, onOpenSource }) {
           <button
             onClick={(e) => { e.stopPropagation(); onOpenSource(s); }}
             title="Open page with highlight"
-            className="flex items-center gap-1 text-[10px] text-indigo-300 bg-indigo-600/15 hover:bg-indigo-600/30 border border-indigo-500/30 px-1.5 py-0.5 rounded-md transition-all opacity-70 group-hover:opacity-100"
+            className="flex items-center gap-1 text-[10px] text-indigo-800 dark:text-indigo-300 bg-indigo-500/15 dark:bg-indigo-600/15 hover:bg-indigo-500/30 dark:hover:bg-indigo-600/30 border border-indigo-500/40 dark:border-indigo-500/30 px-1.5 py-0.5 rounded-md transition-all opacity-80 dark:opacity-70 group-hover:opacity-100"
           >
             <BookOpen size={10} /> View
           </button>

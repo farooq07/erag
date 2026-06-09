@@ -125,8 +125,13 @@ export default function Sidebar({
 
       {/* Icon rail */}
       <div className="w-14 h-full bg-rail border-r border-app flex flex-col items-center py-4 gap-1 z-10">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-400 flex items-center justify-center mb-4 shadow-glow">
-          <MessageSquare size={15} className="text-white" />
+        <div
+          title="Office RAG"
+          className="relative w-9 h-9 rounded-xl bg-panel-2 border border-app-2 flex items-center justify-center mb-4 overflow-hidden"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/35 via-transparent to-ember-500/30" />
+          <MessageSquare size={15} className="relative text-indigo-700 dark:text-indigo-200" strokeWidth={1.75} />
+          <span className="absolute -bottom-px -right-px w-2 h-2 rounded-full bg-ember-500 shadow-ember" />
         </div>
 
         <NavIcon icon={<MessageSquare size={16} />} label="Chat" active={!expanded} onClick={() => { setActivePanel(null); setExpanded(false); }} />
@@ -136,8 +141,8 @@ export default function Sidebar({
         <div className="flex-1" />
         {canUpload && (
           <button onClick={open} title="Upload document"
-            className="w-8 h-8 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 flex items-center justify-center text-indigo-400 hover:text-indigo-300 transition-all mb-1">
-            <Plus size={15} />
+            className="w-9 h-9 rounded-xl bg-indigo-600/15 dark:bg-indigo-600/25 hover:bg-indigo-600/35 dark:hover:bg-indigo-600/45 border border-indigo-500/40 flex items-center justify-center text-indigo-700 dark:text-indigo-200 hover:text-indigo-900 dark:hover:text-white transition-all mb-1 shadow-glow">
+            <Plus size={16} strokeWidth={2} />
           </button>
         )}
         {canClear && (
@@ -149,10 +154,17 @@ export default function Sidebar({
       {expanded && (
         <div className="w-80 h-full bg-panel border-r border-app flex flex-col">
           <div className="px-4 py-4 border-b border-app flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-app uppercase tracking-widest">
-              {activePanel === "files" ? `Documents (${documents.length})` : "Settings"}
-            </span>
-            <button onClick={() => { setExpanded(false); setActivePanel(null); }} className="text-ghost hover:text-muted-app">
+            <div className="flex items-center gap-2.5">
+              <span className="h-px w-5 bg-ember-500/70" />
+              <span className="text-[10.5px] font-semibold text-app uppercase tracking-[0.22em]">
+                {activePanel === "files" ? `Documents · ${documents.length}` : "Settings"}
+              </span>
+            </div>
+            <button
+              onClick={() => { setExpanded(false); setActivePanel(null); }}
+              title="Close panel"
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-app hover:text-app hover:bg-surface-2 transition-all"
+            >
               <ChevronRight size={14} />
             </button>
           </div>
@@ -164,7 +176,7 @@ export default function Sidebar({
               {/* Upload form (dept + tags + drop) */}
               {canUpload ? (
                 <div className="rounded-xl border border-app bg-surface p-3 space-y-2">
-                  <label className="text-[10px] text-faded uppercase tracking-widest flex items-center gap-1.5">
+                  <label className="text-[10px] text-muted-app uppercase tracking-[0.2em] font-medium flex items-center gap-1.5">
                     <Building2 size={10} /> Department
                   </label>
                   <Dropdown
@@ -174,8 +186,8 @@ export default function Sidebar({
                     options={writableDepartments.map((d) => ({ value: d, label: d, dotClass: DEPT_DOT[d] }))}
                   />
 
-                  <label className="text-[10px] text-faded uppercase tracking-widest flex items-center gap-1.5 pt-1">
-                    <Tag size={10} /> Tags <span className="text-ghost normal-case tracking-normal">(comma separated, optional)</span>
+                  <label className="text-[10px] text-muted-app uppercase tracking-[0.2em] font-medium flex items-center gap-1.5 pt-1">
+                    <Tag size={10} /> Tags <span className="text-faded normal-case tracking-normal font-normal">(comma separated, optional)</span>
                   </label>
                   <input
                     value={uploadTags}
@@ -186,13 +198,13 @@ export default function Sidebar({
 
                   <div onClick={open}
                     className={`mt-2 border border-dashed rounded-lg p-3 text-center cursor-pointer transition-all
-                      ${isDragActive ? "border-indigo-500 bg-indigo-500/10" : "border-app-2 hover:border-strong hover:bg-surface"}`}>
-                    <Plus size={14} className="mx-auto mb-1 text-ghost" />
-                    <p className="text-[10.5px] text-faded">
-                      {uploading ? "Ingesting…" : isDragActive ? "Drop files here" : `Drop into ${uploadDept} or click`}
+                      ${isDragActive ? "border-indigo-500 bg-indigo-500/10" : "border-app-2 hover:border-strong hover:bg-surface-2"}`}>
+                    <Plus size={14} className="mx-auto mb-1 text-muted-app" />
+                    <p className="text-[11px] text-muted-app">
+                      {uploading ? "Ingesting…" : isDragActive ? "Drop files here" : <>Drop into <span className="text-app font-medium">{uploadDept}</span> or click</>}
                     </p>
                     {uploading && <Loader2 size={11} className="mx-auto mt-1 text-indigo-400 animate-spin" />}
-                    {uploadMsg && <p className="text-[10.5px] text-indigo-400 mt-1.5 leading-relaxed">{uploadMsg}</p>}
+                    {uploadMsg && <p className="text-[10.5px] text-ember-500 mt-1.5 leading-relaxed">{uploadMsg}</p>}
                   </div>
                 </div>
               ) : (
@@ -217,7 +229,7 @@ export default function Sidebar({
                     <button key={d} onClick={() => setFilterDept(d)}
                       className={`text-[10px] px-2 py-0.5 rounded-full border transition-all
                         ${filterDept === d
-                          ? d === "All" ? "bg-indigo-600/30 text-indigo-200 border-indigo-500/40"
+                          ? d === "All" ? "bg-indigo-500/20 dark:bg-indigo-600/30 text-indigo-800 dark:text-indigo-200 border-indigo-500/40"
                             : deptClass(d)
                           : "bg-surface text-faded border-app hover:text-muted-app"}`}
                     >
@@ -269,7 +281,7 @@ export default function Sidebar({
           {activePanel === "settings" && (
             <div className="p-4 space-y-5 overflow-y-auto">
               <div>
-                <label className="text-[10px] text-faded uppercase tracking-widest block mb-1.5">LLM Model</label>
+                <label className="text-[10px] text-muted-app uppercase tracking-[0.2em] font-medium block mb-1.5">LLM Model</label>
                 <input
                   value={model}
                   onChange={(e) => onModelChange(e.target.value)}
@@ -279,7 +291,7 @@ export default function Sidebar({
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] text-faded uppercase tracking-widest block">Departments</label>
+                <label className="text-[10px] text-muted-app uppercase tracking-[0.2em] font-medium block">Departments</label>
                 <div className="flex flex-wrap gap-1">
                   {departments.map((d) => (
                     <span key={d} className={`text-[10px] px-2 py-0.5 rounded-full border ${deptClass(d)}`}>{d}</span>
@@ -289,7 +301,7 @@ export default function Sidebar({
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] text-faded uppercase tracking-widest block">Pipeline</label>
+                <label className="text-[10px] text-muted-app uppercase tracking-[0.2em] font-medium block">Pipeline</label>
                 <Row label="LLM" value="Groq API" accent />
                 <Row label="Embeddings" value="nomic-embed-text (local)" />
                 <Row label="Search" value="BM25 + Vector (RRF)" />
@@ -298,8 +310,8 @@ export default function Sidebar({
               </div>
 
               <div className="pt-3 border-t border-app">
-                <label className="text-[10px] text-faded uppercase tracking-widest block mb-1.5">Privacy</label>
-                <p className="text-[11px] text-ghost leading-relaxed">
+                <label className="text-[10px] text-muted-app uppercase tracking-[0.2em] font-medium block mb-1.5">Privacy</label>
+                <p className="text-[11.5px] text-muted-app leading-relaxed">
                   Documents stay on your machine. Only matched text chunks (~500 words) are sent to Groq per query.
                 </p>
               </div>
@@ -320,18 +332,18 @@ function DocCard({
 
   return (
     <div className="rounded-xl border border-app overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 hover:bg-surface group">
-        <FileText size={11} className="text-indigo-400/60 flex-shrink-0" />
+      <div className="flex items-center gap-2 px-3 py-2 hover:bg-surface-2 group">
+        <FileText size={12} className="text-indigo-300 flex-shrink-0" />
         <div className="flex-1 min-w-0">
-          <div className="text-[11px] text-muted-app truncate" title={doc.name}>{doc.name}</div>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            {doc.chunks > 0 && <span className="text-[9.5px] text-ghost">{doc.chunks} chunks</span>}
-            {doc.size > 0 && <span className="text-[9.5px] text-ghost">· {formatSize(doc.size)}</span>}
+          <div className="text-[11.5px] text-app truncate font-medium" title={doc.name}>{doc.name}</div>
+          <div className="flex items-center gap-1.5 mt-0.5 tabular-nums">
+            {doc.chunks > 0 && <span className="text-[9.5px] text-muted-app">{doc.chunks} chunks</span>}
+            {doc.size > 0 && <span className="text-[9.5px] text-muted-app">· {formatSize(doc.size)}</span>}
           </div>
           {doc.tags?.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1">
               {doc.tags.map((t) => (
-                <span key={t} className="text-[9px] px-1.5 py-0 rounded bg-surface text-faded border border-app">
+                <span key={t} className="text-[9px] px-1.5 py-0 rounded bg-surface-2 text-muted-app border border-app-2">
                   {t}
                 </span>
               ))}
@@ -341,18 +353,18 @@ function DocCard({
 
         {canEdit && (
           <button onClick={onEdit} title="Edit department / tags"
-            className="opacity-0 group-hover:opacity-100 text-ghost hover:text-indigo-400 transition-all">
-            <Pencil size={10} />
+            className="opacity-0 group-hover:opacity-100 text-muted-app hover:text-indigo-300 transition-all">
+            <Pencil size={11} />
           </button>
         )}
         <button onClick={onToggleSummary} title="View summary"
-          className="opacity-0 group-hover:opacity-100 text-ghost hover:text-indigo-400 transition-all">
-          <Sparkles size={11} />
+          className="opacity-0 group-hover:opacity-100 text-muted-app hover:text-ember-500 transition-all">
+          <Sparkles size={12} />
         </button>
         {canEdit && (
           <button onClick={onDelete} title="Delete"
-            className="opacity-0 group-hover:opacity-100 text-ghost hover:text-red-400 transition-all">
-            <X size={11} />
+            className="opacity-0 group-hover:opacity-100 text-muted-app hover:text-red-400 transition-all">
+            <X size={12} />
           </button>
         )}
       </div>
@@ -409,12 +421,14 @@ function NavIcon({ icon, label, active, onClick, badge, danger }) {
   return (
     <button onClick={onClick} title={label}
       className={`relative w-9 h-9 rounded-xl flex items-center justify-center transition-all
-        ${danger ? "text-ghost hover:text-red-500 hover:bg-red-500/10"
-          : active ? "bg-indigo-600/20 text-indigo-400" : "text-ghost hover:text-muted-app hover:bg-surface"}`}
+        ${danger ? "text-muted-app hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10"
+          : active
+            ? "bg-indigo-600/15 dark:bg-indigo-600/25 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-500/40 dark:ring-indigo-500/30"
+            : "text-muted-app hover:text-app hover:bg-surface-2"}`}
     >
       {icon}
       {badge > 0 && (
-        <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-indigo-600 text-white text-[9px] flex items-center justify-center font-bold">
+        <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-ember-500 text-white text-[9px] flex items-center justify-center font-semibold tabular-nums shadow-ember">
           {badge > 9 ? "9+" : badge}
         </span>
       )}
@@ -425,8 +439,8 @@ function NavIcon({ icon, label, active, onClick, badge, danger }) {
 function Row({ label, value, accent }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[11px] text-ghost">{label}</span>
-      <span className={`text-[11px] ${accent ? "text-indigo-400" : "text-faded"}`}>{value}</span>
+      <span className="text-[11px] text-muted-app">{label}</span>
+      <span className={`text-[11px] font-medium ${accent ? "text-indigo-300" : "text-app"}`}>{value}</span>
     </div>
   );
 }

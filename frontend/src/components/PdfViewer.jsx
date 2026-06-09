@@ -13,7 +13,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
-const API = "http://localhost:8000";
+const API = "/api";
 
 /**
  * Pick a distinctive ~8-word phrase from the chunk to highlight.

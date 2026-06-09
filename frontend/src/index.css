@@ -6,68 +6,73 @@
 
 /* ── Theme tokens ─────────────────────────────────────────────────── */
 :root {
-  /* Dark is default */
-  --bg-base:        #000;
-  --bg-rail:        #080808;
-  --bg-panel:       #0a0a0a;
-  --bg-panel-2:     #0d0d0d;
-  --bg-surface:     rgba(255,255,255,0.04);
-  --bg-surface-2:   rgba(255,255,255,0.06);
-  --bg-surface-3:   rgba(255,255,255,0.10);
-  --border:         rgba(255,255,255,0.06);
-  --border-2:       rgba(255,255,255,0.08);
-  --border-strong:  rgba(255,255,255,0.15);
-  --text:           rgba(255,255,255,0.85);
-  --text-muted:     rgba(255,255,255,0.55);
-  --text-faded:     rgba(255,255,255,0.35);
-  --text-ghost:     rgba(255,255,255,0.20);
-  --text-vanish:    rgba(255,255,255,0.12);
+  /* Dark is default — warm off-black, not pure #000. */
+  --bg-base:        #0c0b0a;
+  --bg-rail:        #131210;
+  --bg-panel:       #181715;
+  --bg-panel-2:     #211f1c;
+  --bg-surface:     rgba(255,250,240,0.04);
+  --bg-surface-2:   rgba(255,250,240,0.07);
+  --bg-surface-3:   rgba(255,250,240,0.11);
+  --border:         rgba(255,250,240,0.07);
+  --border-2:       rgba(255,250,240,0.10);
+  --border-strong:  rgba(255,250,240,0.18);
+  --text:           rgba(247,243,235,0.92);
+  --text-muted:     rgba(247,243,235,0.62);
+  --text-faded:     rgba(247,243,235,0.42);
+  --text-ghost:     rgba(247,243,235,0.26);
+  --text-vanish:    rgba(247,243,235,0.16);
   --user-bubble-bg: rgba(99,102,241,0.20);
   --user-bubble-bd: rgba(99,102,241,0.30);
-  --spotlight: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99,102,241,0.15) 0%, transparent 70%);
-  --scrollbar:      #2a2a2a;
-  --shadow-card:    0 1px 3px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.04);
+  --grid-line:      rgba(255,250,240,0.035);
+  --spotlight: radial-gradient(ellipse 70% 45% at 50% -10%, rgba(99,102,241,0.18) 0%, transparent 65%),
+               radial-gradient(ellipse 50% 35% at 85% 110%, rgba(215,116,55,0.12) 0%, transparent 60%);
+  --scrollbar:      #2a2825;
+  --shadow-card:    0 1px 3px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,250,240,0.04);
   --shadow-modal:   0 25px 50px -12px rgba(0,0,0,0.9);
+  --display-color:  #f7f3eb;
   color-scheme: dark;
 }
 
 html.light {
-  /* Slightly differentiated panel/rail so the sidebar is visually distinct
-     from the chat surface — pure white on white reads as a single blob. */
-  --bg-base:        #ffffff;
-  --bg-rail:        #f4f4f6;
-  --bg-panel:       #fafafb;
-  --bg-panel-2:     #ffffff;
-  /* Hover/active surfaces tuned for visibility on white. */
-  --bg-surface:     rgba(15,23,42,0.05);
-  --bg-surface-2:   rgba(15,23,42,0.08);
-  --bg-surface-3:   rgba(15,23,42,0.12);
-  /* Slightly stronger borders — 0.08 on white is invisible. */
-  --border:         rgba(15,23,42,0.10);
-  --border-2:       rgba(15,23,42,0.14);
-  --border-strong:  rgba(15,23,42,0.24);
-  /* Text ramp — boost lower tiers so faded text is still readable on white. */
-  --text:           rgba(15,23,42,0.92);
-  --text-muted:     rgba(15,23,42,0.66);
-  --text-faded:     rgba(15,23,42,0.52);
-  --text-ghost:     rgba(15,23,42,0.40);
-  --text-vanish:    rgba(15,23,42,0.28);
-  --user-bubble-bg: rgba(99,102,241,0.14);
-  --user-bubble-bd: rgba(99,102,241,0.35);
-  --spotlight: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99,102,241,0.10) 0%, transparent 70%);
-  --scrollbar:      #c7c7ce;
-  --shadow-card:    0 1px 2px rgba(15,23,42,0.06), 0 0 0 1px rgba(15,23,42,0.05);
-  --shadow-modal:   0 25px 50px -12px rgba(15,23,42,0.18);
+  /* Warm paper-white, not bleach #fff. */
+  --bg-base:        #f6f5f2;
+  --bg-rail:        #ecebe5;
+  --bg-panel:       #f0efe9;
+  --bg-panel-2:     #faf9f5;
+  --bg-surface:     rgba(38,37,33,0.05);
+  --bg-surface-2:   rgba(38,37,33,0.08);
+  --bg-surface-3:   rgba(38,37,33,0.12);
+  --border:         rgba(38,37,33,0.10);
+  --border-2:       rgba(38,37,33,0.14);
+  --border-strong:  rgba(38,37,33,0.26);
+  --text:           rgba(23,22,20,0.92);
+  --text-muted:     rgba(23,22,20,0.66);
+  --text-faded:     rgba(23,22,20,0.52);
+  --text-ghost:     rgba(23,22,20,0.40);
+  --text-vanish:    rgba(23,22,20,0.26);
+  --user-bubble-bg: rgba(79,70,229,0.12);
+  --user-bubble-bd: rgba(79,70,229,0.32);
+  --grid-line:      rgba(38,37,33,0.045);
+  --spotlight: radial-gradient(ellipse 70% 45% at 50% -10%, rgba(79,70,229,0.10) 0%, transparent 60%),
+               radial-gradient(ellipse 50% 35% at 85% 110%, rgba(215,116,55,0.08) 0%, transparent 60%);
+  --scrollbar:      #c7c4ba;
+  --shadow-card:    0 1px 2px rgba(23,22,20,0.06), 0 0 0 1px rgba(23,22,20,0.05);
+  --shadow-modal:   0 25px 50px -12px rgba(23,22,20,0.18);
+  --display-color:  #171614;
   color-scheme: light;
 }
 
 body {
-  font-family: ui-sans-serif, system-ui, -apple-system, 'Inter', sans-serif;
+  font-family: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-feature-settings: "ss01", "cv11";
   background: var(--bg-base);
   color: var(--text);
   height: 100vh;
   overflow: hidden;
   transition: background-color 200ms ease, color 200ms ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root { height: 100vh; display: flex; }
@@ -75,6 +80,17 @@ body {
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
+
+/* ── Display + mono helpers ──────────────────────────────────────── */
+.font-display {
+  font-family: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
+  /* Display optical size at full setting, condensed width, semibold weight —
+     gives headlines a tight, characterful presence without leaning generic. */
+  font-weight: 600;
+  font-variation-settings: "opsz" 96, "wdth" 92, "wght" 600;
+  letter-spacing: -0.035em;
+}
+.font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 
 /* ── Convenience utility classes mapped to vars ───────────────────── */
 .bg-base       { background-color: var(--bg-base); }
@@ -91,66 +107,86 @@ body {
 .border-strong { border-color: var(--border-strong); }
 .hover\:border-strong:hover { border-color: var(--border-strong); }
 .text-app        { color: var(--text); }
+.text-display    { color: var(--display-color); }
 .text-muted-app  { color: var(--text-muted); }
 .text-faded      { color: var(--text-faded); }
 .text-ghost      { color: var(--text-ghost); }
 .text-vanish     { color: var(--text-vanish); }
-.spotlight       { background: var(--spotlight); }
+
+/* Atmospheric layers — meant to be used together on the page root. */
+.spotlight       { background-image: var(--spotlight); }
+.grid-bg {
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 56px 56px;
+  background-position: -1px -1px;
+}
+.grid-fade-mask {
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 80%);
+          mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 80%);
+}
 
 /* ── Light-mode overrides for hardcoded white tints ───────────────── */
-/* Components were authored dark-first with text-white/XX, bg-white/XX,
-   etc. In light mode those become white-on-white. Remap them to dark
-   tints with matching opacity so we don't have to touch every callsite.
-   Note: pure `.text-white` (no /opacity) is intentionally NOT overridden
-   so it remains white on colored backgrounds (AI avatar gradient, send
-   button, indigo nav badges, brand box). Page-level uses of text-white
-   that need theme-awareness are switched to `text-app` in the JSX. */
-/* Opacity-bearing white tints — boosted so faded text still reads on white.
-   Values are higher than the dark-mode original because slate-900 at low
-   opacity reads much fainter on white than white-at-same-opacity on black. */
-html.light .text-white\/90   { color: rgba(15,23,42,0.90); }
-html.light .text-white\/85   { color: rgba(15,23,42,0.88); }
-html.light .text-white\/80   { color: rgba(15,23,42,0.82); }
-html.light .text-white\/70   { color: rgba(15,23,42,0.74); }
-html.light .text-white\/65   { color: rgba(15,23,42,0.70); }
-html.light .text-white\/60   { color: rgba(15,23,42,0.66); }
-html.light .text-white\/55   { color: rgba(15,23,42,0.62); }
-html.light .text-white\/50   { color: rgba(15,23,42,0.58); }
-html.light .text-white\/45   { color: rgba(15,23,42,0.54); }
-html.light .text-white\/40   { color: rgba(15,23,42,0.50); }
-html.light .text-white\/35   { color: rgba(15,23,42,0.46); }
-html.light .text-white\/30   { color: rgba(15,23,42,0.44); }
-html.light .text-white\/25   { color: rgba(15,23,42,0.40); }
-html.light .text-white\/20   { color: rgba(15,23,42,0.36); }
-html.light .text-white\/15   { color: rgba(15,23,42,0.32); }
+html.light .text-white\/90   { color: rgba(23,22,20,0.90); }
+html.light .text-white\/85   { color: rgba(23,22,20,0.88); }
+html.light .text-white\/80   { color: rgba(23,22,20,0.82); }
+html.light .text-white\/70   { color: rgba(23,22,20,0.74); }
+html.light .text-white\/65   { color: rgba(23,22,20,0.70); }
+html.light .text-white\/60   { color: rgba(23,22,20,0.66); }
+html.light .text-white\/55   { color: rgba(23,22,20,0.62); }
+html.light .text-white\/50   { color: rgba(23,22,20,0.58); }
+html.light .text-white\/45   { color: rgba(23,22,20,0.54); }
+html.light .text-white\/40   { color: rgba(23,22,20,0.50); }
+html.light .text-white\/35   { color: rgba(23,22,20,0.46); }
+html.light .text-white\/30   { color: rgba(23,22,20,0.44); }
+html.light .text-white\/25   { color: rgba(23,22,20,0.40); }
+html.light .text-white\/20   { color: rgba(23,22,20,0.36); }
+html.light .text-white\/15   { color: rgba(23,22,20,0.32); }
 
-html.light .hover\:text-white:hover     { color: rgba(15,23,42,0.92); }
-html.light .hover\:text-white\/90:hover { color: rgba(15,23,42,0.90); }
-html.light .hover\:text-white\/80:hover { color: rgba(15,23,42,0.84); }
-html.light .hover\:text-white\/70:hover { color: rgba(15,23,42,0.76); }
-html.light .hover\:text-white\/60:hover { color: rgba(15,23,42,0.68); }
-html.light .hover\:text-white\/50:hover { color: rgba(15,23,42,0.60); }
+html.light .hover\:text-white:hover     { color: rgba(23,22,20,0.92); }
+html.light .hover\:text-white\/90:hover { color: rgba(23,22,20,0.90); }
+html.light .hover\:text-white\/80:hover { color: rgba(23,22,20,0.84); }
+html.light .hover\:text-white\/70:hover { color: rgba(23,22,20,0.76); }
+html.light .hover\:text-white\/60:hover { color: rgba(23,22,20,0.68); }
+html.light .hover\:text-white\/50:hover { color: rgba(23,22,20,0.60); }
 
-html.light .bg-white\/5      { background-color: rgba(15,23,42,0.04); }
-html.light .bg-white\/10     { background-color: rgba(15,23,42,0.06); }
-html.light .bg-white\/20     { background-color: rgba(15,23,42,0.10); }
-html.light .bg-white\/50     { background-color: rgba(15,23,42,0.35); }
-html.light .hover\:bg-white\/5:hover  { background-color: rgba(15,23,42,0.04); }
-html.light .hover\:bg-white\/10:hover { background-color: rgba(15,23,42,0.08); }
+html.light .bg-white\/5      { background-color: rgba(23,22,20,0.04); }
+html.light .bg-white\/10     { background-color: rgba(23,22,20,0.06); }
+html.light .bg-white\/20     { background-color: rgba(23,22,20,0.10); }
+html.light .bg-white\/50     { background-color: rgba(23,22,20,0.35); }
+html.light .hover\:bg-white\/5:hover  { background-color: rgba(23,22,20,0.04); }
+html.light .hover\:bg-white\/10:hover { background-color: rgba(23,22,20,0.08); }
 
-html.light .border-white\/5  { border-color: rgba(15,23,42,0.06); }
-html.light .border-white\/10 { border-color: rgba(15,23,42,0.10); }
-html.light .border-white\/20 { border-color: rgba(15,23,42,0.16); }
-html.light .hover\:border-white\/20:hover { border-color: rgba(15,23,42,0.20); }
+html.light .border-white\/5  { border-color: rgba(23,22,20,0.06); }
+html.light .border-white\/10 { border-color: rgba(23,22,20,0.10); }
+html.light .border-white\/20 { border-color: rgba(23,22,20,0.16); }
+html.light .hover\:border-white\/20:hover { border-color: rgba(23,22,20,0.20); }
 
-/* Lighter modal scrim in light mode (otherwise bg-black/80 looks oppressive) */
-html.light .bg-black\/80 { background-color: rgba(15,23,42,0.45); }
-html.light .bg-black\/70 { background-color: rgba(15,23,42,0.40); }
-html.light .bg-black\/40 { background-color: rgba(15,23,42,0.20); }
+/* Light-mode: remap pale dark-mode indigo text to readable saturated indigo */
+html.light .text-indigo-200       { color: #3730a3; }   /* indigo-800 */
+html.light .text-indigo-300       { color: #4338ca; }   /* indigo-700 */
+html.light .text-indigo-300\/80   { color: rgba(67,56,202,0.92); }
+html.light .text-indigo-300\/60   { color: rgba(67,56,202,0.85); }
+html.light .text-indigo-400       { color: #4f46e5; }   /* indigo-600 */
+html.light .text-indigo-400\/70   { color: rgba(79,70,229,0.85); }
+html.light .hover\:text-indigo-200:hover { color: #312e81; }
+html.light .hover\:text-indigo-300:hover { color: #3730a3; }
+html.light .hover\:text-indigo-400:hover { color: #4338ca; }
+
+/* Light-mode: dark-mode indigo backgrounds need re-tinting on cream surfaces */
+html.light .bg-indigo-900\/30     { background-color: rgba(79,70,229,0.14); }
+html.light .bg-indigo-900\/20     { background-color: rgba(79,70,229,0.10); }
+html.light .bg-amber-900\/20      { background-color: rgba(180,83,9,0.12); }
+html.light .text-amber-400\/60    { color: rgba(146,64,14,0.85); }
+
+html.light .bg-black\/80 { background-color: rgba(23,22,20,0.45); }
+html.light .bg-black\/70 { background-color: rgba(23,22,20,0.40); }
+html.light .bg-black\/40 { background-color: rgba(23,22,20,0.20); }
 html.light .shadow-black\/80,
 html.light .shadow-black\/70,
 html.light .shadow-black\/60,
-html.light .shadow-black\/40 { --tw-shadow-color: rgba(15,23,42,0.18); }
+html.light .shadow-black\/40 { --tw-shadow-color: rgba(23,22,20,0.18); }
 
 /* ── Streaming caret ──────────────────────────────────────────────── */
 @keyframes caret-pulse {
@@ -183,7 +219,7 @@ html.light .shadow-black\/40 { --tw-shadow-color: rgba(15,23,42,0.18); }
 .thinking-dots span:nth-child(2) { animation-delay: 0.15s; }
 .thinking-dots span:nth-child(3) { animation-delay: 0.3s; }
 
-/* ── Message reveal ───────────────────────────────────────────────── */
+/* ── Message + entrance animations ────────────────────────────────── */
 @keyframes msg-in {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -200,6 +236,25 @@ html.light .shadow-black\/40 { --tw-shadow-color: rgba(15,23,42,0.18); }
 @keyframes src-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 .src-in { animation: src-in 260ms ease-out both; }
 
+/* Staggered reveal for the empty-state composition. */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); filter: blur(4px); }
+  to   { opacity: 1; transform: translateY(0);    filter: blur(0); }
+}
+.rise { animation: rise 700ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.rise-1 { animation-delay: 60ms; }
+.rise-2 { animation-delay: 160ms; }
+.rise-3 { animation-delay: 280ms; }
+.rise-4 { animation-delay: 420ms; }
+.rise-5 { animation-delay: 580ms; }
+
+/* Slow orbiting glow for the brand mark. */
+@keyframes drift {
+  0%   { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+.drift { animation: drift 22s linear infinite; }
+
 /* ── Prose (theme-aware) ──────────────────────────────────────────── */
 .prose { line-height: 1.75; color: var(--text); }
 .prose p { margin: 0.4em 0; }
@@ -211,11 +266,13 @@ html.light .shadow-black\/40 { --tw-shadow-color: rgba(15,23,42,0.18); }
   padding: 2px 6px; border-radius: 4px; font-size: 0.82em;
   color: #6366f1;
   border: 1px solid var(--border-2);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
 }
 .prose pre {
   background: var(--bg-surface);
   padding: 1em; border-radius: 10px; overflow-x: auto; margin: 0.8em 0;
   border: 1px solid var(--border-2);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
 }
 .prose h1, .prose h2, .prose h3 { color: var(--text); margin: 0.8em 0 0.3em; font-weight: 600; }
 .prose a { color: #6366f1; text-decoration: underline; }

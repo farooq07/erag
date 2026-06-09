@@ -3,7 +3,7 @@ import Sidebar from "./components/Sidebar";
 import ChatPanel from "./components/ChatPanel";
 import PdfViewer from "./components/PdfViewer";
 
-const API = "http://localhost:8000";
+const API = "/api";
 
 export default function App() {
   const [documents, setDocuments] = useState([]);
