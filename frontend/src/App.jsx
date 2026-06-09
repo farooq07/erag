@@ -176,6 +176,8 @@ export default function App() {
             setMessages((m) => { const c = [...m]; c[c.length - 1] = { ...c[c.length - 1], sources: payload.sources }; return c; });
           } else if (payload.type === "token") {
             setMessages((m) => { const c = [...m]; c[c.length - 1] = { ...c[c.length - 1], content: c[c.length - 1].content + payload.content }; return c; });
+          } else if (payload.type === "grounding") {
+            setMessages((m) => { const c = [...m]; c[c.length - 1] = { ...c[c.length - 1], grounding: payload }; return c; });
           } else if (payload.type === "done") {
             setMessages((m) => { const c = [...m]; c[c.length - 1] = { ...c[c.length - 1], streaming: false }; return c; });
           }

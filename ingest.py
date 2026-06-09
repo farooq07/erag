@@ -20,6 +20,117 @@ from langchain_community.document_loaders import (
     UnstructuredExcelLoader,
     UnstructuredPowerPointLoader,
 )
+
+# ── Structure-aware loaders ──────────────────────────────────────────────
+
+def _load_xlsx_structured(path: Path) -> list[Document]:
+    """Row-aware Excel loader: keeps header context with every data row.
+
+    Produces one Document per non-blank data row formatted as
+    '[Sheet: Name] Col1: val1 | Col2: val2 | ...', so the record
+    is never split mid-field by the recursive text splitter.
+    Falls back to UnstructuredExcelLoader on any error.
+    """
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(str(path), read_only=True, data_only=True)
+        docs: list[Document] = []
+        for sheet_name in wb.sheetnames:
+            ws = wb[sheet_name]
+            rows = [
+                [str(c).strip() if c is not None else "" for c in row]
+                for row in ws.iter_rows(values_only=True)
+            ]
+            if not rows:
+                continue
+
+            # First non-blank row becomes the header.
+            header: list[str] | None = None
+            data_start = 0
+            for i, row in enumerate(rows):
+                if any(c for c in row):
+                    header = list(row)
+                    data_start = i + 1
+                    break
+            if header is None:
+                continue
+
+            # Trim trailing empty header columns.
+            while header and not header[-1]:
+                header.pop()
+            n_cols = len(header)
+
+            for row_i, row in enumerate(rows[data_start:], start=data_start + 1):
+                cells = row[:n_cols]
+                if not any(c for c in cells):
+                    continue
+                pairs = [f"{h}: {v}" for h, v in zip(header, cells) if h or v]
+                content = f"[Sheet: {sheet_name}] " + " | ".join(pairs)
+                docs.append(Document(
+                    page_content=content,
+                    metadata={"source": path.name, "sheet": sheet_name, "row": row_i, "page": 1},
+                ))
+        wb.close()
+        return docs or UnstructuredExcelLoader(str(path), mode="elements").load()
+    except Exception:
+        return UnstructuredExcelLoader(str(path), mode="elements").load()
+
+
+def _load_pptx_structured(path: Path) -> list[Document]:
+    """Slide-aware PPTX loader: one Document per slide, tables reformatted as labelled rows.
+
+    For each table shape: emits 'Col1: val1 | Col2: val2' rows so records are
+    never cut mid-row.  Falls back to UnstructuredPowerPointLoader on any error.
+    """
+    try:
+        from pptx import Presentation  # python-pptx, pulled in by unstructured
+        prs = Presentation(str(path))
+    except Exception:
+        return UnstructuredPowerPointLoader(str(path)).load()
+
+    docs: list[Document] = []
+    for slide_num, slide in enumerate(prs.slides, 1):
+        parts: list[str] = []
+
+        # Title first.
+        if slide.shapes.title and slide.shapes.title.text.strip():
+            parts.append(f"[Slide {slide_num}: {slide.shapes.title.text.strip()}]")
+        else:
+            parts.append(f"[Slide {slide_num}]")
+
+        for shape in slide.shapes:
+            if shape.has_table:
+                table = shape.table
+                if not table.rows:
+                    continue
+                header_cells = [c.text.strip() for c in table.rows[0].cells]
+                has_header = any(header_cells)
+                data_rows = table.rows[1:] if has_header else table.rows
+                for row in data_rows:
+                    cells = [c.text.strip() for c in row.cells]
+                    if not any(cells):
+                        continue
+                    if has_header:
+                        row_str = " | ".join(
+                            f"{h}: {v}" for h, v in zip(header_cells, cells) if h or v
+                        )
+                    else:
+                        row_str = " | ".join(c for c in cells if c)
+                    if row_str:
+                        parts.append(row_str)
+            elif shape.has_text_frame and shape != slide.shapes.title:
+                text = shape.text_frame.text.strip()
+                if text:
+                    parts.append(text)
+
+        content = "\n".join(parts)
+        if content.strip():
+            docs.append(Document(
+                page_content=content,
+                metadata={"source": path.name, "page": slide_num},
+            ))
+
+    return docs or UnstructuredPowerPointLoader(str(path)).load()
 from langchain_core.documents import Document
 from langchain_ollama import OllamaEmbeddings
 
@@ -112,20 +223,26 @@ def _ocr_pdf(path: Path) -> list[Document]:
 
 # ── Loaders ──────────────────────────────────────────────────────────────
 
-def _loader_for(path: Path) -> list[Document]:
+def _loader_for(path: Path) -> tuple[list[Document], bool]:
+    """Return (docs, pre_chunked).
+
+    pre_chunked=True means docs are already split into logical units
+    (one row per Excel record, one slide per PPTX) and should skip
+    the recursive text splitter to avoid mid-record cuts.
+    """
     ext = path.suffix.lower()
     if ext == ".pdf":
         if _is_scanned_pdf(path):
-            return _ocr_pdf(path)
-        return PyMuPDFLoader(str(path)).load()
+            return _ocr_pdf(path), False
+        return PyMuPDFLoader(str(path)).load(), False
     if ext in {".docx", ".doc"}:
-        return Docx2txtLoader(str(path)).load()
+        return Docx2txtLoader(str(path)).load(), False
     if ext in {".txt", ".md"}:
-        return TextLoader(str(path), encoding="utf-8").load()
+        return TextLoader(str(path), encoding="utf-8").load(), False
     if ext == ".xlsx":
-        return UnstructuredExcelLoader(str(path), mode="elements").load()
+        return _load_xlsx_structured(path), True
     if ext == ".pptx":
-        return UnstructuredPowerPointLoader(str(path)).load()
+        return _load_pptx_structured(path), True
     raise ValueError(f"Unsupported file type: {ext}")
 
 
@@ -142,15 +259,31 @@ def get_vectorstore() -> Chroma:
 
 # ── Splitter ─────────────────────────────────────────────────────────────
 
-def _split(docs: list[Document], source_name: str, department: str, tags: list[str]) -> list[Document]:
+def _split(
+    docs: list[Document],
+    source_name: str,
+    department: str,
+    tags: list[str],
+    pre_chunked: bool = False,
+) -> list[Document]:
+    tags_str = ",".join(tags) if tags else ""
+
+    if pre_chunked:
+        # Docs are already split into logical units — only stamp metadata.
+        for i, c in enumerate(docs):
+            c.metadata["source"] = source_name
+            c.metadata["chunk_id"] = i
+            c.metadata["department"] = department
+            if tags_str:
+                c.metadata["tags"] = tags_str
+        return docs
+
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE,
         chunk_overlap=CHUNK_OVERLAP,
         separators=["\n\n", "\n", ". ", " ", ""],
     )
     chunks = splitter.split_documents(docs)
-    # Chroma metadata values must be primitives — join tags as a comma string.
-    tags_str = ",".join(tags) if tags else ""
     for i, c in enumerate(chunks):
         c.metadata["source"] = source_name
         c.metadata["chunk_id"] = i
@@ -196,11 +329,11 @@ def ingest_paths(
             if existing:
                 vs.delete(where={"source": p.name})
 
-            raw_docs = _loader_for(p)
+            raw_docs, pre_chunked = _loader_for(p)
             if raw_docs and raw_docs[0].metadata.get("ocr"):
                 stats["ocr_used"].append(p.name)
 
-            chunks = _split(raw_docs, p.name, department, tags)
+            chunks = _split(raw_docs, p.name, department, tags, pre_chunked=pre_chunked)
             if not chunks:
                 stats["failed"].append(f"{p.name} (empty after parsing)")
                 continue

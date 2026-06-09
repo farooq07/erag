@@ -1,6 +1,6 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { ChevronDown, ChevronUp, FileText, ScanLine, BookOpen } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp, FileText, ScanLine, BookOpen, ShieldCheck } from "lucide-react";
 
 export default function Message({ msg, onOpenSource }) {
   const [showSources, setShowSources] = useState(false);
@@ -39,6 +39,11 @@ export default function Message({ msg, onOpenSource }) {
           )}
         </div>
 
+        {/* Grounding badge */}
+        {msg.grounding && !msg.streaming && (
+          <GroundingBadge grounding={msg.grounding} />
+        )}
+
         {/* Smart citations */}
         {msg.sources?.length > 0 && !msg.streaming && (
           <div className="mt-3">
@@ -63,6 +68,50 @@ export default function Message({ msg, onOpenSource }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function GroundingBadge({ grounding }) {
+  const [expanded, setExpanded] = useState(false);
+  const { grounded = [], ungrounded = [], score = 1, warning = false } = grounding;
+
+  // No data (LLM error fallback) — show nothing.
+  if (!grounded.length && !ungrounded.length) return null;
+
+  if (!warning) {
+    return (
+      <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400/60">
+        <ShieldCheck size={11} />
+        <span>Answer grounded in sources</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-1.5">
+      <button
+        onClick={() => setExpanded((s) => !s)}
+        className="flex items-center gap-1.5 text-[10px] text-amber-600 dark:text-amber-400/80 hover:text-amber-500 dark:hover:text-amber-400 transition-colors px-2 py-0.5 rounded-lg hover:bg-amber-500/10 -mx-2"
+      >
+        <AlertTriangle size={11} />
+        <span>
+          {ungrounded.length} unverified claim{ungrounded.length > 1 ? "s" : ""} · score {Math.round(score * 100)}%
+        </span>
+        {expanded ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
+      </button>
+      {expanded && (
+        <div className="mt-1.5 space-y-1.5">
+          {ungrounded.map((sentence, i) => (
+            <div
+              key={i}
+              className="text-[11px] text-amber-700 dark:text-amber-300/50 bg-amber-500/8 dark:bg-amber-900/15 border border-amber-500/20 dark:border-amber-500/15 rounded-lg px-3 py-2 leading-relaxed"
+            >
+              {sentence}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

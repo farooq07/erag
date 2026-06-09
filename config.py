@@ -39,6 +39,8 @@ CRAG_MIN_CHUNKS = 2            # Below this many surviving chunks → low-confid
 RERANK_POOL = 10               # How many fused candidates the reranker sees
 RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
+GROUNDING_CHECK_ENABLED = True # Post-gen faithfulness check; adds ~1s after answer
+
 SUPPORTED_EXTS = {".pdf", ".docx", ".doc", ".txt", ".md", ".xlsx", ".pptx"}
 
 # Departments — used to categorise uploads and scope retrieval.

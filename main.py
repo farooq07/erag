@@ -20,6 +20,7 @@ from config import (
     DEFAULT_DEPARTMENT,
     DEPARTMENTS,
     GROQ_MODEL,
+    GROUNDING_CHECK_ENABLED,
     LLM_MODEL,
     LLM_PROVIDER,
     UPLOADS_DIR,
@@ -31,7 +32,7 @@ from ingest import (
     remove_document,
     update_document_meta,
 )
-from rag import answer_stream, generate_doc_summary, retrieve
+from rag import answer_stream, check_answer_grounding, generate_doc_summary, retrieve
 
 DEFAULT_MODEL = GROQ_MODEL if LLM_PROVIDER == "groq" else LLM_MODEL
 
@@ -54,6 +55,7 @@ class ChatRequest(BaseModel):
     model: str = DEFAULT_MODEL
     history: list[dict] = []
     department: str | None = None
+    check_grounding: bool = GROUNDING_CHECK_ENABLED
 
 
 class SummaryRequest(BaseModel):
@@ -237,6 +239,7 @@ async def chat(req: ChatRequest, user: dict = Depends(get_current_user)):
         loop = asyncio.get_event_loop()
         queue: asyncio.Queue = asyncio.Queue()
         SENTINEL = object()
+        collected: list[str] = []
 
         def producer():
             try:
@@ -258,6 +261,17 @@ async def chat(req: ChatRequest, user: dict = Depends(get_current_user)):
             if item is SENTINEL:
                 break
             yield f"data: {json.dumps({'type': 'token', 'content': item})}\n\n"
+            if req.check_grounding:
+                collected.append(item)
+
+        # 3. Optional post-gen grounding check (runs after all tokens, before done).
+        if req.check_grounding and collected and docs:
+            full_answer = "".join(collected)
+            grounding = await loop.run_in_executor(
+                None,
+                lambda: check_answer_grounding(full_answer, docs, model=req.model),
+            )
+            yield f"data: {json.dumps({'type': 'grounding', **grounding})}\n\n"
 
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 

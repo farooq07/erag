@@ -8,6 +8,7 @@ RAG pipeline with:
 - CRAG-lite relevance filtering with low-confidence warning
 - Groq / Ollama LLM support
 """
+import json
 import math
 from typing import Iterator
 
@@ -469,6 +470,67 @@ def answer_stream(
         {"context": context, "question": question, "history_block": history_block}
     ):
         yield chunk.content
+
+
+def check_answer_grounding(
+    answer: str,
+    docs: list[Document],
+    model: str | None = None,
+) -> dict:
+    """Post-generation faithfulness check: classify each answer claim as grounded or not.
+
+    Uses an LLM judge to split the answer into atomic claims and verify each
+    against the retrieved chunks.  Surfaces ungrounded sentences so the UI can
+    flag them to the user without altering the answer text.
+
+    Returns:
+        grounded   — sentences directly supported by context
+        ungrounded — sentences with no support in retrieved chunks
+        score      — fraction grounded (1.0 = fully faithful, no hallucination)
+        warning    — True when any ungrounded sentences exist
+    """
+    if not answer.strip() or not docs:
+        return {"grounded": [], "ungrounded": [], "score": 1.0, "warning": False}
+
+    context = "\n\n".join(
+        f"[{i}] {d.metadata.get('source', '?')}\n{d.page_content}"
+        for i, d in enumerate(docs, 1)
+    )[:4000]
+
+    try:
+        llm = _get_llm(model, streaming=False)
+        prompt = ChatPromptTemplate.from_messages([
+            ("system",
+             "You verify whether an AI-generated answer is grounded in a given context. "
+             "Split the answer into individual factual claims or sentences. "
+             "Classify each as GROUNDED (directly supported by context) or "
+             "UNGROUNDED (not present in or contradicted by context). "
+             "Reply with ONLY valid JSON — no markdown, no explanation:\n"
+             '{"grounded": ["..."], "ungrounded": ["..."]}'),
+            ("user",
+             f"Context:\n{context}\n\n"
+             f"Answer to verify:\n{answer}"),
+        ])
+        raw = (prompt | llm).invoke({}).content.strip()
+        # Strip markdown code fences if the model wraps its output.
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json\n"):
+                raw = raw[5:]
+        parsed = json.loads(raw)
+        grounded = [s for s in parsed.get("grounded", []) if s]
+        ungrounded = [s for s in parsed.get("ungrounded", []) if s]
+        total = len(grounded) + len(ungrounded)
+        score = len(grounded) / total if total else 1.0
+        return {
+            "grounded": grounded,
+            "ungrounded": ungrounded,
+            "score": round(score, 3),
+            "warning": len(ungrounded) > 0,
+        }
+    except Exception:
+        # Safe fallback — never disrupt the chat flow on LLM or parse errors.
+        return {"grounded": [], "ungrounded": [], "score": 1.0, "warning": False}
 
 
 def generate_doc_summary(file_name: str, model: str = None) -> str:
