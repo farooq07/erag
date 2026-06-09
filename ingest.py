@@ -20,6 +20,22 @@ from langchain_community.document_loaders import (
     UnstructuredExcelLoader,
     UnstructuredPowerPointLoader,
 )
+from langchain_core.documents import Document
+from langchain_ollama import OllamaEmbeddings
+
+from config import (
+    CHROMA_DIR,
+    CHUNK_OVERLAP,
+    CHUNK_SIZE,
+    COLLECTION_NAME,
+    DEFAULT_DEPARTMENT,
+    EMBED_MODEL,
+    OLLAMA_BASE_URL,
+    SUPPORTED_EXTS,
+    UPLOADS_DIR,
+)
+
+HASH_INDEX = CHROMA_DIR / "_ingested.json"
 
 # ── Structure-aware loaders ──────────────────────────────────────────────
 
@@ -131,22 +147,6 @@ def _load_pptx_structured(path: Path) -> list[Document]:
             ))
 
     return docs or UnstructuredPowerPointLoader(str(path)).load()
-from langchain_core.documents import Document
-from langchain_ollama import OllamaEmbeddings
-
-from config import (
-    CHROMA_DIR,
-    CHUNK_OVERLAP,
-    CHUNK_SIZE,
-    COLLECTION_NAME,
-    DEFAULT_DEPARTMENT,
-    EMBED_MODEL,
-    OLLAMA_BASE_URL,
-    SUPPORTED_EXTS,
-    UPLOADS_DIR,
-)
-
-HASH_INDEX = CHROMA_DIR / "_ingested.json"
 
 
 # ── Utilities ────────────────────────────────────────────────────────────
