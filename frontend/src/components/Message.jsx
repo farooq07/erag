@@ -1,8 +1,9 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { ChevronDown, ChevronUp, FileText, ScanLine, BookOpen } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, ScanLine, BookOpen, Workflow } from "lucide-react";
+import ThinkingLine from "./ThinkingLine";
 
-export default function Message({ msg, onOpenSource }) {
+export default function Message({ msg, query, onOpenSource, onOpenPipeline }) {
   const [showSources, setShowSources] = useState(false);
   const isUser = msg.role === "user";
 
@@ -28,9 +29,7 @@ export default function Message({ msg, onOpenSource }) {
         {/* Answer */}
         <div className="prose text-sm text-white/80 leading-relaxed">
           {isThinking ? (
-            <span className="thinking-dots" aria-label="Thinking">
-              <span /><span /><span />
-            </span>
+            <ThinkingLine sources={msg.sources} />
           ) : (
             <>
               <ReactMarkdown>{msg.content || " "}</ReactMarkdown>
@@ -42,14 +41,26 @@ export default function Message({ msg, onOpenSource }) {
         {/* Smart citations */}
         {msg.sources?.length > 0 && !msg.streaming && (
           <div className="mt-3">
-            <button
-              onClick={() => setShowSources((s) => !s)}
-              className="flex items-center gap-1.5 text-[11px] text-white/25 hover:text-indigo-400 transition-colors px-2 py-1 rounded-lg hover:bg-indigo-500/10 -mx-2"
-            >
-              <FileText size={11} />
-              <span>{msg.sources.length} source{msg.sources.length > 1 ? "s" : ""}</span>
-              {showSources ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setShowSources((s) => !s)}
+                className="flex items-center gap-1.5 text-[11px] text-faded hover:text-indigo-400 transition-colors px-2 py-1 rounded-lg hover:bg-indigo-500/10 -mx-2"
+              >
+                <FileText size={11} />
+                <span>{msg.sources.length} source{msg.sources.length > 1 ? "s" : ""}</span>
+                {showSources ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+              </button>
+              {onOpenPipeline && (
+                <button
+                  onClick={() => onOpenPipeline({ query, sources: msg.sources, scope: msg.scope })}
+                  title="See how this answer was retrieved"
+                  className="flex items-center gap-1.5 text-[11px] text-faded hover:text-indigo-400 transition-colors px-2 py-1 rounded-lg hover:bg-indigo-500/10"
+                >
+                  <Workflow size={11} />
+                  <span>How it was retrieved</span>
+                </button>
+              )}
+            </div>
 
             {showSources && (
               <div className="mt-2 space-y-2">
@@ -118,13 +129,13 @@ function SourceCard({ source: s, index, onOpenSource }) {
           </button>
         )}
 
-        {expanded ? <ChevronUp size={11} className="text-white/20 flex-shrink-0" /> : <ChevronDown size={11} className="text-white/20 flex-shrink-0" />}
+        {expanded ? <ChevronUp size={11} className="text-ghost flex-shrink-0" /> : <ChevronDown size={11} className="text-ghost flex-shrink-0" />}
       </div>
 
       {/* Expanded chunk text */}
       {expanded && (
         <div className="px-3 pb-3 border-t border-white/[0.04]">
-          <p className="text-[11px] text-white/35 leading-relaxed mt-2 font-mono bg-white/[0.02] rounded-lg px-3 py-2 whitespace-pre-wrap">
+          <p className="text-[11px] text-faded leading-relaxed mt-2 font-mono bg-white/[0.02] rounded-lg px-3 py-2 whitespace-pre-wrap">
             {s.chunk || s.preview}
           </p>
         </div>
@@ -133,7 +144,7 @@ function SourceCard({ source: s, index, onOpenSource }) {
       {/* Preview (always visible, collapsed) */}
       {!expanded && (
         <div className="px-3 pb-2.5">
-          <p className="text-[11px] text-white/30 leading-relaxed line-clamp-2">{s.preview}</p>
+          <p className="text-[11px] text-faded leading-relaxed line-clamp-2">{s.preview}</p>
         </div>
       )}
     </div>

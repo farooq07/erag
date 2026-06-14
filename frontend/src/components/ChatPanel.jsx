@@ -14,7 +14,7 @@ const SUGGESTIONS = [
 
 export default function ChatPanel({
   messages, onSend, loading, hasDocs, onClearChat,
-  departments = [], scopeDept = "All", onScopeChange, onOpenSource,
+  departments = [], scopeDept = "All", onScopeChange, onOpenSource, onOpenPipeline,
   currentUser, users = [], onUserChange,
 }) {
   const [input, setInput] = useState("");
@@ -213,7 +213,15 @@ export default function ChatPanel({
           </div>
         ) : (
           <div className="max-w-3xl mx-auto w-full px-4 py-8 space-y-1">
-            {messages.map((msg, i) => <Message key={i} msg={msg} onOpenSource={onOpenSource} />)}
+            {messages.map((msg, i) => (
+              <Message
+                key={i}
+                msg={msg}
+                query={messages[i - 1]?.role === "user" ? messages[i - 1].content : ""}
+                onOpenSource={onOpenSource}
+                onOpenPipeline={onOpenPipeline}
+              />
+            ))}
             <div ref={bottomRef} />
           </div>
         )}

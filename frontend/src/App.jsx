@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import Sidebar from "./components/Sidebar";
 import ChatPanel from "./components/ChatPanel";
 import PdfViewer from "./components/PdfViewer";
+import RagPipelinePanel from "./components/RagPipelinePanel";
 
 const API = "/api";
 
@@ -22,6 +23,7 @@ export default function App() {
   const [model, setModel] = useState("llama-3.1-8b-instant");
   const [scopeDept, setScopeDept] = useState("All");
   const [viewerSource, setViewerSource] = useState(null);
+  const [pipeline, setPipeline] = useState(null);
 
   // ── fetch helpers with X-User header ────────────────────────────────────
   const authedFetch = useCallback(
@@ -214,9 +216,16 @@ export default function App() {
         scopeDept={scopeDept}
         onScopeChange={setScopeDept}
         onOpenSource={setViewerSource}
+        onOpenPipeline={setPipeline}
         currentUser={currentUser}
         users={users}
         onUserChange={setCurrentUser}
+      />
+      <RagPipelinePanel
+        open={!!pipeline}
+        data={pipeline}
+        onClose={() => setPipeline(null)}
+        onOpenSource={setViewerSource}
       />
       <PdfViewer
         open={!!viewerSource}
