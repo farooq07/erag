@@ -21,7 +21,8 @@ from langchain_community.document_loaders import (
     UnstructuredPowerPointLoader,
 )
 from langchain_core.documents import Document
-from langchain_ollama import OllamaEmbeddings
+from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
+from langchain_chroma import Chroma as _ChromaBase
 
 from config import (
     CHROMA_DIR,
@@ -29,11 +30,20 @@ from config import (
     CHUNK_SIZE,
     COLLECTION_NAME,
     DEFAULT_DEPARTMENT,
-    EMBED_MODEL,
-    OLLAMA_BASE_URL,
     SUPPORTED_EXTS,
     UPLOADS_DIR,
 )
+
+# Thin wrapper so langchain-chroma accepts the chromadb EmbeddingFunction
+class _ONNXEmbeddings:
+    def __init__(self):
+        self._fn = ONNXMiniLM_L6_V2()
+
+    def embed_documents(self, texts):
+        return self._fn(texts)
+
+    def embed_query(self, text):
+        return self._fn([text])[0]
 
 HASH_INDEX = CHROMA_DIR / "_ingested.json"
 
@@ -248,9 +258,9 @@ def _loader_for(path: Path) -> tuple[list[Document], bool]:
 
 # ── Vector store ─────────────────────────────────────────────────────────
 
-def get_vectorstore() -> Chroma:
-    embeddings = OllamaEmbeddings(model=EMBED_MODEL, base_url=OLLAMA_BASE_URL)
-    return Chroma(
+def get_vectorstore():
+    embeddings = _ONNXEmbeddings()
+    return _ChromaBase(
         collection_name=COLLECTION_NAME,
         embedding_function=embeddings,
         persist_directory=str(CHROMA_DIR),
