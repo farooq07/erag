@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import Sidebar from "./components/Sidebar";
 import ChatPanel from "./components/ChatPanel";
 import PdfViewer from "./components/PdfViewer";
+import RagPipelinePanel from "./components/RagPipelinePanel";
+import LoginScreen from "./components/LoginScreen";
 
 const API = "/api";
 
@@ -15,6 +17,7 @@ export default function App() {
 
   const [users, setUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
+  const [loggedIn, setLoggedIn] = useState(false);
 
   const [summaries, setSummaries] = useState({});
   const [messages, setMessages] = useState([]);
@@ -22,21 +25,17 @@ export default function App() {
   const [model, setModel] = useState("llama-3.1-8b-instant");
   const [scopeDept, setScopeDept] = useState("All");
   const [viewerSource, setViewerSource] = useState(null);
+  const [pipeline, setPipeline] = useState(null);
 
-  // ── fetch helpers with X-User header ────────────────────────────────────
   const authedFetch = useCallback(
     (url, opts = {}) =>
       fetch(url, {
         ...opts,
-        headers: {
-          ...(opts.headers || {}),
-          ...(currentUser ? { "X-User": currentUser.id } : {}),
-        },
+        headers: { ...(opts.headers || {}), ...(currentUser ? { "X-User": currentUser.id } : {}) },
       }),
     [currentUser],
   );
 
-  // ── Bootstrap: load users first ─────────────────────────────────────────
   useEffect(() => {
     (async () => {
       try {
@@ -45,17 +44,15 @@ export default function App() {
         const list = d.users || [];
         setUsers(list);
         const saved = localStorage.getItem("erag.user");
-        const initial = list.find((u) => u.id === saved) || list[0];
-        setCurrentUser(initial || null);
+        const initial = list.find((u) => u.id === saved);
+        if (initial) { setCurrentUser(initial); setLoggedIn(true); }
       } catch {}
     })();
   }, []);
 
-  // ── Whenever the user changes: refetch scoped data ─────────────────────
   useEffect(() => {
     if (!currentUser) return;
     localStorage.setItem("erag.user", currentUser.id);
-
     (async () => {
       try {
         const [dr, deptR] = await Promise.all([
@@ -68,17 +65,14 @@ export default function App() {
         if (deptD.departments) setAllDepartments(deptD.departments);
         if (deptD.allowed) setAllowedDepartments(deptD.allowed);
         if (deptD.default) setDefaultDept(deptD.default);
-
-        // If current scope is no longer allowed, reset it.
-        if (scopeDept !== "All" && deptD.allowed && !deptD.allowed.includes(scopeDept)) {
-          setScopeDept("All");
-        }
+        if (scopeDept !== "All" && deptD.allowed && !deptD.allowed.includes(scopeDept)) setScopeDept("All");
       } catch {}
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
-  // ── Mutations ──────────────────────────────────────────────────────────
+  const handleLogin = (user) => { setCurrentUser(user); setLoggedIn(true); };
+
   const fetchDocs = async () => {
     try {
       const r = await authedFetch(`${API}/documents`);
@@ -92,14 +86,10 @@ export default function App() {
     files.forEach((f) => form.append("files", f));
     form.append("department", department || defaultDept);
     form.append("tags", (tags || []).join(","));
-
     const r = await authedFetch(`${API}/upload`, { method: "POST", body: form });
     const d = await r.json();
-    if (!r.ok) {
-      return { added: 0, skipped: 0, failed: [d.detail || "upload failed"] };
-    }
+    if (!r.ok) return { added: 0, skipped: 0, failed: [d.detail || "upload failed"] };
     setDocuments(d.documents || []);
-
     const addedNames = files.map((f) => f.name);
     addedNames.forEach(async (name) => {
       try {
@@ -112,7 +102,6 @@ export default function App() {
         if (sr.ok) setSummaries((prev) => ({ ...prev, [name]: sd.summary }));
       } catch {}
     });
-
     return d.stats;
   };
 
@@ -137,38 +126,30 @@ export default function App() {
   const handleClear = async () => {
     const r = await authedFetch(`${API}/clear`, { method: "POST" });
     if (!r.ok) { alert("Clear failed: " + (await r.json()).detail); return; }
-    setDocuments([]);
-    setMessages([]);
-    setSummaries({});
+    setDocuments([]); setMessages([]); setSummaries({});
   };
 
-  // ── Chat ───────────────────────────────────────────────────────────────
   const handleSend = async (question) => {
     const userMsg = { role: "user", content: question };
     const history = messages.map(({ role, content }) => ({ role, content }));
-
     setMessages((m) => [...m, userMsg]);
     setLoading(true);
     setMessages((m) => [...m, { role: "assistant", content: "", sources: [], streaming: true, scope: scopeDept }]);
-
     try {
       const res = await authedFetch(`${API}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question, model, history, department: scopeDept }),
       });
-
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop();
-
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
           const payload = JSON.parse(line.slice(6));
@@ -188,6 +169,10 @@ export default function App() {
     }
     setLoading(false);
   };
+
+  if (!loggedIn && users.length > 0) {
+    return <LoginScreen users={users} onLogin={handleLogin} />;
+  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-base spotlight">
@@ -216,9 +201,16 @@ export default function App() {
         scopeDept={scopeDept}
         onScopeChange={setScopeDept}
         onOpenSource={setViewerSource}
+        onOpenPipeline={setPipeline}
         currentUser={currentUser}
         users={users}
-        onUserChange={setCurrentUser}
+        onUserChange={(u) => { setCurrentUser(u); setMessages([]); }}
+      />
+      <RagPipelinePanel
+        open={!!pipeline}
+        data={pipeline}
+        onClose={() => setPipeline(null)}
+        onOpenSource={setViewerSource}
       />
       <PdfViewer
         open={!!viewerSource}

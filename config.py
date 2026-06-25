@@ -50,3 +50,20 @@ DEFAULT_DEPARTMENT = "General"
 # Role-based access — demo users live in users.json next to this file.
 # In production this is where SSO / SAML / OAuth identity hooks in.
 USERS_FILE = ROOT / "users.json"
+
+# ── Post-generation grounding check ─────────────────────────────────────
+GROUNDING_CHECK_ENABLED = True
+
+# ── Audit log ────────────────────────────────────────────────────────────
+AUDIT_LOG_PATH = DATA_DIR / "audit.jsonl"
+
+# ── Demo corpus ──────────────────────────────────────────────────────────
+DEMO_DIR = ROOT / "demo"
+DEMO_CORPUS = [
+    ("HR_Leave_Policy.md",        "HR"),
+    ("Finance_Q3_2024_Report.md", "Finance"),
+    ("IT_Security_Policy.md",     "IT"),
+    ("Legal_NDA_Template.md",     "Legal"),
+    ("Operations_SOPs.md",        "Operations"),
+    ("Company_Handbook.md",       "General"),
+]

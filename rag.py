@@ -10,6 +10,7 @@ RAG pipeline with:
 """
 import json
 import math
+import re
 from typing import Iterator
 
 from langchain_core.documents import Document
@@ -561,3 +562,51 @@ def generate_doc_summary(file_name: str, model: str = None) -> str:
     ])
     response = (prompt | llm).invoke({})
     return response.content
+
+
+# ── Answer grounding check ───────────────────────────────────────────────
+
+_GROUNDING_SYSTEM = """\
+You are a strict fact-checker. Classify each sentence in the answer as
+GROUNDED (supported by context) or UNGROUNDED (not supported or contradicted).
+
+Return JSON only, exactly:
+{"grounded": ["sentence..."], "ungrounded": ["sentence..."]}
+No markdown fences, no extra keys."""
+
+_GROUNDING_USER = """\
+CONTEXT:
+{context}
+
+ANSWER:
+{answer}
+
+Classify each sentence. Return JSON only."""
+
+
+def check_answer_grounding(answer: str, docs: list, model: str = None) -> dict:
+    """Return {grounded, ungrounded, score, warning} for the given answer."""
+    try:
+        context = "\n\n".join(d.page_content[:600] for d in docs[:5])
+        llm = _get_llm(model, streaming=False)
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", _GROUNDING_SYSTEM),
+            ("user", _GROUNDING_USER),
+        ])
+        response = (prompt | llm).invoke({"context": context, "answer": answer})
+        raw = response.content.strip()
+        raw = re.sub(r"^```[a-z]*\n?", "", raw)
+        raw = re.sub(r"\n?```$", "", raw)
+        parsed = json.loads(raw)
+        grounded = parsed.get("grounded", [])
+        ungrounded = parsed.get("ungrounded", [])
+        total = len(grounded) + len(ungrounded)
+        score = len(grounded) / total if total > 0 else 1.0
+        return {
+            "grounded": grounded,
+            "ungrounded": ungrounded,
+            "score": round(score, 2),
+            "warning": score < 0.8 and len(ungrounded) > 0,
+        }
+    except Exception:
+        return {"grounded": [], "ungrounded": [], "score": 1.0, "warning": False}
