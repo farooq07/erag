@@ -12,3 +12,8 @@ data/chroma_db/*
 .DS_Store
 .claude/
 frontend/node_modules/
+
+# Runtime artifacts
+server.log
+*.log
+data/audit.jsonl
