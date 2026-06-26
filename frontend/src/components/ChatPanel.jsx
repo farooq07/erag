@@ -152,7 +152,7 @@ export default function ChatPanel({
               <div className="flex items-center gap-3 mb-7 rise rise-1">
                 <span className="h-px w-8 bg-ember-500/70" />
                 <span className="text-[10.5px] text-ember-500 uppercase tracking-[0.32em] font-medium">
-                  Office&nbsp;·&nbsp;Retrieval&nbsp;·&nbsp;Augmented
+                  DocuMind&nbsp;·&nbsp;Retrieval&nbsp;·&nbsp;Augmented
                 </span>
               </div>
 
