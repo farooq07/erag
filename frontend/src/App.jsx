@@ -3,21 +3,21 @@ import Sidebar from "./components/Sidebar";
 import ChatPanel from "./components/ChatPanel";
 import PdfViewer from "./components/PdfViewer";
 import RagPipelinePanel from "./components/RagPipelinePanel";
-import LoginScreen from "./components/LoginScreen";
+import AuthScreen from "./components/AuthScreen";
 
 const API = "/api";
 
 export default function App() {
+  const [token, setToken] = useState(() => localStorage.getItem("dm_token") || "");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
   const [documents, setDocuments] = useState([]);
   const [allDepartments, setAllDepartments] = useState([
     "HR", "Accounts", "Finance", "IT", "Legal", "Operations", "General",
   ]);
   const [allowedDepartments, setAllowedDepartments] = useState([]);
   const [defaultDept, setDefaultDept] = useState("General");
-
-  const [users, setUsers] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [loggedIn, setLoggedIn] = useState(false);
 
   const [summaries, setSummaries] = useState({});
   const [messages, setMessages] = useState([]);
@@ -27,32 +27,43 @@ export default function App() {
   const [viewerSource, setViewerSource] = useState(null);
   const [pipeline, setPipeline] = useState(null);
 
+  // Build auth headers for every request
+  const authHeaders = useCallback(() =>
+    token ? { Authorization: `Bearer ${token}` } : {},
+    [token]);
+
   const authedFetch = useCallback(
     (url, opts = {}) =>
       fetch(url, {
         ...opts,
-        headers: { ...(opts.headers || {}), ...(currentUser ? { "X-User": currentUser.id } : {}) },
+        headers: { ...(opts.headers || {}), ...authHeaders() },
       }),
-    [currentUser],
+    [authHeaders],
   );
 
+  // On mount: verify stored token
   useEffect(() => {
-    (async () => {
-      try {
-        const r = await fetch(`${API}/users`);
+    const storedToken = localStorage.getItem("dm_token");
+    if (!storedToken) { setAuthChecked(true); return; }
+    fetch(`${API}/auth/me`, {
+      headers: { Authorization: `Bearer ${storedToken}` },
+    }).then(async (r) => {
+      if (r.ok) {
         const d = await r.json();
-        const list = d.users || [];
-        setUsers(list);
-        const saved = localStorage.getItem("erag.user");
-        const initial = list.find((u) => u.id === saved);
-        if (initial) { setCurrentUser(initial); setLoggedIn(true); }
-      } catch {}
-    })();
+        setToken(storedToken);
+        setCurrentUser(d.user);
+      } else {
+        localStorage.removeItem("dm_token");
+        setToken("");
+      }
+    }).catch(() => {
+      setToken("");
+    }).finally(() => setAuthChecked(true));
   }, []);
 
+  // After user is set: load documents and departments
   useEffect(() => {
     if (!currentUser) return;
-    localStorage.setItem("erag.user", currentUser.id);
     (async () => {
       try {
         const [dr, deptR] = await Promise.all([
@@ -68,10 +79,21 @@ export default function App() {
         if (scopeDept !== "All" && deptD.allowed && !deptD.allowed.includes(scopeDept)) setScopeDept("All");
       } catch {}
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
-  const handleLogin = (user) => { setCurrentUser(user); setLoggedIn(true); };
+  const handleAuth = (user, tok) => {
+    setToken(tok);
+    setCurrentUser(user);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("dm_token");
+    setToken("");
+    setCurrentUser(null);
+    setMessages([]);
+    setDocuments([]);
+  };
 
   const fetchDocs = async () => {
     try {
@@ -90,8 +112,7 @@ export default function App() {
     const d = await r.json();
     if (!r.ok) return { added: 0, skipped: 0, failed: [d.detail || "upload failed"] };
     setDocuments(d.documents || []);
-    const addedNames = files.map((f) => f.name);
-    addedNames.forEach(async (name) => {
+    files.forEach(async ({ name }) => {
       try {
         const sr = await authedFetch(`${API}/summary`, {
           method: "POST",
@@ -154,7 +175,7 @@ export default function App() {
           if (!line.startsWith("data: ")) continue;
           const payload = JSON.parse(line.slice(6));
           if (payload.type === "sources") {
-            setMessages((m) => { const c = [...m]; c[c.length - 1] = { ...c[c.length - 1], sources: payload.sources }; return c; });
+            setMessages((m) => { const c = [...m]; c[c.length - 1] = { ...c[c.length - 1], sources: payload.sources, pipelineScope: payload.scope }; return c; });
           } else if (payload.type === "token") {
             setMessages((m) => { const c = [...m]; c[c.length - 1] = { ...c[c.length - 1], content: c[c.length - 1].content + payload.content }; return c; });
           } else if (payload.type === "grounding") {
@@ -170,8 +191,12 @@ export default function App() {
     setLoading(false);
   };
 
-  if (!loggedIn && users.length > 0) {
-    return <LoginScreen users={users} onLogin={handleLogin} />;
+  // Auth gate: show nothing until we know if token is valid
+  if (!authChecked) return null;
+
+  // Not authenticated → show login/signup
+  if (!currentUser) {
+    return <AuthScreen onAuth={handleAuth} />;
   }
 
   return (
@@ -190,6 +215,7 @@ export default function App() {
         onClear={handleClear}
         model={model}
         onModelChange={setModel}
+        onLogout={handleLogout}
       />
       <ChatPanel
         messages={messages}
@@ -203,14 +229,7 @@ export default function App() {
         onOpenSource={setViewerSource}
         onOpenPipeline={setPipeline}
         currentUser={currentUser}
-        users={users}
-        onUserChange={(u) => { setCurrentUser(u); setMessages([]); }}
-      />
-      <RagPipelinePanel
-        open={!!pipeline}
-        data={pipeline}
-        onClose={() => setPipeline(null)}
-        onOpenSource={setViewerSource}
+        onLogout={handleLogout}
       />
       <RagPipelinePanel
         open={!!pipeline}

@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ArrowUp, Mic, MicOff, Sparkles, FileText, Zap, Shield, RotateCcw, Building2, ArrowDown } from "lucide-react";
+import { ArrowUp, Mic, MicOff, Sparkles, FileText, Zap, Shield, RotateCcw, Building2, ArrowDown, LogOut } from "lucide-react";
 import Message from "./Message";
 import Dropdown, { DEPT_DOT } from "./Dropdown";
-import UserPicker from "./UserPicker";
 import ThemeToggle from "./ThemeToggle";
 
 const SUGGESTIONS = [
@@ -15,7 +14,7 @@ const SUGGESTIONS = [
 export default function ChatPanel({
   messages, onSend, loading, hasDocs, onClearChat,
   departments = [], scopeDept = "All", onScopeChange, onOpenSource, onOpenPipeline,
-  currentUser, users = [], onUserChange,
+  currentUser, onLogout,
 }) {
   const [input, setInput] = useState("");
   const [listening, setListening] = useState(false);
@@ -135,7 +134,18 @@ export default function ChatPanel({
             </>
           )}
           {currentUser && (
-            <UserPicker user={currentUser} users={users} onChange={onUserChange} />
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2.5 py-1">
+                <div className="w-4 h-4 rounded-full bg-indigo-600 flex items-center justify-center text-[9px] text-white font-bold flex-shrink-0">
+                  {currentUser.name?.[0]?.toUpperCase() ?? "?"}
+                </div>
+                <span className="text-[11px] text-white/70 font-medium max-w-[80px] truncate">{currentUser.name}</span>
+                <span className="text-[10px] text-white/35 hidden sm:inline">· {currentUser.role}</span>
+              </div>
+              <button onClick={onLogout} title="Sign out" className="p-1.5 text-ghost hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10">
+                <LogOut size={13} />
+              </button>
+            </div>
           )}
           <ThemeToggle />
         </div>

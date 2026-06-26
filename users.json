@@ -3,50 +3,96 @@
     {
       "id": "admin",
       "name": "Alex Admin",
+      "email": "admin@acme.com",
+      "password_hash": "$2b$12$XG8nTKhMm/u466k3oLQh2.UDZCqQbh2pLsgSC.gJTxGg0LnbfSHcy",
       "role": "Admin",
-      "departments": ["HR", "Accounts", "Finance", "IT", "Legal", "Operations", "General"],
+      "departments": [
+        "HR",
+        "Accounts",
+        "Finance",
+        "IT",
+        "Legal",
+        "Operations",
+        "General"
+      ],
       "can_upload": true
     },
     {
       "id": "ceo",
       "name": "Cara Chen",
+      "email": "ceo@acme.com",
+      "password_hash": "$2b$12$6ukEDyWNMmghGzbCfnyFAen9PkX76hISQsm6GLmQIlYFTxevAZ9SO",
       "role": "CEO",
-      "departments": ["HR", "Accounts", "Finance", "IT", "Legal", "Operations", "General"],
+      "departments": [
+        "HR",
+        "Accounts",
+        "Finance",
+        "IT",
+        "Legal",
+        "Operations",
+        "General"
+      ],
       "can_upload": false
     },
     {
       "id": "hr_manager",
       "name": "Helen Rivera",
+      "email": "hr@acme.com",
+      "password_hash": "$2b$12$8pAFmLEZxSeCBSqWfVPliu63Z4bVsZecBhirrfcMolyiPvZpZ248G",
       "role": "HR Manager",
-      "departments": ["HR", "General"],
+      "departments": [
+        "HR",
+        "General"
+      ],
       "can_upload": true
     },
     {
       "id": "finance_director",
       "name": "Frank Dawson",
+      "email": "finance@acme.com",
+      "password_hash": "$2b$12$iHrWJXR.ZpkS0VZVgyoXtO/Aj1A9GTMJdI8wIzhXljs4hfH15hrTq",
       "role": "Finance Director",
-      "departments": ["Finance", "Accounts", "General"],
+      "departments": [
+        "Finance",
+        "Accounts",
+        "General"
+      ],
       "can_upload": true
     },
     {
       "id": "it_lead",
       "name": "Ivy Tanaka",
+      "email": "it@acme.com",
+      "password_hash": "$2b$12$i/iIIHrL55MsLkW.BjgfvuRq6QFk5ZqAN8MUhhLwPHJalh1eimJXO",
       "role": "IT Lead",
-      "departments": ["IT", "General"],
+      "departments": [
+        "IT",
+        "General"
+      ],
       "can_upload": true
     },
     {
       "id": "legal_counsel",
       "name": "Leo Castro",
+      "email": "legal@acme.com",
+      "password_hash": "$2b$12$ppSZIdsl7haVLwJswxqGkOA9Q1Zs1FmU29MXg9Yy9kG3cZRkldBO6",
       "role": "Legal Counsel",
-      "departments": ["Legal", "General"],
+      "departments": [
+        "Legal",
+        "General"
+      ],
       "can_upload": true
     },
     {
       "id": "ops_lead",
       "name": "Olivia Perez",
+      "email": "ops@acme.com",
+      "password_hash": "$2b$12$OI0M4A0p4evPBuU/EAuez.COOwuv0chURilB5l8V3qhXEvl9C8G0y",
       "role": "Operations Lead",
-      "departments": ["Operations", "General"],
+      "departments": [
+        "Operations",
+        "General"
+      ],
       "can_upload": true
     }
   ]

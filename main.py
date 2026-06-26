@@ -18,6 +18,8 @@ from auth import (
     allowed_departments,
     assert_can_access,
     assert_can_upload,
+    do_login,
+    do_signup,
     get_current_user,
     list_users,
 )
@@ -131,6 +133,17 @@ async def seed_demo_corpus():
 
 # ── Models ───────────────────────────────────────────────────────────────
 
+class AuthRequest(BaseModel):
+    email: str
+    password: str
+
+
+class SignupRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+
+
 class ChatRequest(BaseModel):
     question: str
     model: str = DEFAULT_MODEL
@@ -147,6 +160,25 @@ class SummaryRequest(BaseModel):
 class UpdateMetaRequest(BaseModel):
     department: str | None = None
     tags: list[str] | None = None
+
+
+# ── Auth endpoints ───────────────────────────────────────────────────────
+
+@app.post("/auth/signup")
+def signup(req: SignupRequest):
+    user, token = do_signup(req.name, req.email, req.password)
+    return {"token": token, "user": user}
+
+
+@app.post("/auth/login")
+def login(req: AuthRequest):
+    user, token = do_login(req.email, req.password)
+    return {"token": token, "user": user}
+
+
+@app.get("/auth/me")
+def auth_me(user: dict = Depends(get_current_user)):
+    return {"user": user}
 
 
 # ── Identity ─────────────────────────────────────────────────────────────
