@@ -346,7 +346,7 @@ async def chat(request: Request, req: ChatRequest, user: dict = Depends(get_curr
             }
             for d in docs
         ]
-        yield f"data: {json.dumps({'type': 'sources', 'sources': sources})}\n\n"
+        yield f"data: {json.dumps({'type': 'sources', 'sources': sources, 'scope': req.department or 'All'})}\n\n"
 
         loop = asyncio.get_event_loop()
         queue: asyncio.Queue = asyncio.Queue()

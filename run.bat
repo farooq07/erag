@@ -30,15 +30,16 @@ if errorlevel 1 (
     exit /b 1
 )
 
-REM --- 3. Build frontend if not already built ---
-if not exist "frontend\dist\index.html" (
-    echo [2/3] Building frontend ^(first run only^) ...
-    pushd frontend
-    call npm install
-    call npm run build
-    popd
-) else (
-    echo [2/3] Frontend already built - skipping.
+REM --- 3. Always build the frontend (picks up latest code) ---
+echo [2/3] Building frontend ...
+pushd frontend
+call npm install --silent
+call npm run build
+popd
+if errorlevel 1 (
+    echo [X] Frontend build failed. Is Node.js installed?
+    pause
+    exit /b 1
 )
 
 REM --- 4. Launch server ---

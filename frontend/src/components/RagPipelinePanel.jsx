@@ -4,7 +4,7 @@ const PIPELINE_STEPS = [
   { key: "rewrite",  icon: Cpu,         label: "Query Rewrite",     desc: "LLM expands and resolves the query for better recall" },
   { key: "hyde",     icon: Layers,      label: "HyDE",              desc: "Hypothetical Document Embedding for dense retrieval" },
   { key: "bm25",     icon: Search,      label: "BM25 Search",       desc: "Sparse keyword search over the full corpus" },
-  { key: "vector",   icon: Database,    label: "Vector Search",     desc: "Dense semantic similarity search via nomic-embed-text" },
+  { key: "vector",   icon: Database,    label: "Vector Search",     desc: "Dense semantic similarity search via ONNX MiniLM embeddings" },
   { key: "rrf",      icon: Shuffle,     label: "RRF Fusion",        desc: "Reciprocal Rank Fusion merges both result lists" },
   { key: "rerank",   icon: Filter,      label: "Cross-Encoder",     desc: "ms-marco reranker scores each candidate passage" },
   { key: "crag",     icon: CheckCircle2,label: "CRAG Filter",       desc: "Low-relevance chunks filtered; low-confidence warning added" },
