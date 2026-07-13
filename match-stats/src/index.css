@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Transparent, frameless widget shell.
+ * The Tauri window itself is transparent; the visible card lives inside <App />.
+ */
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  /* Prevent text selection / native drag ghosting while dragging the widget. */
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+#root {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Hide scrollbars everywhere inside the widget. */
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
