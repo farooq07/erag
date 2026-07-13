@@ -75,20 +75,43 @@ The React frontend also runs in a plain browser for UI work
 feeds the UI with **evolving mock sensor data**, so you can iterate on the
 widget without LHM.
 
-## 3. Build a release installer (.msi / .exe)
+## 3. Get the installer
+
+### Easiest — let GitHub build it (no local Rust toolchain needed)
+
+A GitHub Actions workflow builds the Windows installer on a Windows runner for
+you (see [`.github/workflows/match-stats-release.yml`](../.github/workflows/match-stats-release.yml)):
+
+- **Manual:** GitHub → **Actions** → _Build Match Stats installer_ →
+  **Run workflow**. When it finishes, download the
+  **`match-stats-windows-installers`** artifact — it contains the `.exe` and
+  `.msi`.
+- **Tagged release:** push a tag and it attaches the installers to a draft
+  GitHub Release:
+  ```bash
+  git tag match-stats-v0.1.0 && git push origin match-stats-v0.1.0
+  ```
+
+Then just **double-click `Match Stats_0.1.0_x64-setup.exe`** → it installs
+per-user (no admin prompt) and offers to launch on finish. WebView2 is
+auto-installed if your machine doesn't already have it.
+
+### Local build (needs Rust + Tauri prerequisites)
 
 ```bash
 npm run tauri build
 ```
 
-Artifacts are written to:
+Artifacts:
 
 ```
+src-tauri/target/release/bundle/nsis/Match Stats_0.1.0_x64-setup.exe   # recommended installer
 src-tauri/target/release/bundle/msi/Match Stats_0.1.0_x64_en-US.msi
-src-tauri/target/release/bundle/nsis/Match Stats_0.1.0_x64-setup.exe
+src-tauri/target/release/match-stats.exe                               # standalone binary
 ```
 
-The standalone binary is `src-tauri/target/release/match-stats.exe`.
+The `.exe` (NSIS) installer is a one-click, per-user install requiring **no
+administrator rights**.
 
 ---
 
