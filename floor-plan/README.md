@@ -22,14 +22,20 @@ Switch with the **Edit / Map / 3D** control in the top bar.
   team layout reads at a glance.
 - **🧊 3D** — the floor as a real 3D model: desks, chairs, monitors, room
   volumes and walls, drawn in perspective.
-  - **Drag a desk** to move it anywhere on the floor (snaps to a fine grid).
+  - **Drag a block's floor** to move the whole block — desks, chairs, walls and
+    all — anywhere on the plan. Any desk you had moved individually travels
+    with it, keeping the arrangement intact.
+  - **Drag a desk** to move it on its own (snaps to a fine grid).
   - **Drag the floor** to orbit; **scroll or pinch** to zoom; **shift-drag** or
     right-drag to pan.
   - **Tap a desk** to open its editor.
   - Zoom in and each desk shows its occupant's name.
   - Clicking a department in the legend highlights just that team in 3D —
     the fastest way to answer "where does HR sit?".
-  - **Re-align to rows** snaps every desk back to its tidy grid position.
+  - **Reset layout** snaps every block and desk back to the default arrangement.
+
+  Positions are saved automatically, so the floor you arrange is the floor you
+  come back to. **Export** writes it to a `.json` file you can keep or share.
 
 The 3D view is rendered by a small purpose-built engine (perspective camera,
 painter's-algorithm depth sorting, ray→floor unprojection for dragging) drawn

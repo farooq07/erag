@@ -161,6 +161,7 @@
   #c3d{display:block;width:100%;height:70vh;min-height:340px;touch-action:none;cursor:grab}
   #c3d.grabbing{cursor:grabbing}
   #c3d.on-desk{cursor:pointer}
+  #c3d.on-block{cursor:move}
   @media(max-width:900px){
     #c3d{height:62vh;min-height:320px}
     .cam-btn{width:30px;height:30px;font-size:13px;opacity:.92}
@@ -250,10 +251,10 @@
           <button class="cam-btn wide" data-cam="reset" title="Reset camera">Reset view</button>
         </div>
         <div class="cam-row">
-          <button class="cam-btn wide" data-cam="realign" title="Snap all desks back to their rows">Re-align to rows</button>
+          <button class="cam-btn wide" data-cam="realign" title="Snap every block and desk back to the default arrangement">Reset layout</button>
         </div>
       </div>
-      <div class="stage-hint">Drag a desk to move it · drag the floor to orbit · pinch or scroll to zoom · tap a desk to edit</div>
+      <div class="stage-hint">Drag a block's floor to move the whole block · drag a desk to move it alone · drag open ground to orbit · pinch or scroll to zoom · tap a desk to edit</div>
     </div>
 
     <div class="floor" id="floor"></div>
@@ -847,6 +848,8 @@ function zoneFootprint(z){
   const per=z.rows.reduce((m,r)=>Math.max(m,r.seats.length),1);
   return {w:per*DX+PAD*2, d:z.rows.length*DZ+PAD*2};
 }
+// Zones flow down their column by default; a zone the user has dragged carries
+// its own position and is skipped by the flow.
 function ensureLayout(){
   const colW=state.columns.map(col=>col.reduce((m,z)=>Math.max(m,zoneFootprint(z).w),4));
   let x=0;
@@ -854,8 +857,9 @@ function ensureLayout(){
     let zc=0;
     col.forEach(z=>{
       const fp=zoneFootprint(z);
-      z._x=x; z._z=zc; z._w=fp.w; z._d=fp.d;
-      zc+=fp.d+GAP_ROW;
+      z._w=fp.w; z._d=fp.d;
+      if(z.pos){ z._x=z.pos.x; z._z=z.pos.z; }
+      else { z._x=x; z._z=zc; zc+=fp.d+GAP_ROW; }
     });
     x+=colW[ci]+GAP_COL;
   });
@@ -927,7 +931,7 @@ function rayToGround(sx,sy,planeY){
 }
 
 /* ---- scene ---- */
-let FACES=[], PICKS=[], SLABS=[], LABELS=[], SHADOWS=[];
+let FACES=[], PICKS=[], SLABS=[], LABELS=[], SHADOWS=[], ZPICKS=[];
 function box(out,cx,cy,cz,w,h,d,color){
   const x0=cx-w/2,x1=cx+w/2,y0=cy,y1=cy+h,z0=cz-d/2,z1=cz+d/2;
   out.push({p:[[x0,y1,z0],[x1,y1,z0],[x1,y1,z1],[x0,y1,z1]],c:shade(color,F_TOP)});
@@ -943,7 +947,7 @@ function sofa(out,cx,cz,w,d,backAtFar){
 }
 
 function build3D(){
-  FACES=[];PICKS=[];SLABS=[];LABELS=[];SHADOWS=[];
+  FACES=[];PICKS=[];SLABS=[];LABELS=[];SHADOWS=[];ZPICKS=[];
   state.columns.forEach(col=>col.forEach(z=>{
     const kind=z.type==="area"?areaKind(z.name):null;
     const st=kind?AREA_STYLE[kind]:null;
@@ -955,6 +959,9 @@ function build3D(){
     // floating one, or its own contents hide it
     const flat = z.type==="area" && kind!=="lounge" && kind!=="sky";
     LABELS.push({x:z._x+z._w/2, z:z._z+z._d/2, w:z._w, text:z.name, area:flat});
+    // the slab doubles as the grab handle for moving the whole block
+    ZPICKS.push({zone:z, quad:[[z._x,.02,z._z],[z._x+z._w,.02,z._z],
+      [z._x+z._w,.02,z._z+z._d],[z._x,.02,z._z+z._d]]});
     if(z.type==="area"){
       if(kind==="room"){                       // low walls read as an enclosed room
         const t=.18,h=.55,c="#33507d";
@@ -1159,6 +1166,15 @@ function draw3D(){
     if(hit){ const q=hit.quad.map(project);
       if(q.every(Boolean)){ ctx.strokeStyle="#7fb3ff"; ctx.lineWidth=2.5; poly(q); ctx.stroke(); } }
   }
+  if(sel3dZone){
+    const zp=ZPICKS.find(p=>p.zone.id===sel3dZone);
+    if(zp){ const q=zp.quad.map(project);
+      if(q.every(Boolean)){
+        ctx.fillStyle="rgba(127,179,255,.10)"; poly(q); ctx.fill();
+        ctx.strokeStyle="#7fb3ff"; ctx.lineWidth=2.5; ctx.setLineDash([7,5]);
+        poly(q); ctx.stroke(); ctx.setLineDash([]);
+      } }
+  }
 }
 
 /* ---- picking ---- */
@@ -1180,9 +1196,28 @@ function pickDesk(sx,sy){
   cands.sort((a,b)=>a.d-b.d);        // nearest wins
   return cands[0].p;
 }
+function pickZone(sx,sy){
+  const cands=[];
+  for(const p of ZPICKS){
+    const q=p.quad.map(project); if(!q.every(Boolean)) continue;
+    if(pointInPoly(sx,sy,q)) cands.push({z:p.zone,d:(q[0][2]+q[2][2])/2});
+  }
+  if(!cands.length) return null;
+  cands.sort((a,b)=>a.d-b.d);
+  return cands[0].z;
+}
+// Move a block, carrying any individually-placed desks along with it.
+function placeZone(z,nx,nz){
+  const dx=nx-z._x, dz=nz-z._z;
+  if(!dx&&!dz) return false;
+  z.pos={x:nx,z:nz};
+  z.rows.forEach(r=>r.seats.forEach(s=>{ if(s.pos){ s.pos.x+=dx; s.pos.z+=dz; } }));
+  ensureLayout();
+  return true;
+}
 
 /* ---- interaction ---- */
-let sel3d=null, drag3d=null, orbit=null;
+let sel3d=null, sel3dZone=null, drag3d=null, dragZone=null, orbit=null;
 const ptrs=new Map(); let pinch=null;
 function localXY(e){ const r=cv.getBoundingClientRect(); return [e.clientX-r.left, e.clientY-r.top]; }
 
@@ -1195,13 +1230,19 @@ cv.addEventListener("pointerdown",e=>{
     drag3d=orbit=null; return;
   }
   const [x,y]=localXY(e);
-  const hit=(e.button===2||e.shiftKey)?null:pickDesk(x,y);
+  const navigating=(e.button===2||e.shiftKey);
+  const hit=navigating?null:pickDesk(x,y);
+  const zhit=(navigating||hit)?null:pickZone(x,y);
   if(hit){
     const g=rayToGround(x,y,0);
     drag3d={seat:hit.seat,ox:g?g[0]-hit.x:0,oz:g?g[2]-hit.z:0,moved:0,sx:x,sy:y};
-    sel3d=hit.seat.id; draw3D();
+    sel3d=hit.seat.id; sel3dZone=null; draw3D();
+  }else if(zhit){
+    const g=rayToGround(x,y,0);
+    dragZone={zone:zhit,ox:g?g[0]-zhit._x:0,oz:g?g[2]-zhit._z:0,moved:0,sx:x,sy:y};
+    sel3dZone=zhit.id; sel3d=null; draw3D();
   }else{
-    orbit={x,y,pan:(e.button===2||e.shiftKey),moved:0};
+    orbit={x,y,pan:navigating,moved:0};
     cv.classList.add("grabbing");
   }
 });
@@ -1223,6 +1264,13 @@ cv.addEventListener("pointermove",e=>{
     drag3d.seat.pos={x:snap(g[0]-drag3d.ox), z:snap(g[2]-drag3d.oz)};
     build3D(); draw3D(); return;
   }
+  if(dragZone){
+    const g=rayToGround(x,y,0); if(!g) return;
+    dragZone.moved=Math.max(dragZone.moved,Math.hypot(x-dragZone.sx,y-dragZone.sy));
+    const snap=v=>Math.round(v*2)/2;
+    if(placeZone(dragZone.zone,snap(g[0]-dragZone.ox),snap(g[2]-dragZone.oz))){ build3D(); draw3D(); }
+    return;
+  }
   if(orbit){
     const dx=x-orbit.x, dy=y-orbit.y;
     orbit.moved+=Math.abs(dx)+Math.abs(dy);
@@ -1230,7 +1278,9 @@ cv.addEventListener("pointermove",e=>{
     else { cam.az-=dx*.008; cam.el=clamp(cam.el-dy*.006,.14,1.45); }
     orbit.x=x; orbit.y=y; draw3D(); return;
   }
-  cv.classList.toggle("on-desk",!!pickDesk(x,y));
+  const overDesk=!!pickDesk(x,y);
+  cv.classList.toggle("on-desk",overDesk);
+  cv.classList.toggle("on-block",!overDesk&&!!pickZone(x,y));
 });
 function endPtr(e){
   ptrs.delete(e.pointerId); if(ptrs.size<2) pinch=null;
@@ -1239,6 +1289,11 @@ function endPtr(e){
     if(drag3d.moved<5){ openSeat(drag3d.seat.id); }   // tap = edit
     else { toast("Desk moved"); save(); }
     drag3d=null;
+  }
+  if(dragZone){
+    if(dragZone.moved>=5){ toast(dragZone.zone.name+" moved"); save(); }
+    else { sel3dZone=null; draw3D(); }                // a tap just deselects
+    dragZone=null;
   }
   orbit=null;
 }
@@ -1268,7 +1323,9 @@ el("stage3d").addEventListener("click",e=>{
   else if(a==="reset"){ fitCamera(); }
   else if(a==="realign"){
     allSeats().forEach(s=>{ delete s.pos; });
-    build3D(); fitCamera(); toast("Desks re-aligned to their rows"); save();
+    state.columns.forEach(col=>col.forEach(z=>{ delete z.pos; }));
+    sel3d=sel3dZone=null;
+    ensureLayout(); build3D(); fitCamera(); toast("Layout reset to the default arrangement"); save();
   }
   draw3D();
 });
