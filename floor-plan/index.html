@@ -135,6 +135,30 @@
     opacity:0;pointer-events:none;transition:.25s}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
 
+  /* ---- map view (read-only floor overview) ---- */
+  .btn.toggle{background:#0e2038;border-color:#2f6ad0;color:#cfe0ff}
+  .btn.toggle:hover{background:#12294a}
+  body.mode-map .btn.toggle{background:var(--accent);border-color:var(--accent);color:#fff}
+  body.mode-map .edit-only{display:none!important}
+  body.mode-map .zone-tools,body.mode-map .row-add,body.mode-map [data-act="addseat"]{display:none!important}
+  body.mode-map .zone-title,body.mode-map .row-label{cursor:default}
+  body.mode-map .floor,body.mode-map .col{gap:10px}
+  body.mode-map .zone{padding:9px}
+  body.mode-map .zone.area{min-height:0}
+  body.mode-map .row{gap:4px;margin-bottom:4px}
+  body.mode-map .row-label{width:24px;font-size:10px}
+  body.mode-map .row-seats{gap:4px}
+  body.mode-map .seat{min-height:30px;padding:3px 5px;cursor:pointer}
+  body.mode-map .seat .tag{display:none}
+  body.mode-map .seat .dp{display:none}
+  body.mode-map .seat .nm{font-size:10px;line-height:1.2}
+  body.mode-map .seat.filled{background:linear-gradient(rgba(9,15,26,.5),rgba(9,15,26,.5)),var(--c,#33507d);border-color:var(--c,#33507d)}
+  body.mode-map .seat.empty{background:transparent;border-style:dashed;opacity:.45}
+  body.mode-map .seat.empty .nm{display:none}
+  body.mode-map .seat.dim{opacity:.12}
+  .map-note{display:none;font-size:12px;color:var(--muted);padding:2px 4px 10px}
+  body.mode-map .map-note{display:block}
+
   /* tap-to-place */
   .chip.picked{outline:2px solid var(--accent);outline-offset:1px;box-shadow:0 0 0 4px rgba(59,130,246,.25)}
   .seat.picked{outline:2px solid var(--accent);outline-offset:-2px}
@@ -155,16 +179,18 @@
   <div class="brand"><span class="dot"></span> Floor Plan &amp; Seating Manager</div>
   <input id="search" class="search" placeholder="Search person / dept…" />
   <div class="spacer"></div>
-  <button class="btn primary" id="addPerson">＋ Person</button>
-  <button class="btn" id="addZone">＋ Zone</button>
-  <button class="btn" id="addArea">＋ Area</button>
+  <button class="btn toggle" id="viewToggle">🗺 Map view</button>
+  <button class="btn primary edit-only" id="addPerson">＋ Person</button>
+  <button class="btn edit-only" id="addZone">＋ Zone</button>
+  <button class="btn edit-only" id="addArea">＋ Area</button>
   <button class="btn" id="exportBtn">Export</button>
-  <label class="btn">Import<input id="importFile" type="file" accept="application/json" hidden></label>
-  <button class="btn danger" id="resetBtn">Reset</button>
+  <label class="btn edit-only">Import<input id="importFile" type="file" accept="application/json" hidden></label>
+  <button class="btn danger edit-only" id="resetBtn">Reset</button>
 </header>
 
 <div class="layout">
   <div class="board">
+    <div class="map-note">🗺 Map view — a read-only overview of the whole floor, each desk tinted by department. Tap any desk to jump in and edit.</div>
     <div class="floor" id="floor"></div>
   </div>
 
@@ -274,8 +300,10 @@ function el(id){ return document.getElementById(id); }
 let filterDept = null;
 let searchTerm = "";
 let picked = null; // tap-to-place source: {kind:"pool"|"seat", id}
+let viewMode = "edit"; // "edit" | "map"
 
 function render(){
+  document.body.classList.toggle("mode-map", viewMode==="map");
   renderFloor();
   renderPool();
   renderLegend();
@@ -329,6 +357,7 @@ function seatEl(s){
   d.dataset.seat=s.id; d.draggable=filled;
   if(filled){
     const col=deptColor(s.person.dept);
+    d.style.setProperty("--c",col);
     d.innerHTML=`<span class="tag" style="background:${col}"></span>
       <div class="nm">${esc(s.person.name)}</div>
       <div class="dp">${esc(s.person.dept||"")}</div>`;
@@ -561,6 +590,13 @@ el("legend").addEventListener("input",e=>{
 });
 
 /* ---------------- toolbar ---------------- */
+el("viewToggle").onclick=()=>{
+  viewMode = viewMode==="map" ? "edit" : "map";
+  el("viewToggle").textContent = viewMode==="map" ? "✏️ Edit floor" : "🗺 Map view";
+  if(viewMode==="map" && picked) clearPicked();
+  render();
+  window.scrollTo({top:0,behavior:"smooth"});
+};
 el("search").addEventListener("input",e=>{ searchTerm=e.target.value.trim().toLowerCase(); render(); });
 
 el("addPerson").onclick=()=>{
