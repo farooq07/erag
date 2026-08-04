@@ -12,6 +12,30 @@ Your changes are saved automatically in the browser (localStorage). Use
 **Export** to save a `.json` backup and **Import** to restore it (or to move
 your layout to another computer).
 
+## Three views
+
+Switch with the **Edit / Map / 3D** control in the top bar.
+
+- **✏️ Edit** — the working view. Rows and seats as a grid; add people, rename
+  zones, restructure the floor.
+- **🗺 Map** — a flat, read-only overview. Every desk tinted by department so
+  team layout reads at a glance.
+- **🧊 3D** — the floor as a real 3D model: desks, chairs, monitors, room
+  volumes and walls, drawn in perspective.
+  - **Drag a desk** to move it anywhere on the floor (snaps to a fine grid).
+  - **Drag the floor** to orbit; **scroll or pinch** to zoom; **shift-drag** or
+    right-drag to pan.
+  - **Tap a desk** to open its editor.
+  - Zoom in and each desk shows its occupant's name.
+  - Clicking a department in the legend highlights just that team in 3D —
+    the fastest way to answer "where does HR sit?".
+  - **Re-align to rows** snaps every desk back to its tidy grid position.
+
+The 3D view is rendered by a small purpose-built engine (perspective camera,
+painter's-algorithm depth sorting, ray→floor unprojection for dragging) drawn
+on a 2D canvas. No external 3D library is used, so the page stays fully
+self-contained and works offline and under strict content-security policies.
+
 ## What it does
 
 - **Drag & drop people** — drag a person chip from the *Unassigned* pool onto

@@ -135,10 +135,39 @@
     opacity:0;pointer-events:none;transition:.25s}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
 
+  /* ---- view switcher ---- */
+  .segmented{display:inline-flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+  .segmented button{background:transparent;border:0;color:var(--muted);font-size:13px;font-weight:600;
+    padding:6px 12px;border-radius:7px;cursor:pointer;transition:.15s;white-space:nowrap}
+  .segmented button:hover{color:var(--text)}
+  .segmented button.on{background:var(--accent);color:#fff}
+
+  /* ---- 3D stage ---- */
+  .stage3d{display:none;position:relative;background:radial-gradient(120% 90% at 50% 0%,#16233d,#080d18);
+    border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+  body.mode-3d .stage3d{display:block}
+  body.mode-3d .floor{display:none}
+  body.mode-3d .edit-only{display:none!important}
+  #c3d{display:block;width:100%;height:70vh;min-height:340px;touch-action:none;cursor:grab}
+  #c3d.grabbing{cursor:grabbing}
+  #c3d.on-desk{cursor:pointer}
+  @media(max-width:900px){
+    #c3d{height:62vh;min-height:320px}
+    .cam-btn{width:30px;height:30px;font-size:13px;opacity:.92}
+    .cam-btn.wide{padding:0 9px;font-size:11px}
+    .stage-hint{font-size:10.5px;padding:5px 9px}
+  }
+  .cam-ui{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+  .cam-row{display:flex;gap:6px}
+  .cam-btn{background:rgba(12,22,40,.82);backdrop-filter:blur(6px);border:1px solid var(--line);color:var(--text);
+    width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:14px;font-weight:700;display:grid;place-items:center}
+  .cam-btn:hover{background:#1b2c4c;border-color:#33507d}
+  .cam-btn.wide{width:auto;padding:0 12px;font-size:12px}
+  .stage-hint{position:absolute;left:12px;bottom:10px;font-size:11.5px;color:#8ea3c4;
+    background:rgba(10,18,32,.7);backdrop-filter:blur(6px);padding:6px 11px;border-radius:20px;
+    border:1px solid var(--line);pointer-events:none;max-width:calc(100% - 24px)}
+
   /* ---- map view (read-only floor overview) ---- */
-  .btn.toggle{background:#0e2038;border-color:#2f6ad0;color:#cfe0ff}
-  .btn.toggle:hover{background:#12294a}
-  body.mode-map .btn.toggle{background:var(--accent);border-color:var(--accent);color:#fff}
   body.mode-map .edit-only{display:none!important}
   body.mode-map .zone-tools,body.mode-map .row-add,body.mode-map [data-act="addseat"]{display:none!important}
   body.mode-map .zone-title,body.mode-map .row-label{cursor:default}
@@ -179,7 +208,11 @@
   <div class="brand"><span class="dot"></span> Floor Plan &amp; Seating Manager</div>
   <input id="search" class="search" placeholder="Search person / dept…" />
   <div class="spacer"></div>
-  <button class="btn toggle" id="viewToggle">🗺 Map view</button>
+  <div class="segmented" id="viewSeg">
+    <button data-view="edit" class="on">✏️ Edit</button>
+    <button data-view="map">🗺 Map</button>
+    <button data-view="3d">🧊 3D</button>
+  </div>
   <button class="btn primary edit-only" id="addPerson">＋ Person</button>
   <button class="btn edit-only" id="addZone">＋ Zone</button>
   <button class="btn edit-only" id="addArea">＋ Area</button>
@@ -191,6 +224,28 @@
 <div class="layout">
   <div class="board">
     <div class="map-note">🗺 Map view — a read-only overview of the whole floor, each desk tinted by department. Tap any desk to jump in and edit.</div>
+
+    <div class="stage3d" id="stage3d">
+      <canvas id="c3d"></canvas>
+      <div class="cam-ui">
+        <div class="cam-row">
+          <button class="cam-btn" data-cam="rot-left" title="Rotate left">⟲</button>
+          <button class="cam-btn" data-cam="rot-right" title="Rotate right">⟳</button>
+          <button class="cam-btn" data-cam="up" title="Tilt up">▲</button>
+          <button class="cam-btn" data-cam="down" title="Tilt down">▼</button>
+        </div>
+        <div class="cam-row">
+          <button class="cam-btn" data-cam="zoom-in" title="Zoom in">＋</button>
+          <button class="cam-btn" data-cam="zoom-out" title="Zoom out">－</button>
+          <button class="cam-btn wide" data-cam="reset" title="Reset camera">Reset view</button>
+        </div>
+        <div class="cam-row">
+          <button class="cam-btn wide" data-cam="realign" title="Snap all desks back to their rows">Re-align to rows</button>
+        </div>
+      </div>
+      <div class="stage-hint">Drag a desk to move it · drag the floor to orbit · pinch or scroll to zoom · tap a desk to edit</div>
+    </div>
+
     <div class="floor" id="floor"></div>
   </div>
 
@@ -304,7 +359,9 @@ let viewMode = "edit"; // "edit" | "map"
 
 function render(){
   document.body.classList.toggle("mode-map", viewMode==="map");
-  renderFloor();
+  document.body.classList.toggle("mode-3d", viewMode==="3d");
+  if(viewMode==="3d"){ ensureLayout(); build3D(); draw3D(); }
+  else renderFloor();
   renderPool();
   renderLegend();
   renderStats();
@@ -590,13 +647,13 @@ el("legend").addEventListener("input",e=>{
 });
 
 /* ---------------- toolbar ---------------- */
-el("viewToggle").onclick=()=>{
-  viewMode = viewMode==="map" ? "edit" : "map";
-  el("viewToggle").textContent = viewMode==="map" ? "✏️ Edit floor" : "🗺 Map view";
-  if(viewMode==="map" && picked) clearPicked();
+el("viewSeg").addEventListener("click",e=>{
+  const b=e.target.closest("button[data-view]"); if(!b) return;
+  viewMode=b.dataset.view;
+  el("viewSeg").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
+  if(viewMode!=="edit" && picked) clearPicked();
   render();
-  window.scrollTo({top:0,behavior:"smooth"});
-};
+});
 el("search").addEventListener("input",e=>{ searchTerm=e.target.value.trim().toLowerCase(); render(); });
 
 el("addPerson").onclick=()=>{
@@ -644,6 +701,389 @@ el("importFile").onchange=e=>{
   r.readAsText(f); e.target.value="";
 };
 el("resetBtn").onclick=()=>{ if(confirm("Reset to the default demo floor? This clears your changes.")){ state=defaultState(); render(); toast("Reset"); } };
+
+/* ==================================================================
+   3D VIEW — small purpose-built engine (perspective camera, painter's
+   algorithm, ray→floor unprojection for drag). No external libraries:
+   the published page runs under a CSP that blocks CDN scripts.
+   ================================================================== */
+const DX=1.95, DZ=1.8;              // seat pitch / row pitch (metres-ish)
+const DESK_W=1.5, DESK_D=.8, DESK_H=.74;
+const PAD=1.0, GAP_COL=3.6, GAP_ROW=2.6;
+const FOV=Math.PI/4;
+
+/* ---- vector helpers ---- */
+const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+const add=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]];
+const mul=(a,s)=>[a[0]*s,a[1]*s,a[2]*s];
+const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const norm=a=>{const l=Math.hypot(a[0],a[1],a[2])||1;return [a[0]/l,a[1]/l,a[2]/l];};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+/* ---- color helpers (cached CSS-color → rgb) ---- */
+const _cc=document.createElement("canvas"); _cc.width=_cc.height=1;
+const _cx=_cc.getContext("2d",{willReadFrequently:true}); const _colorCache={};
+function rgbOf(css){
+  if(_colorCache[css]) return _colorCache[css];
+  _cx.clearRect(0,0,1,1); _cx.fillStyle="#888"; _cx.fillStyle=css; _cx.fillRect(0,0,1,1);
+  const d=_cx.getImageData(0,0,1,1).data;
+  return _colorCache[css]=[d[0],d[1],d[2]];
+}
+function shade(css,f,alpha){
+  const [r,g,b]=rgbOf(css); const c=v=>Math.max(0,Math.min(255,Math.round(v*f)));
+  return alpha==null?`rgb(${c(r)},${c(g)},${c(b)})`:`rgba(${c(r)},${c(g)},${c(b)},${alpha})`;
+}
+// face brightness: top, +z, -z, +x, -x
+const F_TOP=1.12, F_FRONT=.74, F_BACK=.52, F_RIGHT=.90, F_LEFT=.62;
+
+/* ---- layout: give every zone a footprint in world space ---- */
+function zoneFootprint(z){
+  if(z.type==="area"){ const s=z.size||{w:8,d:6}; return {w:s.w,d:s.d}; }
+  const per=z.rows.reduce((m,r)=>Math.max(m,r.seats.length),1);
+  return {w:per*DX+PAD*2, d:z.rows.length*DZ+PAD*2};
+}
+function ensureLayout(){
+  const colW=state.columns.map(col=>col.reduce((m,z)=>Math.max(m,zoneFootprint(z).w),4));
+  let x=0;
+  state.columns.forEach((col,ci)=>{
+    let zc=0;
+    col.forEach(z=>{
+      const fp=zoneFootprint(z);
+      z._x=x; z._z=zc; z._w=fp.w; z._d=fp.d;
+      zc+=fp.d+GAP_ROW;
+    });
+    x+=colW[ci]+GAP_COL;
+  });
+}
+function seatPos(z,rowIdx,seatIdx,seat){
+  if(seat.pos) return [seat.pos.x,seat.pos.z];
+  return [ z._x+PAD+(seatIdx+.5)*DX, z._z+PAD+(rowIdx+.5)*DZ ];
+}
+function sceneBounds(){
+  let x0=1e9,z0=1e9,x1=-1e9,z1=-1e9;
+  state.columns.forEach(col=>col.forEach(z=>{
+    x0=Math.min(x0,z._x); z0=Math.min(z0,z._z);
+    x1=Math.max(x1,z._x+z._w); z1=Math.max(z1,z._z+z._d);
+    z.rows.forEach((r,ri)=>r.seats.forEach((s,si)=>{ // include dragged-out desks
+      const [px,pz]=seatPos(z,ri,si,s);
+      x0=Math.min(x0,px-1); x1=Math.max(x1,px+1); z0=Math.min(z0,pz-1); z1=Math.max(z1,pz+1);
+    }));
+  }));
+  if(x0>x1){x0=0;x1=10;z0=0;z1=10;}
+  return {x0,z0,x1,z1,cx:(x0+x1)/2,cz:(z0+z1)/2,w:x1-x0,d:z1-z0};
+}
+
+/* ---- camera ---- */
+const cam={az:-0.62, el:0.86, dist:40, tx:0, tz:0};
+let camFitted=false;
+function fitCamera(){
+  const b=sceneBounds();
+  cam.tx=b.cx; cam.tz=b.cz;
+  let d=Math.max(b.w,b.d)*1.16+10;
+  // portrait / narrow canvases need to pull back further to fit the floor
+  const asp=(cv.clientWidth||1)/(cv.clientHeight||1);
+  if(asp<1.4) d*=clamp(Math.sqrt(1.4/Math.max(asp,.3)),1,1.25);
+  cam.dist=d; cam.az=-0.62; cam.el=0.86; camFitted=true;
+}
+let VIEW=null; // {eye,r,u,f,focal,W,H}
+function camSetup(W,H){
+  const ce=Math.cos(cam.el),se=Math.sin(cam.el),ca=Math.cos(cam.az),sa=Math.sin(cam.az);
+  const eye=[cam.tx+ce*sa*cam.dist, se*cam.dist, cam.tz+ce*ca*cam.dist];
+  const f=norm(sub([cam.tx,0,cam.tz],eye));
+  const r=norm(cross([0,1,0],f));
+  const u=cross(f,r);
+  VIEW={eye,r,u,f,focal:(H/2)/Math.tan(FOV/2),W,H};
+}
+function project(p){
+  const v=sub(p,VIEW.eye);
+  const cz=dot(v,VIEW.f); if(cz<=0.05) return null;
+  const k=VIEW.focal/cz;
+  return [VIEW.W/2+dot(v,VIEW.r)*k, VIEW.H/2-dot(v,VIEW.u)*k, cz];
+}
+function rayToGround(sx,sy,planeY){
+  const d=norm(add(add(mul(VIEW.r,sx-VIEW.W/2),mul(VIEW.u,-(sy-VIEW.H/2))),mul(VIEW.f,VIEW.focal)));
+  if(Math.abs(d[1])<1e-6) return null;
+  const t=((planeY||0)-VIEW.eye[1])/d[1];
+  if(t<=0) return null;
+  return add(VIEW.eye,mul(d,t));
+}
+
+/* ---- scene ---- */
+let FACES=[], PICKS=[], SLABS=[], LABELS=[], SHADOWS=[];
+function box(out,cx,cy,cz,w,h,d,color){
+  const x0=cx-w/2,x1=cx+w/2,y0=cy,y1=cy+h,z0=cz-d/2,z1=cz+d/2;
+  out.push({p:[[x0,y1,z0],[x1,y1,z0],[x1,y1,z1],[x0,y1,z1]],c:shade(color,F_TOP)});
+  out.push({p:[[x0,y1,z1],[x1,y1,z1],[x1,y0,z1],[x0,y0,z1]],c:shade(color,F_FRONT)});
+  out.push({p:[[x1,y1,z0],[x0,y1,z0],[x0,y0,z0],[x1,y0,z0]],c:shade(color,F_BACK)});
+  out.push({p:[[x1,y1,z1],[x1,y1,z0],[x1,y0,z0],[x1,y0,z1]],c:shade(color,F_RIGHT)});
+  out.push({p:[[x0,y1,z0],[x0,y1,z1],[x0,y0,z1],[x0,y0,z0]],c:shade(color,F_LEFT)});
+}
+function build3D(){
+  FACES=[];PICKS=[];SLABS=[];LABELS=[];SHADOWS=[];
+  state.columns.forEach(col=>col.forEach(z=>{
+    const isSky=/sky|open/i.test(z.name);
+    // zone slab
+    SLABS.push({x0:z._x,z0:z._z,x1:z._x+z._w,z1:z._z+z._d,
+      c: z.type==="area" ? (isSky?"#3b2f52":"#233350") : "#16233d",
+      border: z.type==="area" ? (isSky?"#6d5b96":"#3b5a8f") : "#2a3f63"});
+    LABELS.push(z.type==="area"
+      ? {x:z._x+z._w/2, z:z._z+z._d/2, text:z.name, area:true}
+      : {x:z._x+z._w/2, z:z._z+z._d/2, text:z.name, area:false}); // block name floats over its centre
+    if(z.type==="area"){
+      if(!isSky){ // low walls to read as an enclosed room
+        const t=.18,h=.55,c="#33507d";
+        box(FACES,z._x+z._w/2,0,z._z+t/2,z._w,h,t,c);
+        box(FACES,z._x+z._w/2,0,z._z+z._d-t/2,z._w,h,t,c);
+        box(FACES,z._x+t/2,0,z._z+z._d/2,t,h,z._d,c);
+        box(FACES,z._x+z._w-t/2,0,z._z+z._d/2,t,h,z._d,c);
+      }
+      return;
+    }
+    z.rows.forEach((row,ri)=>row.seats.forEach((s,si)=>{
+      const [px,pz]=seatPos(z,ri,si,s);
+      const filled=!!s.person;
+      // the legend filter / search dims non-matching desks here too
+      let muted=false;
+      if(filled){
+        if(filterDept && s.person.dept!==filterDept) muted=true;
+        if(searchTerm && !(s.person.name+" "+s.person.dept).toLowerCase().includes(searchTerm)) muted=true;
+      }
+      const col=filled?(muted?"#2b374f":deptColor(s.person.dept)):"#33507d";
+      if(filled){
+        box(FACES,px,DESK_H-.07,pz,DESK_W,.07,DESK_D,col);        // worktop
+        box(FACES,px,0,pz,DESK_W*.72,DESK_H-.07,DESK_D*.62,"#1b2740"); // pedestal
+        box(FACES,px,0,pz+DESK_D*.92,.46,.42,.46,"#24314d");       // chair seat
+        box(FACES,px,.42,pz+DESK_D*1.08,.46,.42,.1,"#2c3f63");     // chair back
+        // monitor
+        box(FACES,px,DESK_H,pz-DESK_D*.24,.62,.36,.05,"#0d1526");
+      }else{
+        box(FACES,px,0,pz,DESK_W*.9,.09,DESK_D*.9,"#1a2740");
+      }
+      SHADOWS.push({x:px,z:pz,w:DESK_W});
+      const y=DESK_H;
+      PICKS.push({seat:s,x:px,z:pz,
+        quad:[[px-DESK_W/2,y,pz-DESK_D/2],[px+DESK_W/2,y,pz-DESK_D/2],
+              [px+DESK_W/2,y,pz+DESK_D/2],[px-DESK_W/2,y,pz+DESK_D/2]],
+        name:filled?s.person.name:"", dept:filled?s.person.dept:"", filled, muted});
+    }));
+  }));
+}
+
+/* ---- draw ---- */
+const cv=el("c3d"), ctx=cv.getContext("2d");
+function draw3D(){
+  const W=cv.clientWidth, H=cv.clientHeight; if(!W||!H) return;
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  if(cv.width!==W*dpr||cv.height!==H*dpr){ cv.width=W*dpr; cv.height=H*dpr; }
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  if(!camFitted) fitCamera();
+  camSetup(W,H);
+
+  const b=sceneBounds(), M=6;
+  const poly=pts=>{ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();};
+
+  // ground
+  const g=[[b.x0-M,0,b.z0-M],[b.x1+M,0,b.z0-M],[b.x1+M,0,b.z1+M],[b.x0-M,0,b.z1+M]].map(project);
+  if(g.every(Boolean)){ ctx.fillStyle="#0d1729"; poly(g); ctx.fill(); ctx.strokeStyle="#22345a"; ctx.lineWidth=1.5; ctx.stroke(); }
+
+  // grid
+  ctx.strokeStyle="rgba(60,92,142,.28)"; ctx.lineWidth=1;
+  for(let gx=Math.floor(b.x0-M);gx<=b.x1+M;gx+=2){
+    const a=project([gx,0,b.z0-M]),c=project([gx,0,b.z1+M]);
+    if(a&&c){ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(c[0],c[1]);ctx.stroke();}
+  }
+  for(let gz=Math.floor(b.z0-M);gz<=b.z1+M;gz+=2){
+    const a=project([b.x0-M,0,gz]),c=project([b.x1+M,0,gz]);
+    if(a&&c){ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(c[0],c[1]);ctx.stroke();}
+  }
+
+  // zone slabs
+  SLABS.forEach(s=>{
+    const q=[[s.x0,.02,s.z0],[s.x1,.02,s.z0],[s.x1,.02,s.z1],[s.x0,.02,s.z1]].map(project);
+    if(!q.every(Boolean)) return;
+    ctx.fillStyle=s.c; poly(q); ctx.fill();
+    ctx.strokeStyle=s.border; ctx.lineWidth=1.5; ctx.stroke();
+  });
+
+  // contact shadows
+  ctx.fillStyle="rgba(0,0,0,.30)";
+  SHADOWS.forEach(s=>{
+    const p=project([s.x,.03,s.z]); if(!p) return;
+    const k=VIEW.focal/p[2], rx=s.w*.62*k, ry=rx*.42;
+    if(rx<1) return;
+    ctx.beginPath(); ctx.ellipse(p[0],p[1],rx,ry,0,0,Math.PI*2); ctx.fill();
+  });
+
+  // room names sit flat on the floor (rooms are empty, so nothing occludes them)
+  LABELS.filter(l=>l.area).forEach(l=>{
+    const p=project([l.x,.06,l.z]); if(!p) return;
+    const fs=clamp(VIEW.focal/p[2]*.42,10,26);
+    ctx.font=`700 ${fs}px -apple-system,Segoe UI,Roboto,sans-serif`;
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillStyle="rgba(210,225,250,.9)"; ctx.fillText(l.text,p[0],p[1]);
+  });
+
+  // geometry — painter's algorithm
+  const drawn=[];
+  for(const f of FACES){
+    const pts=f.p.map(project);
+    if(!pts.every(Boolean)) continue;
+    drawn.push({pts,c:f.c,d:(pts[0][2]+pts[1][2]+pts[2][2]+pts[3][2])/4});
+  }
+  drawn.sort((a,b)=>b.d-a.d);
+  for(const f of drawn){ ctx.fillStyle=f.c; poly(f.pts); ctx.fill(); }
+
+  // block names float above the desks as map pins, so they stay readable
+  LABELS.filter(l=>!l.area).forEach(l=>{
+    const p=project([l.x,1.55,l.z]); if(!p) return;
+    const fs=clamp(VIEW.focal/p[2]*.30,9,17);
+    ctx.font=`600 ${fs}px -apple-system,Segoe UI,Roboto,sans-serif`;
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    const w=ctx.measureText(l.text).width+14, h=fs*1.9;
+    ctx.fillStyle="rgba(10,18,32,.85)";
+    ctx.beginPath(); ctx.roundRect(p[0]-w/2,p[1]-h/2,w,h,h/2); ctx.fill();
+    ctx.strokeStyle="rgba(80,115,175,.55)"; ctx.lineWidth=1; ctx.stroke();
+    ctx.fillStyle="rgba(178,199,232,.98)"; ctx.fillText(l.text,p[0],p[1]);
+  });
+
+  // desk name labels
+  const labels=PICKS.filter(p=>p.filled).map(p=>({p,s:project([p.x,DESK_H+.34,p.z])}))
+    .filter(o=>o.s).sort((a,b)=>b.s[2]-a.s[2]);
+  labels.forEach(({p,s})=>{
+    const k=VIEW.focal/s[2], raw=k*.26;
+    if(raw<7) return;                       // too far away to read — keep it clean
+    const fs=clamp(raw,7,14);
+    ctx.font=`700 ${fs}px -apple-system,Segoe UI,Roboto,sans-serif`;
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    let t=p.name; if(t.length>13) t=t.split(/[\s/]+/)[0];
+    const w=ctx.measureText(t).width+8, h=fs+6;
+    ctx.fillStyle=p.muted?"rgba(8,14,26,.35)":"rgba(8,14,26,.78)";
+    ctx.beginPath(); ctx.roundRect(s[0]-w/2,s[1]-h/2,w,h,4); ctx.fill();
+    ctx.fillStyle=p.muted?"rgba(150,170,200,.4)":"#eaf1ff"; ctx.fillText(t,s[0],s[1]);
+  });
+
+  // selected outline
+  if(sel3d){
+    const hit=PICKS.find(p=>p.seat.id===sel3d);
+    if(hit){ const q=hit.quad.map(project);
+      if(q.every(Boolean)){ ctx.strokeStyle="#7fb3ff"; ctx.lineWidth=2.5; poly(q); ctx.stroke(); } }
+  }
+}
+
+/* ---- picking ---- */
+function pointInPoly(x,y,pts){
+  let inside=false;
+  for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+    const xi=pts[i][0],yi=pts[i][1],xj=pts[j][0],yj=pts[j][1];
+    if((yi>y)!==(yj>y) && x<(xj-xi)*(y-yi)/(yj-yi)+xi) inside=!inside;
+  }
+  return inside;
+}
+function pickDesk(sx,sy){
+  const cands=[];
+  for(const p of PICKS){
+    const q=p.quad.map(project); if(!q.every(Boolean)) continue;
+    if(pointInPoly(sx,sy,q)) cands.push({p,d:(q[0][2]+q[2][2])/2});
+  }
+  if(!cands.length) return null;
+  cands.sort((a,b)=>a.d-b.d);        // nearest wins
+  return cands[0].p;
+}
+
+/* ---- interaction ---- */
+let sel3d=null, drag3d=null, orbit=null;
+const ptrs=new Map(); let pinch=null;
+function localXY(e){ const r=cv.getBoundingClientRect(); return [e.clientX-r.left, e.clientY-r.top]; }
+
+cv.addEventListener("pointerdown",e=>{
+  cv.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId,localXY(e));
+  if(ptrs.size===2){
+    const [a,b]=[...ptrs.values()];
+    pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1]),m:[(a[0]+b[0])/2,(a[1]+b[1])/2]};
+    drag3d=orbit=null; return;
+  }
+  const [x,y]=localXY(e);
+  const hit=(e.button===2||e.shiftKey)?null:pickDesk(x,y);
+  if(hit){
+    const g=rayToGround(x,y,0);
+    drag3d={seat:hit.seat,ox:g?g[0]-hit.x:0,oz:g?g[2]-hit.z:0,moved:0,sx:x,sy:y};
+    sel3d=hit.seat.id; draw3D();
+  }else{
+    orbit={x,y,pan:(e.button===2||e.shiftKey),moved:0};
+    cv.classList.add("grabbing");
+  }
+});
+cv.addEventListener("pointermove",e=>{
+  const [x,y]=localXY(e);
+  if(ptrs.has(e.pointerId)) ptrs.set(e.pointerId,[x,y]);
+
+  if(ptrs.size===2&&pinch){
+    const [a,b]=[...ptrs.values()];
+    const d=Math.hypot(a[0]-b[0],a[1]-b[1]), m=[(a[0]+b[0])/2,(a[1]+b[1])/2];
+    if(pinch.d>0) cam.dist=clamp(cam.dist*(pinch.d/d),6,300);
+    panBy(m[0]-pinch.m[0],m[1]-pinch.m[1]);
+    pinch={d,m}; draw3D(); return;
+  }
+  if(drag3d){
+    const g=rayToGround(x,y,0); if(!g) return;
+    drag3d.moved=Math.max(drag3d.moved,Math.hypot(x-drag3d.sx,y-drag3d.sy));
+    const snap=v=>Math.round(v*8)/8;
+    drag3d.seat.pos={x:snap(g[0]-drag3d.ox), z:snap(g[2]-drag3d.oz)};
+    build3D(); draw3D(); return;
+  }
+  if(orbit){
+    const dx=x-orbit.x, dy=y-orbit.y;
+    orbit.moved+=Math.abs(dx)+Math.abs(dy);
+    if(orbit.pan) panBy(dx,dy);
+    else { cam.az-=dx*.008; cam.el=clamp(cam.el-dy*.006,.14,1.45); }
+    orbit.x=x; orbit.y=y; draw3D(); return;
+  }
+  cv.classList.toggle("on-desk",!!pickDesk(x,y));
+});
+function endPtr(e){
+  ptrs.delete(e.pointerId); if(ptrs.size<2) pinch=null;
+  cv.classList.remove("grabbing");
+  if(drag3d){
+    if(drag3d.moved<5){ openSeat(drag3d.seat.id); }   // tap = edit
+    else { toast("Desk moved"); save(); }
+    drag3d=null;
+  }
+  orbit=null;
+}
+cv.addEventListener("pointerup",endPtr);
+cv.addEventListener("pointercancel",endPtr);
+cv.addEventListener("contextmenu",e=>e.preventDefault());
+cv.addEventListener("wheel",e=>{
+  e.preventDefault(); cam.dist=clamp(cam.dist*(1+Math.sign(e.deltaY)*.12),6,300); draw3D();
+},{passive:false});
+
+function panBy(dx,dy){
+  const rg=norm([VIEW.r[0],0,VIEW.r[2]]), fg=norm([VIEW.f[0],0,VIEW.f[2]]);
+  const s=cam.dist/VIEW.focal;
+  cam.tx+=dy*s*fg[0]-dx*s*rg[0];
+  cam.tz+=dy*s*fg[2]-dx*s*rg[2];
+}
+
+el("stage3d").addEventListener("click",e=>{
+  const b=e.target.closest("[data-cam]"); if(!b) return;
+  const a=b.dataset.cam;
+  if(a==="rot-left") cam.az-=.35;
+  else if(a==="rot-right") cam.az+=.35;
+  else if(a==="up") cam.el=clamp(cam.el+.12,.14,1.45);
+  else if(a==="down") cam.el=clamp(cam.el-.12,.14,1.45);
+  else if(a==="zoom-in") cam.dist=clamp(cam.dist*.85,6,300);
+  else if(a==="zoom-out") cam.dist=clamp(cam.dist*1.18,6,300);
+  else if(a==="reset"){ fitCamera(); }
+  else if(a==="realign"){
+    allSeats().forEach(s=>{ delete s.pos; });
+    build3D(); fitCamera(); toast("Desks re-aligned to their rows"); save();
+  }
+  draw3D();
+});
+new ResizeObserver(()=>{ if(viewMode==="3d") draw3D(); }).observe(el("stage3d"));
 
 /* ---------------- go ---------------- */
 render();
