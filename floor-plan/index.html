@@ -285,6 +285,9 @@
   <h4 id="seatModalTitle">Seat</h4>
   <div class="field"><label>Name</label><input id="seatName" placeholder="Empty seat" autocomplete="off"></div>
   <div class="field"><label>Department</label><select id="seatDept"></select></div>
+  <div class="field"><label>Team / pod <span style="text-transform:none">(optional)</span></label>
+    <input id="seatPod" placeholder="e.g. Caribou" autocomplete="off" list="podList">
+    <datalist id="podList"></datalist></div>
   <div class="modal-actions">
     <button class="btn danger" id="seatClear">Clear</button>
     <button class="btn" id="seatToPool">→ Pool</button>
@@ -406,6 +409,8 @@ function findSeat(id){ return allSeats().find(s=>s.id===id); }
 function findZone(id){ for(const col of state.columns) for(const z of col) if(z.id===id) return z; }
 function findRow(id){ for(const col of state.columns) for(const z of col) for(const r of z.rows) if(r.id===id) return r; }
 function deptColor(d){ return state.departments[d] || "#94a3b8"; }
+// everything a search should match on
+function personText(p){ return ((p.name||"")+" "+(p.dept||"")+" "+(p.pod||"")).toLowerCase(); }
 function toast(msg){ const t=el("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),1600); }
 function el(id){ return document.getElementById(id); }
 
@@ -506,13 +511,14 @@ function seatEl(s){
   if(filled){
     const col=deptColor(s.person.dept);
     d.style.setProperty("--c",col);
+    const sub=[s.person.pod,s.person.dept].filter(Boolean).join(" · ");
     d.innerHTML=`<span class="tag" style="background:${col}"></span>
       <div class="nm">${esc(s.person.name)}</div>
-      <div class="dp">${esc(s.person.dept||"")}</div>`;
+      <div class="dp">${esc(sub)}</div>`;
     if(filterDept && s.person.dept!==filterDept) d.classList.add("dim");
     if(filterDept && s.person.dept===filterDept) d.classList.add("hit");
     if(searchTerm){
-      const hit=(s.person.name+" "+(s.person.dept||"")).toLowerCase().includes(searchTerm);
+      const hit=personText(s.person).includes(searchTerm);
       d.classList.toggle("hit",hit); d.classList.toggle("dim",!hit);
     }
     if(picked&&picked.kind==="seat"&&picked.id===s.id){ d.classList.add("picked"); d.classList.remove("dim"); }
@@ -545,7 +551,7 @@ function renderPool(){
     const c=document.createElement("div"); c.className="chip"; c.draggable=true; c.dataset.person=person.id;
     c.innerHTML=`<span class="swatch" style="background:${deptColor(person.dept)}"></span>${esc(person.name)}`;
     if(filterDept && person.dept!==filterDept) c.classList.add("dim");
-    if(searchTerm && !(person.name+" "+person.dept).toLowerCase().includes(searchTerm)) c.classList.add("dim");
+    if(searchTerm && !personText(person).includes(searchTerm)) c.classList.add("dim");
     if(picked&&picked.kind==="pool"&&picked.id===person.id){ c.classList.add("picked"); c.classList.remove("dim"); }
     p.appendChild(c);
   });
@@ -691,6 +697,9 @@ let editingSeat=null;
 function openSeat(id){
   editingSeat=findSeat(id); if(!editingSeat) return;
   el("seatName").value=editingSeat.person?editingSeat.person.name:"";
+  el("seatPod").value=editingSeat.person&&editingSeat.person.pod?editingSeat.person.pod:"";
+  el("podList").innerHTML=[...new Set(allSeats().map(s=>s.person&&s.person.pod).filter(Boolean))]
+    .map(p=>`<option value="${esc(p)}">`).join("");
   fillDeptSelect(el("seatDept"), editingSeat.person?editingSeat.person.dept:"Dev");
   el("seatModalTitle").textContent=editingSeat.person?"Edit person":"Assign seat";
   const has=!!editingSeat.person;
@@ -707,11 +716,12 @@ function fillDeptSelect(sel,current){
   });
 }
 el("seatSave").onclick=()=>{
-  const name=el("seatName").value.trim();
+  const name=el("seatName").value.trim(), pod=el("seatPod").value.trim();
   if(!name){ editingSeat.person=null; }
-  else editingSeat.person={name,dept:el("seatDept").value};
+  else editingSeat.person={name,dept:el("seatDept").value,...(pod?{pod}:{})};
   hideModal(); render();
 };
+el("seatPod").addEventListener("keydown",e=>{ if(e.key==="Enter") el("seatSave").click(); });
 el("seatClear").onclick=()=>{ editingSeat.person=null; hideModal(); render(); };
 el("seatToPool").onclick=()=>{ if(editingSeat.person){ state.pool.push({id:uid(),...editingSeat.person}); editingSeat.person=null; } hideModal(); render(); };
 el("seatMove").onclick=()=>{ if(editingSeat&&editingSeat.person){ const id=editingSeat.id; hideModal(); setPicked({kind:"seat",id}); } else hideModal(); };
@@ -937,12 +947,13 @@ function build3D(){
   state.columns.forEach(col=>col.forEach(z=>{
     const kind=z.type==="area"?areaKind(z.name):null;
     const st=kind?AREA_STYLE[kind]:null;
-    // zone slab
-    SLABS.push({x0:z._x,z0:z._z,x1:z._x+z._w,z1:z._z+z._d,
-      c: st?st.slab:"#16233d", border: st?st.border:"#2a3f63"});
+    // zone slab — the atrium sits below floor level so it reads as a real opening
+    const sunk = kind==="sky";
+    SLABS.push({x0:z._x,z0:z._z,x1:z._x+z._w,z1:z._z+z._d, y: sunk?-2.6:.02,
+      c: sunk?"#191426":(st?st.slab:"#16233d"), border: sunk?"#2a2140":(st?st.border:"#2a3f63")});
     // empty rooms take a flat floor label; anything holding furniture needs a
     // floating one, or its own contents hide it
-    const flat = z.type==="area" && kind!=="lounge";
+    const flat = z.type==="area" && kind!=="lounge" && kind!=="sky";
     LABELS.push({x:z._x+z._w/2, z:z._z+z._d/2, w:z._w, text:z.name, area:flat});
     if(z.type==="area"){
       if(kind==="room"){                       // low walls read as an enclosed room
@@ -964,6 +975,24 @@ function build3D(){
         const n=8, sd=z._d/n, c=st.border;
         for(let i=0;i<n;i++)
           box(FACES,z._x+z._w/2,0,z._z+sd*(i+.5),z._w-.5,.16*(i+1),sd,c);
+      }else if(kind==="sky"){
+        // slab edge around the opening, plus the red railing that guards it
+        const t=.35, lip="#1d2942";
+        box(FACES,z._x+z._w/2,-t,z._z+t/2,z._w,t,t,lip);
+        box(FACES,z._x+z._w/2,-t,z._z+z._d-t/2,z._w,t,t,lip);
+        box(FACES,z._x+t/2,-t,z._z+z._d/2,t,t,z._d,lip);
+        box(FACES,z._x+z._w-t/2,-t,z._z+z._d/2,t,t,z._d,lip);
+        const RED="#c8102e";
+        [z._z+.1, z._z+z._d-.1].forEach(zz=>{
+          const n=Math.max(2,Math.round(z._w/1.5));
+          for(let i=0;i<=n;i++) box(FACES,z._x+(i/n)*z._w,0,zz,.08,.92,.08,"#3b4658");
+          box(FACES,z._x+z._w/2,.92,zz,z._w,.09,.13,RED);
+        });
+        [z._x+.1,z._x+z._w-.1].forEach(xx=>{
+          const n=Math.max(2,Math.round(z._d/1.5));
+          for(let i=0;i<=n;i++) box(FACES,xx,0,z._z+(i/n)*z._d,.08,.92,.08,"#3b4658");
+          box(FACES,xx,.92,z._z+z._d/2,.13,.09,z._d,RED);
+        });
       }else if(kind==="lounge"){                // sofas facing each other + a pantry counter
         const cx=z._x+z._w/2, sw=Math.min(2.6,z._w-1.6);
         sofa(FACES,cx,z._z+z._d*.34,sw,.85,false);
@@ -980,7 +1009,7 @@ function build3D(){
       let muted=false;
       if(filled){
         if(filterDept && s.person.dept!==filterDept) muted=true;
-        if(searchTerm && !(s.person.name+" "+s.person.dept).toLowerCase().includes(searchTerm)) muted=true;
+        if(searchTerm && !personText(s.person).includes(searchTerm)) muted=true;
       }
       const col=filled?(muted?"#2b374f":deptColor(s.person.dept)):"#33507d";
       if(filled){
@@ -1003,7 +1032,8 @@ function build3D(){
       PICKS.push({seat:s,x:px,z:pz,
         quad:[[px-DESK_W/2,y,pz-DESK_D/2],[px+DESK_W/2,y,pz-DESK_D/2],
               [px+DESK_W/2,y,pz+DESK_D/2],[px-DESK_W/2,y,pz+DESK_D/2]],
-        name:filled?s.person.name:"", dept:filled?s.person.dept:"", filled, muted});
+        name:filled?s.person.name:"", dept:filled?s.person.dept:"",
+        pod:filled&&s.person.pod?s.person.pod:"", filled, muted});
     }));
   }));
 }
@@ -1039,7 +1069,8 @@ function draw3D(){
 
   // zone slabs
   SLABS.forEach(s=>{
-    const q=[[s.x0,.02,s.z0],[s.x1,.02,s.z0],[s.x1,.02,s.z1],[s.x0,.02,s.z1]].map(project);
+    const y=s.y==null?.02:s.y;
+    const q=[[s.x0,y,s.z0],[s.x1,y,s.z0],[s.x1,y,s.z1],[s.x0,y,s.z1]].map(project);
     if(!q.every(Boolean)) return;
     ctx.fillStyle=s.c; poly(q); ctx.fill();
     ctx.strokeStyle=s.border; ctx.lineWidth=1.5; ctx.stroke();
@@ -1097,13 +1128,29 @@ function draw3D(){
     const k=VIEW.focal/s[2], raw=k*.26;
     if(raw<7) return;                       // too far away to read — keep it clean
     const fs=clamp(raw,7,14);
-    ctx.font=`700 ${fs}px -apple-system,Segoe UI,Roboto,sans-serif`;
     ctx.textAlign="center"; ctx.textBaseline="middle";
     let t=p.name; if(t.length>13) t=t.split(/[\s/]+/)[0];
-    const w=ctx.measureText(t).width+8, h=fs+6;
+    // pod name rides above the person's name, like the labels on the real desks
+    const showPod=!!p.pod && fs>=9.5, pf=fs*.82;
+    ctx.font=`700 ${fs}px -apple-system,Segoe UI,Roboto,sans-serif`;
+    let w=ctx.measureText(t).width;
+    if(showPod){ ctx.font=`600 ${pf}px -apple-system,Segoe UI,Roboto,sans-serif`;
+      w=Math.max(w,ctx.measureText(p.pod).width); }
+    w+=10;
+    const h=(showPod?fs+pf+4:fs)+6, top=s[1]-h/2;
     ctx.fillStyle=p.muted?"rgba(8,14,26,.35)":"rgba(8,14,26,.78)";
-    ctx.beginPath(); ctx.roundRect(s[0]-w/2,s[1]-h/2,w,h,4); ctx.fill();
-    ctx.fillStyle=p.muted?"rgba(150,170,200,.4)":"#eaf1ff"; ctx.fillText(t,s[0],s[1]);
+    ctx.beginPath(); ctx.roundRect(s[0]-w/2,top,w,h,4); ctx.fill();
+    if(showPod){
+      ctx.font=`600 ${pf}px -apple-system,Segoe UI,Roboto,sans-serif`;
+      ctx.fillStyle=p.muted?"rgba(150,170,200,.35)":"rgba(160,190,230,.95)";
+      ctx.fillText(p.pod,s[0],top+3+pf/2);
+      ctx.font=`700 ${fs}px -apple-system,Segoe UI,Roboto,sans-serif`;
+      ctx.fillStyle=p.muted?"rgba(150,170,200,.4)":"#eaf1ff";
+      ctx.fillText(t,s[0],top+3+pf+fs/2);
+    }else{
+      ctx.fillStyle=p.muted?"rgba(150,170,200,.4)":"#eaf1ff";
+      ctx.fillText(t,s[0],s[1]);
+    }
   });
 
   // selected outline

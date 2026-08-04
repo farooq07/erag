@@ -41,7 +41,10 @@ self-contained and works offline and under strict content-security policies.
 - **Drag & drop people** — drag a person chip from the *Unassigned* pool onto
   any seat. Drag between two seats to move or swap people. Drag a seated person
   back to the pool to free them up.
-- **Click any seat** to add / rename a person or change their department.
+- **Click any seat** to add / rename a person, change their department, or set
+  a **team / pod** name (like the *Caribou – Saad Waheed* labels on real desks).
+  The pod shows under the name on the seat and above it on the 3D desk, and
+  search matches on it.
 - **Color-coded by department** so you can see at a glance where Dev, IT, HR,
   Design, etc. are sitting. Click a department in the legend to highlight it on
   the floor; click its color swatch to recolor.
@@ -75,8 +78,8 @@ looks on the floor.
 
 Rooms are styled from their names: *balcony* / *terrace* gets railings,
 *stairs* gets a real flight of steps, *lounge* / *pantry* / *kitchen* /
-*space* is furnished with sofas, a low table and a counter, *open* / *sky* is
-left unwalled, and everything else becomes an enclosed room with walls. Rename
+*space* is furnished with sofas, a low table and a counter, *open* / *sky* is sunk below floor level with a red
+railing around it, so it reads as a real atrium opening, and everything else becomes an enclosed room with walls. Rename
 a zone and its look follows.
 
 Everything is editable. Use the **← ↑ ↓ →** buttons in a zone's header to move
