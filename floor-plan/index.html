@@ -64,9 +64,9 @@
   /* tools drop to their own line rather than crushing the title */
   .zone-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-bottom:8px}
   .zone-title{font-weight:700;font-size:14px;flex:1 1 135px;min-width:0;cursor:text;padding:2px 4px;border-radius:6px;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    overflow-wrap:anywhere}
   .zone-title:hover{background:var(--accent2)}
-  .zone-title:focus{white-space:normal;overflow:visible;outline:1px solid var(--accent)}
+  .zone-title:focus{outline:1px solid var(--accent)}
   .zone-meta{font-size:11px;color:var(--muted);flex-shrink:0}
   .zone-tools{display:flex;gap:4px;flex-shrink:0}
   .icon-btn{width:26px;height:26px;display:grid;place-items:center;border-radius:7px;
@@ -304,7 +304,7 @@
 "use strict";
 /* ---------------- storage ---------------- */
 const KEY = "floorplan.v1";
-const LAYOUT_VERSION = 2;          // bump when the default floor plan changes
+const LAYOUT_VERSION = 3;          // bump when the default floor plan changes
 const uid = () => Math.random().toString(36).slice(2,9);
 
 const DEFAULT_DEPTS = {
@@ -365,21 +365,22 @@ function defaultState(){
     pool,
     columns:[
       // far left: the balcony runs down the side of the left block
-      [ area("Balcony",4,30) ],
-      // left block, then the rooms running down beside it
+      [ area("Balcony",4,26) ],
+      // the left block itself
       [ grid("Left Block · 70 seats",7,10,"L"),
-        area("Discussion Room",7,5),
-        grid("Left Block · 20 seats",4,5,"M"),
+        grid("Left Block · 20 seats",4,5,"M") ],
+      // middle: shared areas + manager cabins
+      [ area("Conference Room",8,6), area("Open to sky",8,10),
+        grid("Manager Cabins",3,1,"C") ],
+      // right desks
+      [ grid("Right Top · 20 seats",4,5,"R"), grid("Right Bottom · 20 seats",4,5,"B") ],
+      // right side: the rooms, in order
+      [ area("Discussion Room",7,5),
         area("Discussion Room 2",7,5),
         area("Stairs",5,5),
         area("War Room",8,6),
         gridN("PK Tech Room · 11 seats",11,4,"PK"),
-        area("JAM Room",7,5) ],
-      // middle: shared areas + manager cabins
-      [ area("Conference Room",8,6), area("Open to sky",8,10),
-        grid("Manager Cabins",3,1,"C") ],
-      // right: top 20 + bottom 20
-      [ grid("Right Top · 20 seats",4,5,"R"), grid("Right Bottom · 20 seats",4,5,"B") ]
+        area("JAM Room",7,5) ]
     ]
   };
 }
