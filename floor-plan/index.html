@@ -47,19 +47,28 @@
   .side{width:300px;flex-shrink:0;display:flex;flex-direction:column;gap:14px;position:sticky;top:66px}
   @media(max-width:900px){.side{width:100%;position:static}}
 
-  .floor{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;align-items:start}
-  @media(max-width:1150px){.floor{grid-template-columns:1fr 1fr}}
-  @media(max-width:760px){.floor{grid-template-columns:1fr}}
+  /* columns are weighted by how many seats their widest row holds */
+  .floor{display:grid;grid-template-columns:var(--tracks,repeat(3,minmax(0,1fr)));gap:14px;align-items:start}
+  @media(max-width:1150px){.floor{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:760px){.floor{grid-template-columns:minmax(0,1fr)}}
   .col{display:flex;flex-direction:column;gap:14px;min-width:0}
 
   .zone{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
     padding:10px;box-shadow:var(--shadow)}
   .zone.area{background:repeating-linear-gradient(45deg,#131f36,#131f36 10px,#16243f 10px,#16243f 20px)}
-  .zone-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-  .zone-title{font-weight:700;font-size:14px;flex:1;cursor:text;padding:2px 4px;border-radius:6px}
+  .zone.area.kind-balcony{background:repeating-linear-gradient(45deg,#14261f,#14261f 10px,#193026 10px,#193026 20px);border-color:#2f5a48}
+  .zone.area.kind-sky{background:repeating-linear-gradient(45deg,#221b31,#221b31 10px,#2a2140 10px,#2a2140 20px);border-color:#4a3d6b}
+  .zone.area.kind-stairs{background:repeating-linear-gradient(90deg,#241f18,#241f18 8px,#2e281e 8px,#2e281e 16px);border-color:#544733}
+  .icon-btn.mv{width:22px;height:22px;font-size:11px;opacity:.75}
+  .icon-btn.mv:hover{opacity:1}
+  /* tools drop to their own line rather than crushing the title */
+  .zone-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-bottom:8px}
+  .zone-title{font-weight:700;font-size:14px;flex:1 1 135px;min-width:0;cursor:text;padding:2px 4px;border-radius:6px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .zone-title:hover{background:var(--accent2)}
-  .zone-meta{font-size:11px;color:var(--muted)}
-  .zone-tools{display:flex;gap:4px}
+  .zone-title:focus{white-space:normal;overflow:visible;outline:1px solid var(--accent)}
+  .zone-meta{font-size:11px;color:var(--muted);flex-shrink:0}
+  .zone-tools{display:flex;gap:4px;flex-shrink:0}
   .icon-btn{width:26px;height:26px;display:grid;place-items:center;border-radius:7px;
     background:var(--accent2);border:1px solid var(--line);color:var(--muted);cursor:pointer;font-size:14px;line-height:1}
   .icon-btn:hover{color:var(--text);background:#243248}
@@ -295,6 +304,7 @@
 "use strict";
 /* ---------------- storage ---------------- */
 const KEY = "floorplan.v1";
+const LAYOUT_VERSION = 2;          // bump when the default floor plan changes
 const uid = () => Math.random().toString(36).slice(2,9);
 
 const DEFAULT_DEPTS = {
@@ -312,7 +322,33 @@ function grid(name, rows, perRow, prefix){
   }
   return z;
 }
-function area(name){return {id:uid(),name,type:"area",rows:[]};}
+// grid with an exact seat total — the last row simply holds the remainder
+function gridN(name, total, perRow, prefix){
+  const z={id:uid(),name,type:"grid",rows:[]};
+  let left=total, r=0;
+  while(left>0){
+    const n=Math.min(perRow,left);
+    const row={id:uid(),label:(prefix||"")+(r+1),seats:[]};
+    for(let s=0;s<n;s++) row.seats.push({id:uid(),person:null});
+    z.rows.push(row); left-=n; r++;
+  }
+  return z;
+}
+function area(name,w,d){return {id:uid(),name,type:"area",rows:[],size:{w:w||8,d:d||6}};}
+
+// how an area reads on the floor, inferred from its name
+function areaKind(name){
+  if(/balcon|terrace/i.test(name)) return "balcony";
+  if(/sky|open/i.test(name)) return "sky";
+  if(/stair/i.test(name)) return "stairs";
+  return "room";
+}
+const AREA_STYLE={
+  balcony:{slab:"#24453a",border:"#4d8f74"},
+  sky:{slab:"#3b2f52",border:"#6d5b96"},
+  stairs:{slab:"#332f28",border:"#7a6b52"},
+  room:{slab:"#233350",border:"#3b5a8f"}
+};
 
 function defaultState(){
   const pool = [
@@ -324,21 +360,39 @@ function defaultState(){
   ].map(([name,dept])=>({id:uid(),name,dept}));
 
   return {
+    layoutVersion: LAYOUT_VERSION,
     departments:{...DEFAULT_DEPTS},
     pool,
     columns:[
-      // left column: 50 + 20
-      [ grid("Left Block · 50 seats",10,5,"L"), grid("Left Block · 20 seats",4,5,"M") ],
+      // far left: the balcony runs down the side of the left block
+      [ area("Balcony",4,30) ],
+      // left block, then the rooms running down beside it
+      [ grid("Left Block · 70 seats",7,10,"L"),
+        area("Discussion Room",7,5),
+        grid("Left Block · 20 seats",4,5,"M"),
+        area("Discussion Room 2",7,5),
+        area("Stairs",5,5),
+        area("War Room",8,6),
+        gridN("PK Tech Room · 11 seats",11,4,"PK"),
+        area("JAM Room",7,5) ],
       // middle: shared areas + manager cabins
-      [ area("Conference Room"), area("Open to sky"),
+      [ area("Conference Room",8,6), area("Open to sky",8,10),
         grid("Manager Cabins",3,1,"C") ],
-      // right column: top 20 + bottom 20
+      // right: top 20 + bottom 20
       [ grid("Right Top · 20 seats",4,5,"R"), grid("Right Bottom · 20 seats",4,5,"B") ]
     ]
   };
 }
 
 let state = load() || defaultState();
+let layoutNotice = false;
+// The stored floor predates this version's plan. Adopt the new plan only when
+// nothing would be lost; otherwise keep their work and offer Reset instead.
+if((state.layoutVersion||1) < LAYOUT_VERSION){
+  const seated = state.columns.some(col=>col.some(z=>z.rows.some(r=>r.seats.some(s=>s.person))));
+  if(seated){ state.layoutVersion=LAYOUT_VERSION; layoutNotice=true; }
+  else state = defaultState();
+}
 function load(){ try{ const s=JSON.parse(localStorage.getItem(KEY)); return s&&s.columns?s:null;}catch(e){return null;} }
 function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
 
@@ -371,6 +425,13 @@ function render(){
 function renderFloor(){
   const floor = el("floor");
   floor.innerHTML="";
+  // a column holding 10-wide rows needs more room than one holding a single room
+  const tracks=state.columns.map(col=>{
+    const w=col.reduce((m,z)=>Math.max(m, z.type==="grid"
+      ? z.rows.reduce((n,r)=>Math.max(n,r.seats.length),1) : 3), 3);
+    return Math.min(w,12)+"fr";
+  }).join(" ");
+  floor.style.setProperty("--tracks", tracks);
   state.columns.forEach((col,ci)=>{
     const colEl=document.createElement("div");
     colEl.className="col";
@@ -378,6 +439,31 @@ function renderFloor(){
     // add-zone dropzone note
     floor.appendChild(colEl);
   });
+}
+
+// ← ↑ ↓ → controls for shuffling a zone around the floor
+function moveTools(id){
+  return `<div class="icon-btn mv" title="Move to previous column" data-act="zleft" data-id="${id}">←</div>
+    <div class="icon-btn mv" title="Move up" data-act="zup" data-id="${id}">↑</div>
+    <div class="icon-btn mv" title="Move down" data-act="zdown" data-id="${id}">↓</div>
+    <div class="icon-btn mv" title="Move to next column" data-act="zright" data-id="${id}">→</div>`;
+}
+function zoneLoc(id){
+  for(let ci=0;ci<state.columns.length;ci++){
+    const zi=state.columns[ci].findIndex(z=>z.id===id);
+    if(zi>=0) return {ci,zi};
+  }
+  return null;
+}
+function moveZone(id,dir){
+  const loc=zoneLoc(id); if(!loc) return;
+  const {ci,zi}=loc, col=state.columns[ci];
+  if(dir==="zup"&&zi>0){ [col[zi-1],col[zi]]=[col[zi],col[zi-1]]; }
+  else if(dir==="zdown"&&zi<col.length-1){ [col[zi+1],col[zi]]=[col[zi],col[zi+1]]; }
+  else if(dir==="zleft"&&ci>0){ state.columns[ci-1].push(col.splice(zi,1)[0]); }
+  else if(dir==="zright"&&ci<state.columns.length-1){ state.columns[ci+1].push(col.splice(zi,1)[0]); }
+  else return;
+  render();
 }
 
 function zoneEl(z){
@@ -388,8 +474,9 @@ function zoneEl(z){
   head.innerHTML=`<div class="zone-title" contenteditable="true" spellcheck="false" data-zone="${z.id}">${esc(z.name)}</div>
     <span class="zone-meta">${filled}/${seatCount}</span>`;
   const tools=document.createElement("div"); tools.className="zone-tools";
-  tools.innerHTML=`<div class="icon-btn" title="Add row" data-act="addrow" data-id="${z.id}">＋</div>
-    <div class="icon-btn" title="Delete zone" data-act="delzone" data-id="${z.id}">🗑</div>`;
+  tools.innerHTML=moveTools(z.id)+
+    `<div class="icon-btn" title="Add row" data-act="addrow" data-id="${z.id}">＋</div>
+     <div class="icon-btn" title="Delete zone" data-act="delzone" data-id="${z.id}">🗑</div>`;
   head.appendChild(tools);
   wrap.appendChild(head);
 
@@ -426,7 +513,7 @@ function seatEl(s){
     }
     if(picked&&picked.kind==="seat"&&picked.id===s.id){ d.classList.add("picked"); d.classList.remove("dim"); }
   }else{
-    d.innerHTML=`<div class="nm">${picked?"place here":"＋ empty"}</div>`;
+    d.innerHTML=`<div class="nm">${picked?"place here":"＋"}</div>`;
     if(filterDept||searchTerm) d.classList.add("dim");
     if(picked) d.classList.add("place-target");
   }
@@ -434,11 +521,12 @@ function seatEl(s){
 }
 
 function areaEl(z){
-  const wrap=document.createElement("div"); wrap.className="zone area";
+  const wrap=document.createElement("div"); wrap.className="zone area kind-"+areaKind(z.name);
   const head=document.createElement("div"); head.className="zone-head";
   head.innerHTML=`<div class="zone-title" contenteditable="true" spellcheck="false" data-zone="${z.id}">${esc(z.name)}</div>`;
   const tools=document.createElement("div"); tools.className="zone-tools";
-  tools.innerHTML=`<div class="icon-btn" title="Delete area" data-act="delzone" data-id="${z.id}">🗑</div>`;
+  tools.innerHTML=moveTools(z.id)+
+    `<div class="icon-btn" title="Delete area" data-act="delzone" data-id="${z.id}">🗑</div>`;
   head.appendChild(tools); wrap.appendChild(head);
   const body=document.createElement("div"); body.className="area-body";
   body.innerHTML=`<div class="big">${esc(z.name)}</div>`;
@@ -575,6 +663,7 @@ el("floor").addEventListener("click",e=>{
         const z=findZone(id); if(z) z.rows.forEach(r=>r.seats.forEach(s=>{ if(s.person) state.pool.push({id:uid(),...s.person}); }));
         state.columns=state.columns.map(col=>col.filter(zz=>zz.id!==id)); render(); } }
     else if(act==="addseat"){ const r=findRow(id); r.seats.push({id:uid(),person:null}); render(); }
+    else if(act==="zup"||act==="zdown"||act==="zleft"||act==="zright") moveZone(id,act);
     return;
   }
   const seat=e.target.closest(".seat");
@@ -682,8 +771,9 @@ el("addDept").onclick=()=>{
   state.departments[name.trim()]=randomColor(); render();
 };
 function pickColumn(){
-  const c=prompt("Place in which column? 1 = Left, 2 = Middle, 3 = Right","1");
-  const i=Math.min(2,Math.max(0,(parseInt(c,10)||1)-1)); return i;
+  const n=state.columns.length;
+  const c=prompt(`Place in which column? 1 – ${n} (left to right)\nYou can move it later with the ← → buttons on the zone.`,"2");
+  return Math.min(n-1,Math.max(0,(parseInt(c,10)||1)-1));
 }
 function randomColor(){ const h=Math.floor(Math.random()*360); return `hsl(${h} 70% 55%)`; }
 
@@ -777,22 +867,35 @@ function sceneBounds(){
 /* ---- camera ---- */
 const cam={az:-0.62, el:0.86, dist:40, tx:0, tz:0};
 let camFitted=false;
+// Frame the whole floor whatever its shape: estimate, then converge by
+// measuring how far the floor's corners overflow the canvas.
 function fitCamera(){
   const b=sceneBounds();
-  cam.tx=b.cx; cam.tz=b.cz;
-  let d=Math.max(b.w,b.d)*1.16+10;
-  // portrait / narrow canvases need to pull back further to fit the floor
-  const asp=(cv.clientWidth||1)/(cv.clientHeight||1);
-  if(asp<1.4) d*=clamp(Math.sqrt(1.4/Math.max(asp,.3)),1,1.25);
-  cam.dist=d; cam.az=-0.62; cam.el=0.86; camFitted=true;
+  cam.tx=b.cx; cam.tz=b.cz; cam.az=-0.62; cam.el=0.86;
+  cam.dist=Math.max(b.w,b.d)*1.1+10;
+  const W=cv.clientWidth||1200, H=cv.clientHeight||600;
+  for(let i=0;i<5;i++){
+    camSetup(W,H);
+    let over=0, ok=true;
+    for(const X of [b.x0,b.x1]) for(const Z of [b.z0,b.z1]) for(const Y of [0,1.8]){
+      const p=project([X,Y,Z]);
+      if(!p){ ok=false; break; }
+      over=Math.max(over, Math.abs(p[0]-W/2)/(W/2), Math.abs(p[1]-H/2)/(H/2));
+    }
+    if(!ok){ cam.dist*=1.4; continue; }
+    const f=over*1.08;                       // leave a small margin
+    cam.dist=clamp(cam.dist*f,6,400);
+    if(Math.abs(f-1)<.02) break;
+  }
+  camFitted=true;
 }
 let VIEW=null; // {eye,r,u,f,focal,W,H}
 function camSetup(W,H){
   const ce=Math.cos(cam.el),se=Math.sin(cam.el),ca=Math.cos(cam.az),sa=Math.sin(cam.az);
   const eye=[cam.tx+ce*sa*cam.dist, se*cam.dist, cam.tz+ce*ca*cam.dist];
   const f=norm(sub([cam.tx,0,cam.tz],eye));
-  const r=norm(cross([0,1,0],f));
-  const u=cross(f,r);
+  const r=norm(cross(f,[0,1,0]));   // world +x must read as screen-right, not mirrored
+  const u=cross(r,f);
   VIEW={eye,r,u,f,focal:(H/2)/Math.tan(FOV/2),W,H};
 }
 function project(p){
@@ -822,21 +925,33 @@ function box(out,cx,cy,cz,w,h,d,color){
 function build3D(){
   FACES=[];PICKS=[];SLABS=[];LABELS=[];SHADOWS=[];
   state.columns.forEach(col=>col.forEach(z=>{
-    const isSky=/sky|open/i.test(z.name);
+    const kind=z.type==="area"?areaKind(z.name):null;
+    const st=kind?AREA_STYLE[kind]:null;
     // zone slab
     SLABS.push({x0:z._x,z0:z._z,x1:z._x+z._w,z1:z._z+z._d,
-      c: z.type==="area" ? (isSky?"#3b2f52":"#233350") : "#16233d",
-      border: z.type==="area" ? (isSky?"#6d5b96":"#3b5a8f") : "#2a3f63"});
-    LABELS.push(z.type==="area"
-      ? {x:z._x+z._w/2, z:z._z+z._d/2, text:z.name, area:true}
-      : {x:z._x+z._w/2, z:z._z+z._d/2, text:z.name, area:false}); // block name floats over its centre
+      c: st?st.slab:"#16233d", border: st?st.border:"#2a3f63"});
+    // block/room name floats over its centre; w lets us hide it when too small to read
+    LABELS.push({x:z._x+z._w/2, z:z._z+z._d/2, w:z._w, text:z.name, area:z.type==="area"});
     if(z.type==="area"){
-      if(!isSky){ // low walls to read as an enclosed room
+      if(kind==="room"){                       // low walls read as an enclosed room
         const t=.18,h=.55,c="#33507d";
         box(FACES,z._x+z._w/2,0,z._z+t/2,z._w,h,t,c);
         box(FACES,z._x+z._w/2,0,z._z+z._d-t/2,z._w,h,t,c);
         box(FACES,z._x+t/2,0,z._z+z._d/2,t,h,z._d,c);
         box(FACES,z._x+z._w-t/2,0,z._z+z._d/2,t,h,z._d,c);
+      }else if(kind==="balcony"){               // railing posts + top rail
+        const c=st.border, n=Math.max(2,Math.round(z._d/1.6));
+        for(let i=0;i<=n;i++){
+          const zz=z._z+(i/n)*z._d;
+          box(FACES,z._x+.12,0,zz,.1,.85,.1,c);
+          box(FACES,z._x+z._w-.12,0,zz,.1,.85,.1,c);
+        }
+        box(FACES,z._x+.12,.85,z._z+z._d/2,.14,.09,z._d,c);
+        box(FACES,z._x+z._w-.12,.85,z._z+z._d/2,.14,.09,z._d,c);
+      }else if(kind==="stairs"){                // an actual flight of steps
+        const n=8, sd=z._d/n, c=st.border;
+        for(let i=0;i<n;i++)
+          box(FACES,z._x+z._w/2,0,z._z+sd*(i+.5),z._w-.5,.16*(i+1),sd,c);
       }
       return;
     }
@@ -919,7 +1034,9 @@ function draw3D(){
   // room names sit flat on the floor (rooms are empty, so nothing occludes them)
   LABELS.filter(l=>l.area).forEach(l=>{
     const p=project([l.x,.06,l.z]); if(!p) return;
-    const fs=clamp(VIEW.focal/p[2]*.42,10,26);
+    const k=VIEW.focal/p[2];
+    if(k*(l.w||6)<58) return;                 // room too small on screen to label
+    const fs=clamp(k*.42,10,26);
     ctx.font=`700 ${fs}px -apple-system,Segoe UI,Roboto,sans-serif`;
     ctx.textAlign="center"; ctx.textBaseline="middle";
     ctx.fillStyle="rgba(210,225,250,.9)"; ctx.fillText(l.text,p[0],p[1]);
@@ -938,7 +1055,9 @@ function draw3D(){
   // block names float above the desks as map pins, so they stay readable
   LABELS.filter(l=>!l.area).forEach(l=>{
     const p=project([l.x,1.55,l.z]); if(!p) return;
-    const fs=clamp(VIEW.focal/p[2]*.30,9,17);
+    const k=VIEW.focal/p[2];
+    if(k*(l.w||6)<75) return;                 // block too small on screen to label
+    const fs=clamp(k*.30,9,17);
     ctx.font=`600 ${fs}px -apple-system,Segoe UI,Roboto,sans-serif`;
     ctx.textAlign="center"; ctx.textBaseline="middle";
     const w=ctx.measureText(l.text).width+14, h=fs*1.9;
@@ -1087,6 +1206,7 @@ new ResizeObserver(()=>{ if(viewMode==="3d") draw3D(); }).observe(el("stage3d"))
 
 /* ---------------- go ---------------- */
 render();
+if(layoutNotice) setTimeout(()=>toast("Floor plan updated — press Reset to load the new layout"),700);
 </script>
 </body>
 </html>

@@ -58,11 +58,25 @@ self-contained and works offline and under strict content-security policies.
 
 ## Default layout
 
-The app opens pre-seeded to match the described floor:
+The app opens pre-seeded to match the described floor — 144 seats across four
+columns, left to right:
 
-- **Left column** – a 50-seat block (10 rows × 5) and a 20-seat block (4 × 5).
-- **Middle column** – Conference Room, Open to sky, and Manager Cabins.
-- **Right column** – Right Top (20 seats, 4 × 5) and Right Bottom (20 seats, 4 × 5).
+1. **Balcony** — runs down the left-hand side of the left block.
+2. **Left block and its rooms**, stacked in order:
+   Left Block · 70 seats (7 rows × 10) → Discussion Room →
+   Left Block · 20 seats (4 × 5) → Discussion Room 2 → Stairs → War Room →
+   PK Tech Room · 11 seats → JAM Room.
+3. **Middle** — Conference Room, Open to sky, Manager Cabins.
+4. **Right** — Right Top · 20 seats and Right Bottom · 20 seats.
 
-Everything is editable, so rename/resize zones and rows to match your real
+Rooms are styled from their names: anything called *balcony* or *terrace* gets
+railings, *stairs* gets a real flight of steps, *open/sky* is left open, and
+everything else becomes an enclosed room with walls. Rename a zone and its
+look follows.
+
+Everything is editable. Use the **← ↑ ↓ →** buttons in a zone's header to move
+it between columns or reorder it, so you can shape the plan to match your real
 office exactly.
+
+> If you already had a floor saved with people seated, your version is kept and
+> the new plan is not forced on you — press **Reset** if you want to load it.
