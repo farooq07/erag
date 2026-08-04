@@ -59,6 +59,7 @@
   .zone.area.kind-balcony{background:repeating-linear-gradient(45deg,#14261f,#14261f 10px,#193026 10px,#193026 20px);border-color:#2f5a48}
   .zone.area.kind-sky{background:repeating-linear-gradient(45deg,#221b31,#221b31 10px,#2a2140 10px,#2a2140 20px);border-color:#4a3d6b}
   .zone.area.kind-stairs{background:repeating-linear-gradient(90deg,#241f18,#241f18 8px,#2e281e 8px,#2e281e 16px);border-color:#544733}
+  .zone.area.kind-lounge{background:repeating-linear-gradient(45deg,#2a231b,#2a231b 10px,#332b21 10px,#332b21 20px);border-color:#6b5735}
   .icon-btn.mv{width:22px;height:22px;font-size:11px;opacity:.75}
   .icon-btn.mv:hover{opacity:1}
   /* tools drop to their own line rather than crushing the title */
@@ -304,7 +305,7 @@
 "use strict";
 /* ---------------- storage ---------------- */
 const KEY = "floorplan.v1";
-const LAYOUT_VERSION = 3;          // bump when the default floor plan changes
+const LAYOUT_VERSION = 4;          // bump when the default floor plan changes
 const uid = () => Math.random().toString(36).slice(2,9);
 
 const DEFAULT_DEPTS = {
@@ -339,12 +340,14 @@ function area(name,w,d){return {id:uid(),name,type:"area",rows:[],size:{w:w||8,d
 // how an area reads on the floor, inferred from its name
 function areaKind(name){
   if(/balcon|terrace/i.test(name)) return "balcony";
+  if(/lounge|pantry|kitchen|break|caf|space/i.test(name)) return "lounge";
   if(/sky|open/i.test(name)) return "sky";
   if(/stair/i.test(name)) return "stairs";
   return "room";
 }
 const AREA_STYLE={
   balcony:{slab:"#24453a",border:"#4d8f74"},
+  lounge:{slab:"#3a3229",border:"#9a7f52"},
   sky:{slab:"#3b2f52",border:"#6d5b96"},
   stairs:{slab:"#332f28",border:"#7a6b52"},
   room:{slab:"#233350",border:"#3b5a8f"}
@@ -371,7 +374,7 @@ function defaultState(){
         grid("Left Block · 20 seats",4,5,"M") ],
       // middle: shared areas + manager cabins
       [ area("Conference Room",8,6), area("Open to sky",8,10),
-        grid("Manager Cabins",3,1,"C") ],
+        area("Lounge / Pantry",8,7), grid("Manager Cabins",3,1,"C") ],
       // right desks
       [ grid("Right Top · 20 seats",4,5,"R"), grid("Right Bottom · 20 seats",4,5,"B") ],
       // right side: the rooms, in order
@@ -923,6 +926,12 @@ function box(out,cx,cy,cz,w,h,d,color){
   out.push({p:[[x1,y1,z1],[x1,y1,z0],[x1,y0,z0],[x1,y0,z1]],c:shade(color,F_RIGHT)});
   out.push({p:[[x0,y1,z0],[x0,y1,z1],[x0,y0,z1],[x0,y0,z0]],c:shade(color,F_LEFT)});
 }
+// a two-seat sofa; backAtFar puts the backrest on the +z side
+function sofa(out,cx,cz,w,d,backAtFar){
+  box(out,cx,0,cz,w,.38,d,"#4b4a52");
+  box(out,cx,0,backAtFar?cz+d/2-.09:cz-d/2+.09,w,.78,.18,"#42414a");
+}
+
 function build3D(){
   FACES=[];PICKS=[];SLABS=[];LABELS=[];SHADOWS=[];
   state.columns.forEach(col=>col.forEach(z=>{
@@ -931,8 +940,10 @@ function build3D(){
     // zone slab
     SLABS.push({x0:z._x,z0:z._z,x1:z._x+z._w,z1:z._z+z._d,
       c: st?st.slab:"#16233d", border: st?st.border:"#2a3f63"});
-    // block/room name floats over its centre; w lets us hide it when too small to read
-    LABELS.push({x:z._x+z._w/2, z:z._z+z._d/2, w:z._w, text:z.name, area:z.type==="area"});
+    // empty rooms take a flat floor label; anything holding furniture needs a
+    // floating one, or its own contents hide it
+    const flat = z.type==="area" && kind!=="lounge";
+    LABELS.push({x:z._x+z._w/2, z:z._z+z._d/2, w:z._w, text:z.name, area:flat});
     if(z.type==="area"){
       if(kind==="room"){                       // low walls read as an enclosed room
         const t=.18,h=.55,c="#33507d";
@@ -953,6 +964,12 @@ function build3D(){
         const n=8, sd=z._d/n, c=st.border;
         for(let i=0;i<n;i++)
           box(FACES,z._x+z._w/2,0,z._z+sd*(i+.5),z._w-.5,.16*(i+1),sd,c);
+      }else if(kind==="lounge"){                // sofas facing each other + a pantry counter
+        const cx=z._x+z._w/2, sw=Math.min(2.6,z._w-1.6);
+        sofa(FACES,cx,z._z+z._d*.34,sw,.85,false);
+        sofa(FACES,cx,z._z+z._d*.62,sw,.85,true);
+        box(FACES,cx,0,z._z+z._d*.48,1.1,.42,.6,"#6f6455");           // low table
+        box(FACES,z._x+z._w/2,0,z._z+z._d-.45,z._w-1.2,.95,.62,"#7b7062"); // counter
       }
       return;
     }
@@ -971,10 +988,15 @@ function build3D(){
         box(FACES,px,0,pz,DESK_W*.72,DESK_H-.07,DESK_D*.62,"#1b2740"); // pedestal
         box(FACES,px,0,pz+DESK_D*.92,.46,.42,.46,"#24314d");       // chair seat
         box(FACES,px,.42,pz+DESK_D*1.08,.46,.42,.1,"#2c3f63");     // chair back
+        // grey fabric privacy panel running along the back of the bench
+        box(FACES,px,DESK_H,pz-DESK_D*.60,DESK_W,.46,.07,"#5c6472");
         // monitor
         box(FACES,px,DESK_H,pz-DESK_D*.24,.62,.36,.05,"#0d1526");
       }else{
-        box(FACES,px,0,pz,DESK_W*.9,.09,DESK_D*.9,"#1a2740");
+        // vacant desk: keep the worktop and panel so the bench still reads as one run
+        box(FACES,px,DESK_H-.07,pz,DESK_W*.94,.06,DESK_D*.9,"#22304a");
+        box(FACES,px,0,pz,DESK_W*.6,DESK_H-.07,DESK_D*.5,"#161f33");
+        box(FACES,px,DESK_H,pz-DESK_D*.60,DESK_W,.46,.07,"#3d4657");
       }
       SHADOWS.push({x:px,z:pz,w:DESK_W});
       const y=DESK_H;

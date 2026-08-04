@@ -64,15 +64,20 @@ columns, left to right:
 1. **Balcony** — runs down the left-hand side of the left block.
 2. **Left block** — Left Block · 70 seats (7 rows × 10) and
    Left Block · 20 seats (4 × 5).
-3. **Middle** — Conference Room, Open to sky, Manager Cabins.
+3. **Middle** — Conference Room, Open to sky, Lounge / Pantry, Manager Cabins.
 4. **Right desks** — Right Top · 20 seats and Right Bottom · 20 seats.
 5. **Right-side rooms**, in order — Discussion Room → Discussion Room 2 →
    Stairs → War Room → PK Tech Room · 11 seats → JAM Room.
 
-Rooms are styled from their names: anything called *balcony* or *terrace* gets
-railings, *stairs* gets a real flight of steps, *open/sky* is left open, and
-everything else becomes an enclosed room with walls. Rename a zone and its
-look follows.
+Desks render as real bench runs — a worktop, a monitor and the grey fabric
+privacy panel that runs along the back of the row — so a block reads the way it
+looks on the floor.
+
+Rooms are styled from their names: *balcony* / *terrace* gets railings,
+*stairs* gets a real flight of steps, *lounge* / *pantry* / *kitchen* /
+*space* is furnished with sofas, a low table and a counter, *open* / *sky* is
+left unwalled, and everything else becomes an enclosed room with walls. Rename
+a zone and its look follows.
 
 Everything is editable. Use the **← ↑ ↓ →** buttons in a zone's header to move
 it between columns or reorder it, so you can shape the plan to match your real
