@@ -6,16 +6,18 @@
 <title>Floor Plan &amp; Seating Manager</title>
 <style>
   :root{
-    --bg:#0f172a; --panel:#111c34; --panel2:#0b1526; --line:#233350;
-    --text:#e7edf7; --muted:#93a4c0; --accent:#3b82f6; --accent2:#1e293b;
-    --seat:#16233d; --seat-empty:#0e1a30; --danger:#ef4444; --ok:#22c55e;
-    --radius:12px; --shadow:0 6px 24px rgba(0,0,0,.35);
+    /* brand — scarlet sampled from the office signage, on a warm-biased charcoal */
+    --brand:#e4002b; --brand-deep:#a8001f; --brand-soft:#ff2f52;
+    --bg:#12121a; --panel:#1b1b25; --panel2:#141420; --line:#2e2e3c;
+    --text:#f2eeea; --muted:#9c96a4; --accent:#e4002b; --accent2:#26262f;
+    --seat:#232330; --seat-empty:#191922; --danger:#e4002b; --ok:#3ec46d;
+    --radius:12px; --shadow:0 6px 24px rgba(0,0,0,.45);
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%}
   body{
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    background:linear-gradient(180deg,#0b1220,#0f172a);color:var(--text);
+    background:linear-gradient(180deg,#0e0e15,#12121a);color:var(--text);
     -webkit-font-smoothing:antialiased;
   }
   header.topbar{
@@ -23,8 +25,12 @@
     padding:10px 14px;background:rgba(11,21,38,.9);backdrop-filter:blur(8px);
     border-bottom:1px solid var(--line);flex-wrap:wrap;
   }
-  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;margin-right:6px}
-  .brand .dot{width:12px;height:12px;border-radius:4px;background:linear-gradient(135deg,#3b82f6,#22c55e)}
+  .brand{display:flex;align-items:baseline;gap:9px;margin-right:6px;white-space:nowrap}
+  .brand .mark{font-weight:800;font-size:19px;letter-spacing:-.045em;color:var(--brand)}
+  .brand .mark i{font-style:normal;color:var(--brand)}
+  .brand .sep{width:1px;height:16px;background:var(--line);align-self:center}
+  .brand .what{font-weight:650;font-size:14px;letter-spacing:-.01em;color:var(--text)}
+  @media(max-width:620px){.brand .what{display:none}}
   .spacer{flex:1}
   button.btn,label.btn{
     display:inline-flex;align-items:center;gap:6px;cursor:pointer;user-select:none;
@@ -174,9 +180,30 @@
     width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:14px;font-weight:700;display:grid;place-items:center}
   .cam-btn:hover{background:#1b2c4c;border-color:#33507d}
   .cam-btn.wide{width:auto;padding:0 12px;font-size:12px}
-  .stage-hint{position:absolute;left:12px;bottom:10px;font-size:11.5px;color:#8ea3c4;
-    background:rgba(10,18,32,.7);backdrop-filter:blur(6px);padding:6px 11px;border-radius:20px;
+  .stage-hint{position:absolute;left:12px;bottom:10px;font-size:11.5px;color:var(--muted);
+    background:rgba(12,12,18,.72);backdrop-filter:blur(6px);padding:6px 11px;border-radius:20px;
     border:1px solid var(--line);pointer-events:none;max-width:calc(100% - 24px)}
+  .btn.style-btn{border-color:var(--line)}
+
+  /* walk mode */
+  .walk-ui{display:none;position:absolute;left:14px;bottom:52px;user-select:none}
+  body.mode-walk .walk-ui{display:block}
+  body.mode-walk .cam-ui .cam-row:nth-child(1),
+  body.mode-walk .cam-ui .cam-row:nth-child(3){display:none}
+  .dpad{display:flex;flex-direction:column;align-items:center;gap:6px}
+  .dpad-mid{display:flex;gap:6px}
+  .dpad button{width:46px;height:44px;border-radius:11px;border:1px solid var(--line);
+    background:rgba(20,20,30,.82);backdrop-filter:blur(6px);color:var(--text);font-size:15px;cursor:pointer}
+  .dpad button:hover{background:var(--brand);border-color:var(--brand);color:#fff}
+  .dpad button:active{background:var(--brand-deep);border-color:var(--brand-deep)}
+  body.mode-walk #c3d{cursor:grab}
+  body.mode-walk #c3d.grabbing{cursor:grabbing}
+  .walk-badge{position:absolute;top:12px;left:14px;display:none;align-items:center;gap:8px;
+    background:rgba(12,12,18,.78);backdrop-filter:blur(6px);border:1px solid var(--line);
+    padding:7px 13px;border-radius:20px;font-size:12px;font-weight:650;color:var(--text)}
+  body.mode-walk .walk-badge{display:flex}
+  .walk-badge .pin{width:8px;height:8px;border-radius:50%;background:var(--brand);
+    box-shadow:0 0 0 3px rgba(228,0,43,.25)}
 
   /* ---- map view (read-only floor overview) ---- */
   body.mode-map .edit-only{display:none!important}
@@ -216,14 +243,20 @@
 </head>
 <body>
 <header class="topbar">
-  <div class="brand"><span class="dot"></span> Floor Plan &amp; Seating Manager</div>
+  <div class="brand">
+    <span class="mark">ibex<i>.</i></span>
+    <span class="sep"></span>
+    <span class="what">Floor Plan</span>
+  </div>
   <input id="search" class="search" placeholder="Search person / dept…" />
   <div class="spacer"></div>
   <div class="segmented" id="viewSeg">
-    <button data-view="edit" class="on">✏️ Edit</button>
-    <button data-view="map">🗺 Map</button>
-    <button data-view="3d">🧊 3D</button>
+    <button data-view="edit" class="on">Edit</button>
+    <button data-view="map">Map</button>
+    <button data-view="3d">3D</button>
+    <button data-view="walk">Walk</button>
   </div>
+  <button class="btn style-btn" id="styleToggle" title="Switch render style">🎨 Studio</button>
   <button class="btn primary edit-only" id="addPerson">＋ Person</button>
   <button class="btn edit-only" id="addZone">＋ Zone</button>
   <button class="btn edit-only" id="addArea">＋ Area</button>
@@ -254,7 +287,18 @@
           <button class="cam-btn wide" data-cam="realign" title="Snap every block and desk back to the default arrangement">Reset layout</button>
         </div>
       </div>
-      <div class="stage-hint">Drag a block's floor to move the whole block · drag a desk to move it alone · drag open ground to orbit · pinch or scroll to zoom · tap a desk to edit</div>
+      <div class="walk-badge"><span class="pin"></span><span id="walkWhere">On the floor</span></div>
+      <div class="walk-ui" id="walkUi">
+        <div class="dpad">
+          <button data-walk="fwd" aria-label="Walk forward">▲</button>
+          <div class="dpad-mid">
+            <button data-walk="left" aria-label="Turn left">◀</button>
+            <button data-walk="back" aria-label="Walk back">▼</button>
+            <button data-walk="right" aria-label="Turn right">▶</button>
+          </div>
+        </div>
+      </div>
+      <div class="stage-hint" id="stageHint">Drag a block's floor to move the whole block · drag a desk to move it alone · drag open ground to orbit · pinch or scroll to zoom · tap a desk to edit</div>
     </div>
 
     <div class="floor" id="floor"></div>
@@ -349,13 +393,6 @@ function areaKind(name){
   if(/stair/i.test(name)) return "stairs";
   return "room";
 }
-const AREA_STYLE={
-  balcony:{slab:"#24453a",border:"#4d8f74"},
-  lounge:{slab:"#3a3229",border:"#9a7f52"},
-  sky:{slab:"#3b2f52",border:"#6d5b96"},
-  stairs:{slab:"#332f28",border:"#7a6b52"},
-  room:{slab:"#233350",border:"#3b5a8f"}
-};
 
 function defaultState(){
   const pool = [
@@ -422,9 +459,11 @@ let picked = null; // tap-to-place source: {kind:"pool"|"seat", id}
 let viewMode = "edit"; // "edit" | "map"
 
 function render(){
+  const spatial = viewMode==="3d"||viewMode==="walk";
   document.body.classList.toggle("mode-map", viewMode==="map");
-  document.body.classList.toggle("mode-3d", viewMode==="3d");
-  if(viewMode==="3d"){ ensureLayout(); build3D(); draw3D(); }
+  document.body.classList.toggle("mode-3d", spatial);
+  document.body.classList.toggle("mode-walk", viewMode==="walk");
+  if(spatial){ ensureLayout(); build3D(); if(viewMode==="walk") el("walkWhere").textContent=walkWhere(); draw3D(); }
   else renderFloor();
   renderPool();
   renderLegend();
@@ -753,11 +792,24 @@ el("legend").addEventListener("input",e=>{
 /* ---------------- toolbar ---------------- */
 el("viewSeg").addEventListener("click",e=>{
   const b=e.target.closest("button[data-view]"); if(!b) return;
+  const was=viewMode;
   viewMode=b.dataset.view;
   el("viewSeg").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
   if(viewMode!=="edit" && picked) clearPicked();
+  if(viewMode==="walk" && was!=="walk") startWalk();
+  el("stageHint").textContent = viewMode==="walk"
+    ? "Drag to look around · arrows or W A S D to walk · use the pad to move"
+    : "Drag a block's floor to move the whole block · drag a desk to move it alone · drag open ground to orbit · pinch or scroll to zoom · tap a desk to edit";
   render();
 });
+el("styleToggle").onclick=()=>{
+  styleMode = styleMode==="studio" ? "illustration" : "studio";
+  TH = THEMES[styleMode];
+  el("styleToggle").textContent = styleMode==="studio" ? "🎨 Studio" : "🎨 Illustration";
+  el("stage3d").style.background = TH.sky;
+  document.body.classList.toggle("illus", styleMode==="illustration");
+  render();
+};
 el("search").addEventListener("input",e=>{ searchTerm=e.target.value.trim().toLowerCase(); render(); });
 
 el("addPerson").onclick=()=>{
@@ -842,6 +894,41 @@ function shade(css,f,alpha){
 // face brightness: top, +z, -z, +x, -x
 const F_TOP=1.12, F_FRONT=.74, F_BACK=.52, F_RIGHT=.90, F_LEFT=.62;
 
+/* Two render styles. "studio" is the dark working view; "illustration" is the
+   warm, soft diorama look — same geometry, different light. */
+const THEMES={
+  studio:{
+    ground:"#14141f", groundEdge:"#33333f", grid:"rgba(150,140,165,.16)",
+    slab:"#1e1e2a", slabBorder:"#33333f",
+    pedestal:"#242430", chair:"#2e2e3b", chairBack:"#37374a",
+    panel:"#5a5a6a", monitor:"#0c0c12",
+    emptyTop:"#282836", emptyPed:"#1c1c26", emptyPanel:"#3a3a4a",
+    wall:"#3b3b4c", skin:"#d7a98a", hair:"#33303a",
+    labelBg:"rgba(10,10,16,.80)", labelBgDim:"rgba(10,10,16,.34)", labelFg:"#f4f0ec", labelSub:"rgba(200,190,205,.95)",
+    areaLabel:"rgba(232,226,236,.9)", sky:"radial-gradient(120% 90% at 50% 0%,#22222e,#0c0c12)",
+    shadow:"rgba(0,0,0,.34)", boost:1,
+    areas:{ balcony:{slab:"#1e3a30",border:"#46806a"}, lounge:{slab:"#332b22",border:"#8d7449"},
+            sky:{slab:"#2b2340",border:"#5f5088"}, stairs:{slab:"#2c2820",border:"#6d5f49"},
+            room:{slab:"#232331",border:"#454559"} }
+  },
+  illustration:{
+    ground:"#e8e0d2", groundEdge:"#c2b6a1", grid:"rgba(120,104,82,.18)",
+    slab:"#ded3c0", slabBorder:"#bfb098",
+    pedestal:"#c3b7a4", chair:"#9a8d7e", chairBack:"#8a7d6e",
+    panel:"#cdc3b2", monitor:"#423d36",
+    emptyTop:"#d5cab7", emptyPed:"#c0b4a0", emptyPanel:"#cfc5b4",
+    wall:"#cbbda6", skin:"#e8b894", hair:"#4a3b31",
+    labelBg:"rgba(255,253,248,.92)", labelBgDim:"rgba(255,253,248,.38)", labelFg:"#2b2620", labelSub:"rgba(90,78,62,.95)",
+    areaLabel:"rgba(70,60,46,.88)", sky:"radial-gradient(120% 90% at 50% 0%,#fbf7ef,#e6dccb)",
+    shadow:"rgba(90,74,52,.22)", boost:1.14,
+    areas:{ balcony:{slab:"#cfe0c2",border:"#8bb183"}, lounge:{slab:"#e7d5b9",border:"#c09a62"},
+            sky:{slab:"#dbd3e8",border:"#a89cc6"}, stairs:{slab:"#ded1bb",border:"#b09371"},
+            room:{slab:"#dde3ea",border:"#a9b7c7"} }
+  }
+};
+let styleMode="studio";
+let TH=THEMES.studio;
+
 /* ---- layout: give every zone a footprint in world space ---- */
 function zoneFootprint(z){
   if(z.type==="area"){ const s=z.size||{w:8,d:6}; return {w:s.w,d:s.d}; }
@@ -907,20 +994,53 @@ function fitCamera(){
   }
   camFitted=true;
 }
+// first-person walker
+const walk={x:0,z:0,yaw:0,pitch:-.05,h:1.62};
+const FOV_WALK=Math.PI/2.35;      // wider, like a street-level view
+
 let VIEW=null; // {eye,r,u,f,focal,W,H}
 function camSetup(W,H){
-  const ce=Math.cos(cam.el),se=Math.sin(cam.el),ca=Math.cos(cam.az),sa=Math.sin(cam.az);
-  const eye=[cam.tx+ce*sa*cam.dist, se*cam.dist, cam.tz+ce*ca*cam.dist];
-  const f=norm(sub([cam.tx,0,cam.tz],eye));
+  let eye,f,fov=FOV;
+  if(viewMode==="walk"){
+    eye=[walk.x,walk.h,walk.z];
+    const cp=Math.cos(walk.pitch);
+    f=norm([Math.sin(walk.yaw)*cp, Math.sin(walk.pitch), Math.cos(walk.yaw)*cp]);
+    fov=FOV_WALK;
+  }else{
+    const ce=Math.cos(cam.el),se=Math.sin(cam.el),ca=Math.cos(cam.az),sa=Math.sin(cam.az);
+    eye=[cam.tx+ce*sa*cam.dist, se*cam.dist, cam.tz+ce*ca*cam.dist];
+    f=norm(sub([cam.tx,0,cam.tz],eye));
+  }
   const r=norm(cross(f,[0,1,0]));   // world +x must read as screen-right, not mirrored
   const u=cross(r,f);
-  VIEW={eye,r,u,f,focal:(H/2)/Math.tan(FOV/2),W,H};
+  VIEW={eye,r,u,f,focal:(H/2)/Math.tan(fov/2),W,H};
 }
 function project(p){
   const v=sub(p,VIEW.eye);
   const cz=dot(v,VIEW.f); if(cz<=0.05) return null;
   const k=VIEW.focal/cz;
   return [VIEW.W/2+dot(v,VIEW.r)*k, VIEW.H/2-dot(v,VIEW.u)*k, cz];
+}
+// Project a polygon, clipping it against the near plane first. Without this a
+// quad is dropped whole as soon as one corner falls behind the eye — fine when
+// orbiting outside the scene, fatal when standing inside it.
+function clipProject(pts){
+  const NEAR=.08;
+  const cs=pts.map(p=>{const v=sub(p,VIEW.eye);
+    return [dot(v,VIEW.r),dot(v,VIEW.u),dot(v,VIEW.f)];});
+  const out=[];
+  for(let i=0;i<cs.length;i++){
+    const a=cs[i], b=cs[(i+1)%cs.length];
+    const ain=a[2]>=NEAR, bin=b[2]>=NEAR;
+    if(ain) out.push(a);
+    if(ain!==bin){
+      const t=(NEAR-a[2])/(b[2]-a[2]);
+      out.push([a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, NEAR]);
+    }
+  }
+  if(out.length<3) return null;
+  return out.map(c=>{const k=VIEW.focal/c[2];
+    return [VIEW.W/2+c[0]*k, VIEW.H/2-c[1]*k, c[2]];});
 }
 function rayToGround(sx,sy,planeY){
   const d=norm(add(add(mul(VIEW.r,sx-VIEW.W/2),mul(VIEW.u,-(sy-VIEW.H/2))),mul(VIEW.f,VIEW.focal)));
@@ -931,7 +1051,7 @@ function rayToGround(sx,sy,planeY){
 }
 
 /* ---- scene ---- */
-let FACES=[], PICKS=[], SLABS=[], LABELS=[], SHADOWS=[], ZPICKS=[];
+let FACES=[], PICKS=[], SLABS=[], LABELS=[], SHADOWS=[], ZPICKS=[], VOIDS=[];
 function box(out,cx,cy,cz,w,h,d,color){
   const x0=cx-w/2,x1=cx+w/2,y0=cy,y1=cy+h,z0=cz-d/2,z1=cz+d/2;
   out.push({p:[[x0,y1,z0],[x1,y1,z0],[x1,y1,z1],[x0,y1,z1]],c:shade(color,F_TOP)});
@@ -940,6 +1060,19 @@ function box(out,cx,cy,cz,w,h,d,color){
   out.push({p:[[x1,y1,z1],[x1,y1,z0],[x1,y0,z0],[x1,y0,z1]],c:shade(color,F_RIGHT)});
   out.push({p:[[x0,y1,z0],[x0,y1,z1],[x0,y0,z1],[x0,y0,z0]],c:shade(color,F_LEFT)});
 }
+// A seated figure at a desk: torso in the department colour, head, hair, and
+// forearms resting on the worktop. Small, stylised — enough to read as a person.
+function personAt(out,cx,cz,col){
+  const zz=cz+DESK_D*.80;                       // sat in the chair, facing the desk
+  box(out,cx,.42,zz,.42,.44,.30,col);           // torso
+  box(out,cx-.30,.42,zz-.02,.14,.36,.26,shade(col,.86));  // arms
+  box(out,cx+.30,.42,zz-.02,.14,.36,.26,shade(col,.86));
+  box(out,cx-.24,DESK_H-.02,cz+DESK_D*.30,.11,.07,.42,shade(col,.94)); // forearms on desk
+  box(out,cx+.24,DESK_H-.02,cz+DESK_D*.30,.11,.07,.42,shade(col,.94));
+  box(out,cx,.86,zz,.27,.26,.25,TH.skin);       // head
+  box(out,cx,1.06,zz,.29,.07,.27,TH.hair);      // hair
+}
+
 // a two-seat sofa; backAtFar puts the backrest on the +z side
 function sofa(out,cx,cz,w,d,backAtFar){
   box(out,cx,0,cz,w,.38,d,"#4b4a52");
@@ -947,14 +1080,24 @@ function sofa(out,cx,cz,w,d,backAtFar){
 }
 
 function build3D(){
-  FACES=[];PICKS=[];SLABS=[];LABELS=[];SHADOWS=[];ZPICKS=[];
+  FACES=[];PICKS=[];SLABS=[];LABELS=[];SHADOWS=[];ZPICKS=[];VOIDS=[];
+  if(viewMode==="walk"){
+    // perimeter walls, so at eye level the floor reads as an interior
+    const b=sceneBounds(), M=3.2, t=.3, h=2.9, c=TH.wall;
+    const x0=b.x0-M, x1=b.x1+M, z0=b.z0-M, z1=b.z1+M;
+    box(FACES,(x0+x1)/2,0,z0,x1-x0,h,t,c);
+    box(FACES,(x0+x1)/2,0,z1,x1-x0,h,t,c);
+    box(FACES,x0,0,(z0+z1)/2,t,h,z1-z0,c);
+    box(FACES,x1,0,(z0+z1)/2,t,h,z1-z0,c);
+  }
   state.columns.forEach(col=>col.forEach(z=>{
     const kind=z.type==="area"?areaKind(z.name):null;
-    const st=kind?AREA_STYLE[kind]:null;
+    const st=kind?TH.areas[kind]:null;
     // zone slab — the atrium sits below floor level so it reads as a real opening
     const sunk = kind==="sky";
+    if(sunk) VOIDS.push({x0:z._x,z0:z._z,x1:z._x+z._w,z1:z._z+z._d});
     SLABS.push({x0:z._x,z0:z._z,x1:z._x+z._w,z1:z._z+z._d, y: sunk?-2.6:.02,
-      c: sunk?"#191426":(st?st.slab:"#16233d"), border: sunk?"#2a2140":(st?st.border:"#2a3f63")});
+      c: sunk?shade(TH.ground,.55):(st?st.slab:TH.slab), border: sunk?TH.slabBorder:(st?st.border:TH.slabBorder)});
     // empty rooms take a flat floor label; anything holding furniture needs a
     // floating one, or its own contents hide it
     const flat = z.type==="area" && kind!=="lounge" && kind!=="sky";
@@ -963,8 +1106,9 @@ function build3D(){
     ZPICKS.push({zone:z, quad:[[z._x,.02,z._z],[z._x+z._w,.02,z._z],
       [z._x+z._w,.02,z._z+z._d],[z._x,.02,z._z+z._d]]});
     if(z.type==="area"){
-      if(kind==="room"){                       // low walls read as an enclosed room
-        const t=.18,h=.55,c="#33507d";
+      if(kind==="room"){
+        // low walls from above so you can see in; full height at eye level
+        const t=.18,h=viewMode==="walk"?2.45:.55,c=TH.wall;
         box(FACES,z._x+z._w/2,0,z._z+t/2,z._w,h,t,c);
         box(FACES,z._x+z._w/2,0,z._z+z._d-t/2,z._w,h,t,c);
         box(FACES,z._x+t/2,0,z._z+z._d/2,t,h,z._d,c);
@@ -984,7 +1128,7 @@ function build3D(){
           box(FACES,z._x+z._w/2,0,z._z+sd*(i+.5),z._w-.5,.16*(i+1),sd,c);
       }else if(kind==="sky"){
         // slab edge around the opening, plus the red railing that guards it
-        const t=.35, lip="#1d2942";
+        const t=.35, lip=shade(TH.slab,.85);
         box(FACES,z._x+z._w/2,-t,z._z+t/2,z._w,t,t,lip);
         box(FACES,z._x+z._w/2,-t,z._z+z._d-t/2,z._w,t,t,lip);
         box(FACES,z._x+t/2,-t,z._z+z._d/2,t,t,z._d,lip);
@@ -992,12 +1136,12 @@ function build3D(){
         const RED="#c8102e";
         [z._z+.1, z._z+z._d-.1].forEach(zz=>{
           const n=Math.max(2,Math.round(z._w/1.5));
-          for(let i=0;i<=n;i++) box(FACES,z._x+(i/n)*z._w,0,zz,.08,.92,.08,"#3b4658");
+          for(let i=0;i<=n;i++) box(FACES,z._x+(i/n)*z._w,0,zz,.08,.92,.08,TH.wall);
           box(FACES,z._x+z._w/2,.92,zz,z._w,.09,.13,RED);
         });
         [z._x+.1,z._x+z._w-.1].forEach(xx=>{
           const n=Math.max(2,Math.round(z._d/1.5));
-          for(let i=0;i<=n;i++) box(FACES,xx,0,z._z+(i/n)*z._d,.08,.92,.08,"#3b4658");
+          for(let i=0;i<=n;i++) box(FACES,xx,0,z._z+(i/n)*z._d,.08,.92,.08,TH.wall);
           box(FACES,xx,.92,z._z+z._d/2,.13,.09,z._d,RED);
         });
       }else if(kind==="lounge"){                // sofas facing each other + a pantry counter
@@ -1018,21 +1162,22 @@ function build3D(){
         if(filterDept && s.person.dept!==filterDept) muted=true;
         if(searchTerm && !personText(s.person).includes(searchTerm)) muted=true;
       }
-      const col=filled?(muted?"#2b374f":deptColor(s.person.dept)):"#33507d";
+      const col=filled?(muted?shade(TH.slab,1.3):deptColor(s.person.dept)):TH.emptyTop;
       if(filled){
         box(FACES,px,DESK_H-.07,pz,DESK_W,.07,DESK_D,col);        // worktop
-        box(FACES,px,0,pz,DESK_W*.72,DESK_H-.07,DESK_D*.62,"#1b2740"); // pedestal
-        box(FACES,px,0,pz+DESK_D*.92,.46,.42,.46,"#24314d");       // chair seat
-        box(FACES,px,.42,pz+DESK_D*1.08,.46,.42,.1,"#2c3f63");     // chair back
+        box(FACES,px,0,pz,DESK_W*.72,DESK_H-.07,DESK_D*.62,TH.pedestal); // pedestal
+        box(FACES,px,0,pz+DESK_D*.92,.46,.42,.46,TH.chair);       // chair seat
+        box(FACES,px,.42,pz+DESK_D*1.08,.46,.42,.1,TH.chairBack);     // chair back
         // grey fabric privacy panel running along the back of the bench
-        box(FACES,px,DESK_H,pz-DESK_D*.60,DESK_W,.46,.07,"#5c6472");
+        box(FACES,px,DESK_H,pz-DESK_D*.60,DESK_W,.46,.07,TH.panel);
         // monitor
-        box(FACES,px,DESK_H,pz-DESK_D*.24,.62,.36,.05,"#0d1526");
+        box(FACES,px,DESK_H,pz-DESK_D*.24,.62,.36,.05,TH.monitor);
+        personAt(FACES,px,pz,col);
       }else{
         // vacant desk: keep the worktop and panel so the bench still reads as one run
-        box(FACES,px,DESK_H-.07,pz,DESK_W*.94,.06,DESK_D*.9,"#22304a");
-        box(FACES,px,0,pz,DESK_W*.6,DESK_H-.07,DESK_D*.5,"#161f33");
-        box(FACES,px,DESK_H,pz-DESK_D*.60,DESK_W,.46,.07,"#3d4657");
+        box(FACES,px,DESK_H-.07,pz,DESK_W*.94,.06,DESK_D*.9,TH.emptyTop);
+        box(FACES,px,0,pz,DESK_W*.6,DESK_H-.07,DESK_D*.5,TH.emptyPed);
+        box(FACES,px,DESK_H,pz-DESK_D*.60,DESK_W,.46,.07,TH.emptyPanel);
       }
       SHADOWS.push({x:px,z:pz,w:DESK_W});
       const y=DESK_H;
@@ -1060,31 +1205,40 @@ function draw3D(){
   const poly=pts=>{ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();};
 
   // ground
-  const g=[[b.x0-M,0,b.z0-M],[b.x1+M,0,b.z0-M],[b.x1+M,0,b.z1+M],[b.x0-M,0,b.z1+M]].map(project);
-  if(g.every(Boolean)){ ctx.fillStyle="#0d1729"; poly(g); ctx.fill(); ctx.strokeStyle="#22345a"; ctx.lineWidth=1.5; ctx.stroke(); }
+  const g=clipProject([[b.x0-M,0,b.z0-M],[b.x1+M,0,b.z0-M],[b.x1+M,0,b.z1+M],[b.x0-M,0,b.z1+M]]);
+  if(g){ ctx.fillStyle=TH.ground; poly(g); ctx.fill(); ctx.strokeStyle=TH.groundEdge; ctx.lineWidth=1.5; ctx.stroke(); }
 
-  // grid
-  ctx.strokeStyle="rgba(60,92,142,.28)"; ctx.lineWidth=1;
-  for(let gx=Math.floor(b.x0-M);gx<=b.x1+M;gx+=2){
-    const a=project([gx,0,b.z0-M]),c=project([gx,0,b.z1+M]);
-    if(a&&c){ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(c[0],c[1]);ctx.stroke();}
+  // grid — a floor grid at eye level just reads as noise, so skip it in walk
+  if(viewMode!=="walk"){
+    ctx.strokeStyle=TH.grid; ctx.lineWidth=1;
+    for(let gx=Math.floor(b.x0-M);gx<=b.x1+M;gx+=2){
+      const a=project([gx,0,b.z0-M]),c=project([gx,0,b.z1+M]);
+      if(a&&c){ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(c[0],c[1]);ctx.stroke();}
+    }
+    for(let gz=Math.floor(b.z0-M);gz<=b.z1+M;gz+=2){
+      const a=project([b.x0-M,0,gz]),c=project([b.x1+M,0,gz]);
+      if(a&&c){ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(c[0],c[1]);ctx.stroke();}
+    }
   }
-  for(let gz=Math.floor(b.z0-M);gz<=b.z1+M;gz+=2){
-    const a=project([b.x0-M,0,gz]),c=project([b.x1+M,0,gz]);
-    if(a&&c){ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(c[0],c[1]);ctx.stroke();}
+
+  // ceiling — only at eye level, where its absence reads as standing outdoors
+  if(viewMode==="walk"){
+    const cy=3.15;
+    const cq=clipProject([[b.x0-M,cy,b.z0-M],[b.x1+M,cy,b.z0-M],[b.x1+M,cy,b.z1+M],[b.x0-M,cy,b.z1+M]]);
+    if(cq){ ctx.fillStyle=shade(TH.wall,1.16); poly(cq); ctx.fill(); }
   }
 
   // zone slabs
   SLABS.forEach(s=>{
     const y=s.y==null?.02:s.y;
-    const q=[[s.x0,y,s.z0],[s.x1,y,s.z0],[s.x1,y,s.z1],[s.x0,y,s.z1]].map(project);
-    if(!q.every(Boolean)) return;
+    const q=clipProject([[s.x0,y,s.z0],[s.x1,y,s.z0],[s.x1,y,s.z1],[s.x0,y,s.z1]]);
+    if(!q) return;
     ctx.fillStyle=s.c; poly(q); ctx.fill();
     ctx.strokeStyle=s.border; ctx.lineWidth=1.5; ctx.stroke();
   });
 
   // contact shadows
-  ctx.fillStyle="rgba(0,0,0,.30)";
+  ctx.fillStyle=TH.shadow;
   SHADOWS.forEach(s=>{
     const p=project([s.x,.03,s.z]); if(!p) return;
     const k=VIEW.focal/p[2], rx=s.w*.62*k, ry=rx*.42;
@@ -1100,15 +1254,16 @@ function draw3D(){
     const fs=clamp(k*.42,10,26);
     ctx.font=`700 ${fs}px -apple-system,Segoe UI,Roboto,sans-serif`;
     ctx.textAlign="center"; ctx.textBaseline="middle";
-    ctx.fillStyle="rgba(210,225,250,.9)"; ctx.fillText(l.text,p[0],p[1]);
+    ctx.fillStyle=TH.areaLabel; ctx.fillText(l.text,p[0],p[1]);
   });
 
   // geometry — painter's algorithm
   const drawn=[];
   for(const f of FACES){
-    const pts=f.p.map(project);
-    if(!pts.every(Boolean)) continue;
-    drawn.push({pts,c:f.c,d:(pts[0][2]+pts[1][2]+pts[2][2]+pts[3][2])/4});
+    const pts=clipProject(f.p);
+    if(!pts) continue;
+    let d=0; for(const q of pts) d+=q[2];
+    drawn.push({pts,c:f.c,d:d/pts.length});
   }
   drawn.sort((a,b)=>b.d-a.d);
   for(const f of drawn){ ctx.fillStyle=f.c; poly(f.pts); ctx.fill(); }
@@ -1122,15 +1277,17 @@ function draw3D(){
     ctx.font=`600 ${fs}px -apple-system,Segoe UI,Roboto,sans-serif`;
     ctx.textAlign="center"; ctx.textBaseline="middle";
     const w=ctx.measureText(l.text).width+14, h=fs*1.9;
-    ctx.fillStyle="rgba(10,18,32,.85)";
+    ctx.fillStyle=TH.labelBg;
     ctx.beginPath(); ctx.roundRect(p[0]-w/2,p[1]-h/2,w,h,h/2); ctx.fill();
-    ctx.strokeStyle="rgba(80,115,175,.55)"; ctx.lineWidth=1; ctx.stroke();
-    ctx.fillStyle="rgba(178,199,232,.98)"; ctx.fillText(l.text,p[0],p[1]);
+    ctx.strokeStyle=TH.slabBorder; ctx.lineWidth=1; ctx.stroke();
+    ctx.fillStyle=TH.labelFg; ctx.fillText(l.text,p[0],p[1]);
   });
 
   // desk name labels
-  const labels=PICKS.filter(p=>p.filled).map(p=>({p,s:project([p.x,DESK_H+.34,p.z])}))
+  let labels=PICKS.filter(p=>p.filled).map(p=>({p,s:project([p.x,DESK_H+.34,p.z])}))
     .filter(o=>o.s).sort((a,b)=>b.s[2]-a.s[2]);
+  // at eye level only the desks around you should be named, or it's a wall of text
+  if(viewMode==="walk") labels=labels.filter(o=>o.s[2]<10).slice(-12);
   labels.forEach(({p,s})=>{
     const k=VIEW.focal/s[2], raw=k*.26;
     if(raw<7) return;                       // too far away to read — keep it clean
@@ -1145,17 +1302,17 @@ function draw3D(){
       w=Math.max(w,ctx.measureText(p.pod).width); }
     w+=10;
     const h=(showPod?fs+pf+4:fs)+6, top=s[1]-h/2;
-    ctx.fillStyle=p.muted?"rgba(8,14,26,.35)":"rgba(8,14,26,.78)";
+    ctx.fillStyle=p.muted?TH.labelBgDim:TH.labelBg;
     ctx.beginPath(); ctx.roundRect(s[0]-w/2,top,w,h,4); ctx.fill();
     if(showPod){
       ctx.font=`600 ${pf}px -apple-system,Segoe UI,Roboto,sans-serif`;
-      ctx.fillStyle=p.muted?"rgba(150,170,200,.35)":"rgba(160,190,230,.95)";
+      ctx.fillStyle=p.muted?"rgba(150,150,160,.4)":TH.labelSub;
       ctx.fillText(p.pod,s[0],top+3+pf/2);
       ctx.font=`700 ${fs}px -apple-system,Segoe UI,Roboto,sans-serif`;
-      ctx.fillStyle=p.muted?"rgba(150,170,200,.4)":"#eaf1ff";
+      ctx.fillStyle=p.muted?"rgba(150,150,160,.45)":TH.labelFg;
       ctx.fillText(t,s[0],top+3+pf+fs/2);
     }else{
-      ctx.fillStyle=p.muted?"rgba(150,170,200,.4)":"#eaf1ff";
+      ctx.fillStyle=p.muted?"rgba(150,150,160,.45)":TH.labelFg;
       ctx.fillText(t,s[0],s[1]);
     }
   });
@@ -1176,6 +1333,87 @@ function draw3D(){
       } }
   }
 }
+
+/* ---------------- walk mode ---------------- */
+// You cannot walk through a desk, off the floor, or into the atrium void.
+function canStand(x,z){
+  const b=sceneBounds();
+  if(x<b.x0-3||x>b.x1+3||z<b.z0-3||z>b.z1+3) return false;
+  for(const v of VOIDS) if(x>v.x0-.5&&x<v.x1+.5&&z>v.z0-.5&&z<v.z1+.5) return false;
+  for(const d of PICKS)
+    if(Math.abs(x-d.x)<DESK_W/2+.30 && Math.abs(z-d.z)<DESK_D*.95) return false;
+  return true;
+}
+function walkBy(fwd,strafe){
+  const s=.58;
+  const dx=(Math.sin(walk.yaw)*fwd - Math.cos(walk.yaw)*strafe)*s;
+  const dz=(Math.cos(walk.yaw)*fwd + Math.sin(walk.yaw)*strafe)*s;
+  // slide along whichever axis is still clear, so you don't stick on corners
+  if(canStand(walk.x+dx,walk.z+dz)){ walk.x+=dx; walk.z+=dz; }
+  else if(canStand(walk.x+dx,walk.z)) walk.x+=dx;
+  else if(canStand(walk.x,walk.z+dz)) walk.z+=dz;
+  else return false;
+  return true;
+}
+// Where am I? Names the zone underfoot so the walk view stays oriented.
+function walkWhere(){
+  for(const p of ZPICKS){
+    const z=p.zone;
+    if(walk.x>=z._x&&walk.x<=z._x+z._w&&walk.z>=z._z&&walk.z<=z._z+z._d) return z.name;
+  }
+  return "On the floor";
+}
+// Start at the near edge looking down the length of the floor — an establishing
+// shot, rather than dropped against the nearest piece of furniture.
+function startWalk(){
+  ensureLayout(); build3D();
+  // stand at the head of the biggest desk block, looking straight down it
+  let big=null,area=0;
+  state.columns.forEach(c=>c.forEach(z=>{
+    if(z.type==="grid"){ const a=z._w*z._d; if(a>area){area=a;big=z;} } }));
+  const b=sceneBounds();
+  walk.pitch=-.03;
+  if(big){                       // in the side aisle, looking across the rows
+    walk.x=big._x-2.6; walk.z=big._z+big._d*.5; walk.yaw=Math.PI/2;
+    for(let i=0;i<40&&!canStand(walk.x,walk.z);i++) walk.x-=.4;
+  }else{
+    walk.x=b.cx; walk.z=b.z0-2.5; walk.yaw=0;
+    for(let i=0;i<40&&!canStand(walk.x,walk.z);i++) walk.z-=.4;
+  }
+}
+function drawWalk(){ el("walkWhere").textContent=walkWhere(); draw3D(); }
+
+// held d-pad buttons repeat while pressed
+let walkHold=null;
+function walkAct(a){
+  if(a==="fwd") walkBy(1,0);
+  else if(a==="back") walkBy(-1,0);
+  else if(a==="left") walk.yaw-=.16;
+  else if(a==="right") walk.yaw+=.16;
+  drawWalk();
+}
+el("walkUi").addEventListener("pointerdown",e=>{
+  const b=e.target.closest("[data-walk]"); if(!b) return;
+  e.preventDefault(); const a=b.dataset.walk;
+  walkAct(a);
+  clearInterval(walkHold); walkHold=setInterval(()=>walkAct(a),110);
+});
+["pointerup","pointercancel","pointerleave"].forEach(ev=>
+  el("walkUi").addEventListener(ev,()=>{ clearInterval(walkHold); walkHold=null; }));
+
+document.addEventListener("keydown",e=>{
+  if(viewMode!=="walk") return;
+  if(e.target.matches("input,select,[contenteditable=true]")) return;
+  const k=e.key.toLowerCase();
+  if(k==="w"||e.key==="ArrowUp") walkBy(1,0);
+  else if(k==="s"||e.key==="ArrowDown") walkBy(-1,0);
+  else if(k==="a") walkBy(0,-1);
+  else if(k==="d") walkBy(0,1);
+  else if(e.key==="ArrowLeft") walk.yaw-=.14;
+  else if(e.key==="ArrowRight") walk.yaw+=.14;
+  else return;
+  e.preventDefault(); drawWalk();
+});
 
 /* ---- picking ---- */
 function pointInPoly(x,y,pts){
@@ -1230,6 +1468,10 @@ cv.addEventListener("pointerdown",e=>{
     drag3d=orbit=null; return;
   }
   const [x,y]=localXY(e);
+  if(viewMode==="walk"){                       // drag anywhere to look around
+    orbit={x,y,pan:false,moved:0,look:true};
+    cv.classList.add("grabbing"); return;
+  }
   const navigating=(e.button===2||e.shiftKey);
   const hit=navigating?null:pickDesk(x,y);
   const zhit=(navigating||hit)?null:pickZone(x,y);
@@ -1274,10 +1516,12 @@ cv.addEventListener("pointermove",e=>{
   if(orbit){
     const dx=x-orbit.x, dy=y-orbit.y;
     orbit.moved+=Math.abs(dx)+Math.abs(dy);
-    if(orbit.pan) panBy(dx,dy);
+    if(orbit.look){ walk.yaw+=dx*.005; walk.pitch=clamp(walk.pitch-dy*.004,-.75,.75); }
+    else if(orbit.pan) panBy(dx,dy);
     else { cam.az-=dx*.008; cam.el=clamp(cam.el-dy*.006,.14,1.45); }
     orbit.x=x; orbit.y=y; draw3D(); return;
   }
+  if(viewMode==="walk") return;
   const overDesk=!!pickDesk(x,y);
   cv.classList.toggle("on-desk",overDesk);
   cv.classList.toggle("on-block",!overDesk&&!!pickZone(x,y));
@@ -1332,6 +1576,7 @@ el("stage3d").addEventListener("click",e=>{
 new ResizeObserver(()=>{ if(viewMode==="3d") draw3D(); }).observe(el("stage3d"));
 
 /* ---------------- go ---------------- */
+el("stage3d").style.background=TH.sky;
 render();
 if(layoutNotice) setTimeout(()=>toast("Floor plan updated — press Reset to load the new layout"),700);
 </script>

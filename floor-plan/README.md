@@ -12,9 +12,11 @@ Your changes are saved automatically in the browser (localStorage). Use
 **Export** to save a `.json` backup and **Import** to restore it (or to move
 your layout to another computer).
 
-## Three views
+## Four views
 
-Switch with the **Edit / Map / 3D** control in the top bar.
+Switch with the **Edit / Map / 3D / Walk** control in the top bar. The
+**🎨 Studio / Illustration** button next to it switches render style: *Studio*
+is the dark working look, *Illustration* a warm, soft diorama.
 
 - **✏️ Edit** — the working view. Rows and seats as a grid; add people, rename
   zones, restructure the floor.
@@ -33,6 +35,12 @@ Switch with the **Edit / Map / 3D** control in the top bar.
   - Clicking a department in the legend highlights just that team in 3D —
     the fastest way to answer "where does HR sit?".
   - **Reset layout** snaps every block and desk back to the default arrangement.
+  - Everyone seated appears as a figure at their desk, coloured by department.
+- **🚶 Walk** — a first-person view at eye height, like street view. Drag to
+  look around, use the arrow pad or **W A S D** / arrow keys to walk. You can't
+  walk through desks or into the atrium, and a badge names the zone you're
+  standing in. Rooms take full-height walls and the floor gains a ceiling, so
+  it reads as a real interior.
 
   Positions are saved automatically, so the floor you arrange is the floor you
   come back to. **Export** writes it to a `.json` file you can keep or share.
@@ -41,6 +49,12 @@ The 3D view is rendered by a small purpose-built engine (perspective camera,
 painter's-algorithm depth sorting, ray→floor unprojection for dragging) drawn
 on a 2D canvas. No external 3D library is used, so the page stays fully
 self-contained and works offline and under strict content-security policies.
+
+## Branding
+
+The palette is ibex scarlet (`#e4002b`) on a warm charcoal, sampled from the
+signage and railings in the office. Change `--brand` in the `:root` block to
+swap in an exact brand hex.
 
 ## What it does
 
