@@ -1,8 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ArrowUp, Mic, MicOff, Sparkles, FileText, Zap, Shield, RotateCcw, Building2, ArrowDown, LogOut } from "lucide-react";
+import {
+  ArrowUp, Mic, MicOff, Sparkles, FileText, Zap, Shield, RotateCcw,
+  Building2, ArrowDown, LogOut, Download, Keyboard, Database, Layers,
+} from "lucide-react";
 import Message from "./Message";
 import Dropdown, { DEPT_DOT } from "./Dropdown";
 import ThemeToggle from "./ThemeToggle";
+import { useToast } from "./Toast";
 
 const SUGGESTIONS = [
   { icon: "📋", text: "Summarize the key policies in all documents" },
@@ -14,7 +18,7 @@ const SUGGESTIONS = [
 export default function ChatPanel({
   messages, onSend, loading, hasDocs, onClearChat,
   departments = [], scopeDept = "All", onScopeChange, onOpenSource, onOpenPipeline,
-  currentUser, onLogout,
+  currentUser, onLogout, onRegenerate, stats, onShowShortcuts,
 }) {
   const [input, setInput] = useState("");
   const [listening, setListening] = useState(false);
@@ -23,6 +27,7 @@ export default function ChatPanel({
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
   const recognitionRef = useRef(null);
+  const toast = useToast();
 
   // Track whether the user is near the bottom — only then do we auto-scroll.
   const handleScroll = useCallback(() => {
@@ -65,7 +70,7 @@ export default function ChatPanel({
   const toggleVoice = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
-      alert("Voice input requires Chrome or Edge browser.");
+      toast("Voice input needs Chrome or Edge.", "warning");
       return;
     }
 
@@ -93,7 +98,65 @@ export default function ChatPanel({
     recognitionRef.current = rec;
     rec.start();
     setListening(true);
-  }, [listening]);
+  }, [listening, toast]);
+
+  // ── Export conversation as Markdown ─────────────────────────────────────
+  const exportChat = useCallback(() => {
+    if (!messages.length) { toast("Nothing to export yet.", "warning"); return; }
+    const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
+    const lines = [
+      "# DocuMind conversation",
+      "",
+      `> Exported ${stamp}${scopeDept !== "All" ? ` · scope: ${scopeDept}` : ""}`,
+      "",
+    ];
+    for (const m of messages) {
+      if (m.role === "user") {
+        lines.push(`## Q: ${m.content}`, "");
+      } else {
+        lines.push(m.content || "_(no answer)_", "");
+        if (m.sources?.length) {
+          lines.push("**Sources**", "");
+          m.sources.forEach((s, i) =>
+            lines.push(`${i + 1}. ${s.source}${s.page && s.page !== "?" ? ` — p.${s.page}` : ""}`));
+          lines.push("");
+        }
+      }
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `documind-chat-${stamp.replace(/[: ]/g, "-")}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast("Conversation exported as Markdown.", "success");
+  }, [messages, scopeDept, toast]);
+
+  // ── Global keyboard shortcuts ───────────────────────────────────────────
+  useEffect(() => {
+    const onKey = (e) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      if (e.key === "k") {
+        e.preventDefault();
+        textareaRef.current?.focus();
+      } else if (e.key === "/") {
+        e.preventDefault();
+        onShowShortcuts?.();
+      } else if (e.shiftKey && (e.key === "O" || e.key === "o")) {
+        e.preventDefault();
+        onClearChat?.();
+      } else if (e.shiftKey && (e.key === "E" || e.key === "e")) {
+        e.preventDefault();
+        exportChat();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [exportChat, onClearChat, onShowShortcuts]);
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden relative">
@@ -120,19 +183,40 @@ export default function ChatPanel({
               filtered
             </span>
           )}
+
+          {/* Corpus stats — quiet, factual, hidden on small screens */}
+          {stats && (
+            <div className="hidden lg:flex items-center gap-3 pl-3 ml-1 border-l border-app">
+              <span className="flex items-center gap-1.5 text-[10.5px] text-faded tabular-nums" title="Indexed documents">
+                <Database size={10} className="text-ember-500/70" />{stats.documents} docs
+              </span>
+              <span className="flex items-center gap-1.5 text-[10.5px] text-faded tabular-nums" title="Indexed chunks">
+                <Layers size={10} className="text-ember-500/70" />{stats.chunks} chunks
+              </span>
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2.5 flex-shrink-0">
           {messages.length > 0 && (
             <>
-              <span className="text-[11px] text-faded hidden sm:inline tabular-nums">
+              <span className="text-[11px] text-faded hidden xl:inline tabular-nums">
                 {messages.filter(m => m.role === "user").length} questions
               </span>
-              <button onClick={onClearChat} className="flex items-center gap-1.5 text-[11px] text-ghost hover:text-app transition-colors">
-                <RotateCcw size={11} /> New chat
+              <button onClick={exportChat} title="Export conversation  (⌘⇧E)"
+                className="flex items-center gap-1.5 text-[11px] text-ghost hover:text-app px-1.5 py-1 rounded-lg hover:bg-surface-2 transition-all">
+                <Download size={11} /> <span className="hidden sm:inline">Export</span>
+              </button>
+              <button onClick={onClearChat} title="New chat  (⌘⇧O)"
+                className="flex items-center gap-1.5 text-[11px] text-ghost hover:text-app px-1.5 py-1 rounded-lg hover:bg-surface-2 transition-all">
+                <RotateCcw size={11} /> <span className="hidden sm:inline">New chat</span>
               </button>
               <div className="w-px h-5 bg-white/10" />
             </>
           )}
+          <button onClick={onShowShortcuts} title="Keyboard shortcuts  (⌘/)"
+            className="p-1.5 text-ghost hover:text-app rounded-lg hover:bg-surface-2 transition-all">
+            <Keyboard size={13} />
+          </button>
           {currentUser && (
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2.5 py-1">
@@ -203,7 +287,7 @@ export default function ChatPanel({
                     <button
                       key={s.text}
                       onClick={() => onSend(s.text)}
-                      className="group text-left px-4 py-3 rounded-xl bg-surface hover:bg-surface-2 border border-app hover:border-strong text-[13px] text-muted-app hover:text-app transition-all"
+                      className="lift group text-left px-4 py-3 rounded-xl bg-surface hover:bg-surface-2 border border-app hover:border-strong text-[13px] text-muted-app hover:text-app hover:shadow-lg hover:shadow-black/20 transition-all"
                     >
                       <span className="mr-2 opacity-80 group-hover:opacity-100 transition-opacity">{s.icon}</span>
                       {s.text}
@@ -230,6 +314,8 @@ export default function ChatPanel({
                 query={messages[i - 1]?.role === "user" ? messages[i - 1].content : ""}
                 onOpenSource={onOpenSource}
                 onOpenPipeline={onOpenPipeline}
+                onRegenerate={onRegenerate}
+                isLast={i === messages.length - 1 && !loading}
               />
             ))}
             <div ref={bottomRef} />
@@ -281,9 +367,18 @@ export default function ChatPanel({
             <ArrowUp size={15} />
           </button>
         </div>
-        <p className="text-center text-vanish text-[10px] mt-2.5 tracking-[0.18em] uppercase font-medium">
-          Hybrid&nbsp;BM25&nbsp;+&nbsp;Vector · Multi-turn&nbsp;memory · Groq&nbsp;LLM · Local&nbsp;embeddings
-        </p>
+        <div className="flex items-center justify-center gap-3 mt-2.5">
+          <p className="text-vanish text-[10px] tracking-[0.18em] uppercase font-medium">
+            Hybrid&nbsp;BM25&nbsp;+&nbsp;Vector · Multi-turn&nbsp;memory · Groq&nbsp;LLM · Local&nbsp;embeddings
+          </p>
+          <button
+            onClick={onShowShortcuts}
+            className="hidden md:flex items-center gap-1 text-[10px] text-vanish hover:text-faded transition-colors"
+            title="Keyboard shortcuts"
+          >
+            <kbd className="px-1 py-px rounded bg-surface-2 border border-app font-mono text-[9px]">⌘K</kbd>
+          </button>
+        </div>
       </div>
     </div>
   );

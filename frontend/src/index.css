@@ -308,6 +308,77 @@ html.light .think-shimmer { --shimmer-hi: #4f46e5; }
 }
 .drift { animation: drift 22s linear infinite; }
 
+/* ── Toasts ───────────────────────────────────────────────────────── */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(16px) scale(0.97); }
+  to   { opacity: 1; transform: translateX(0)    scale(1); }
+}
+@keyframes toast-out {
+  from { opacity: 1; transform: translateX(0)    scale(1); }
+  to   { opacity: 0; transform: translateX(16px) scale(0.97); }
+}
+.toast-in  { animation: toast-in  240ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.toast-out { animation: toast-out 200ms cubic-bezier(0.4, 0, 1, 1) both; }
+
+/* ── Dialog / overlay ─────────────────────────────────────────────── */
+@keyframes fade-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scale-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+.fade-in  { animation: fade-in  180ms ease-out both; }
+.scale-in { animation: scale-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* ── Interaction polish ───────────────────────────────────────────── */
+/* Buttons and links settle into their transition instead of snapping. */
+button, a, input, textarea, select, [role="button"] {
+  transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+  transition-duration: 160ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Tactile press feedback — subtle, never bouncy. */
+button:not(:disabled):active, [role="button"]:active { transform: scale(0.975); }
+
+/* Consistent, visible keyboard focus that never fires on mouse click. */
+:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.65);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Cards that lift a touch on hover. */
+.lift { transition: transform 200ms cubic-bezier(0.22,1,0.36,1), box-shadow 200ms ease; }
+.lift:hover { transform: translateY(-2px); }
+
+/* ── Skeleton shimmer (loading placeholders) ──────────────────────── */
+@keyframes skeleton-sweep {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+.skeleton {
+  background-image: linear-gradient(
+    90deg,
+    var(--bg-surface) 0%,
+    var(--bg-surface-2) 50%,
+    var(--bg-surface) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.4s linear infinite;
+  border-radius: 8px;
+}
+
+/* ── Honour reduced-motion across everything added above ──────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  button:not(:disabled):active, [role="button"]:active { transform: none; }
+  .lift:hover { transform: none; }
+}
+
 /* ── Prose (theme-aware) ──────────────────────────────────────────── */
 .prose { line-height: 1.75; color: var(--text); }
 .prose p { margin: 0.4em 0; }

@@ -1,9 +1,12 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { ChevronDown, ChevronUp, FileText, ScanLine, BookOpen, Workflow, ShieldCheck, AlertTriangle } from "lucide-react";
+import {
+  ChevronDown, ChevronUp, FileText, ScanLine, BookOpen, Workflow,
+  ShieldCheck, AlertTriangle, Copy, Check, RefreshCw, ThumbsUp, ThumbsDown,
+} from "lucide-react";
 import ThinkingLine from "./ThinkingLine";
 
-export default function Message({ msg, query, onOpenSource, onOpenPipeline }) {
+export default function Message({ msg, query, onOpenSource, onOpenPipeline, onRegenerate, isLast }) {
   const [showSources, setShowSources] = useState(false);
   const isUser = msg.role === "user";
 
@@ -20,7 +23,7 @@ export default function Message({ msg, query, onOpenSource, onOpenPipeline }) {
   const isThinking = msg.streaming && !msg.content;
 
   return (
-    <div className="flex gap-3 mb-5 msg-in">
+    <div className="group/msg flex gap-3 mb-5 msg-in">
       <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-600 to-indigo-400 flex-shrink-0 flex items-center justify-center mt-0.5 shadow-glow">
         <span className="text-white text-[10px] font-bold">AI</span>
       </div>
@@ -37,6 +40,10 @@ export default function Message({ msg, query, onOpenSource, onOpenPipeline }) {
         </div>
 
         {msg.grounding && !msg.streaming && <GroundingBadge grounding={msg.grounding} />}
+
+        {!msg.streaming && msg.content && (
+          <MessageActions content={msg.content} onRegenerate={isLast ? onRegenerate : null} />
+        )}
 
         {msg.sources?.length > 0 && !msg.streaming && (
           <div className="mt-3">
@@ -72,6 +79,60 @@ export default function Message({ msg, query, onOpenSource, onOpenPipeline }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Hover-revealed row of actions under an assistant answer. */
+function MessageActions({ content, onRegenerate }) {
+  const [copied, setCopied] = useState(false);
+  const [vote, setVote] = useState(null);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(content);
+    } catch {
+      // Clipboard API needs a secure context; fall back to a temp textarea.
+      const ta = document.createElement("textarea");
+      ta.value = content;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); } catch { /* nothing more we can do */ }
+      document.body.removeChild(ta);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+  };
+
+  const btn = "flex items-center gap-1 text-[10.5px] px-1.5 py-1 rounded-md transition-all duration-150";
+
+  return (
+    <div className="flex items-center gap-0.5 mt-2 -ml-1.5 opacity-0 group-hover/msg:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
+      <button onClick={copy} title="Copy answer"
+        className={`${btn} ${copied ? "text-emerald-400" : "text-ghost hover:text-app hover:bg-surface-2"}`}>
+        {copied ? <Check size={11} /> : <Copy size={11} />}
+        <span>{copied ? "Copied" : "Copy"}</span>
+      </button>
+
+      {onRegenerate && (
+        <button onClick={onRegenerate} title="Regenerate this answer"
+          className={`${btn} text-ghost hover:text-app hover:bg-surface-2`}>
+          <RefreshCw size={11} /><span>Retry</span>
+        </button>
+      )}
+
+      <span className="w-px h-3 bg-white/10 mx-1" />
+
+      <button onClick={() => setVote(vote === "up" ? null : "up")} title="Good answer"
+        className={`${btn} ${vote === "up" ? "text-emerald-400 bg-emerald-500/10" : "text-ghost hover:text-app hover:bg-surface-2"}`}>
+        <ThumbsUp size={11} />
+      </button>
+      <button onClick={() => setVote(vote === "down" ? null : "down")} title="Needs work"
+        className={`${btn} ${vote === "down" ? "text-amber-400 bg-amber-500/10" : "text-ghost hover:text-app hover:bg-surface-2"}`}>
+        <ThumbsDown size={11} />
+      </button>
     </div>
   );
 }

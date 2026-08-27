@@ -4,10 +4,15 @@ import ChatPanel from "./components/ChatPanel";
 import PdfViewer from "./components/PdfViewer";
 import RagPipelinePanel from "./components/RagPipelinePanel";
 import AuthScreen from "./components/AuthScreen";
+import ShortcutsModal from "./components/ShortcutsModal";
+import { useToast } from "./components/Toast";
 
 const API = "/api";
 
 export default function App() {
+  const toast = useToast();
+  const [stats, setStats] = useState(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [token, setToken] = useState(() => localStorage.getItem("dm_token") || "");
   const [currentUser, setCurrentUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -66,12 +71,14 @@ export default function App() {
     if (!currentUser) return;
     (async () => {
       try {
-        const [dr, deptR] = await Promise.all([
+        const [dr, deptR, statsR] = await Promise.all([
           authedFetch(`${API}/documents`),
           authedFetch(`${API}/departments`),
+          authedFetch(`${API}/stats`),
         ]);
         const dd = await dr.json();
         const deptD = await deptR.json();
+        if (statsR.ok) setStats(await statsR.json());
         setDocuments(dd.documents || []);
         if (deptD.departments) setAllDepartments(deptD.departments);
         if (deptD.allowed) setAllowedDepartments(deptD.allowed);
@@ -128,9 +135,10 @@ export default function App() {
 
   const handleDelete = async (name) => {
     const r = await authedFetch(`${API}/documents/${encodeURIComponent(name)}`, { method: "DELETE" });
-    if (!r.ok) { alert("Delete failed: " + (await r.json()).detail); return; }
+    if (!r.ok) { toast(`Delete failed: ${(await r.json()).detail}`, "error"); return; }
     setSummaries((prev) => { const c = { ...prev }; delete c[name]; return c; });
     fetchDocs();
+    toast(`Removed ${name}`, "success");
   };
 
   const handleUpdateMeta = async (name, { department, tags }) => {
@@ -140,20 +148,20 @@ export default function App() {
       body: JSON.stringify({ department, tags }),
     });
     const d = await r.json();
-    if (!r.ok) { alert(d.detail || "Update failed"); return; }
+    if (!r.ok) { toast(d.detail || "Update failed", "error"); return; }
     if (d.documents) setDocuments(d.documents);
+    toast("Document updated.", "success");
   };
 
   const handleClear = async () => {
     const r = await authedFetch(`${API}/clear`, { method: "POST" });
-    if (!r.ok) { alert("Clear failed: " + (await r.json()).detail); return; }
+    if (!r.ok) { toast(`Clear failed: ${(await r.json()).detail}`, "error"); return; }
     setDocuments([]); setMessages([]); setSummaries({});
+    toast("Corpus cleared.", "success");
   };
 
-  const handleSend = async (question) => {
-    const userMsg = { role: "user", content: question };
-    const history = messages.map(({ role, content }) => ({ role, content }));
-    setMessages((m) => [...m, userMsg]);
+  /** Appends an assistant placeholder and streams the answer into it. */
+  const streamAnswer = async (question, history) => {
     setLoading(true);
     setMessages((m) => [...m, { role: "assistant", content: "", sources: [], streaming: true, scope: scopeDept }]);
     try {
@@ -187,8 +195,27 @@ export default function App() {
       }
     } catch {
       setMessages((m) => { const c = [...m]; c[c.length - 1] = { ...c[c.length - 1], content: "⚠️ Could not reach backend.", streaming: false }; return c; });
+      toast("Could not reach the backend.", "error");
     }
     setLoading(false);
+  };
+
+  const handleSend = async (question) => {
+    const history = messages.map(({ role, content }) => ({ role, content }));
+    setMessages((m) => [...m, { role: "user", content: question }]);
+    await streamAnswer(question, history);
+  };
+
+  /** Re-asks the most recent question, discarding the answer it produced. */
+  const handleRegenerate = async () => {
+    if (loading) return;
+    const lastUserIdx = messages.map((m) => m.role).lastIndexOf("user");
+    if (lastUserIdx === -1) return;
+    const question = messages[lastUserIdx].content;
+    const kept = messages.slice(0, lastUserIdx + 1);
+    const history = kept.slice(0, lastUserIdx).map(({ role, content }) => ({ role, content }));
+    setMessages(kept);
+    await streamAnswer(question, history);
   };
 
   // Auth gate: show nothing until we know if token is valid
@@ -230,6 +257,9 @@ export default function App() {
         onOpenPipeline={setPipeline}
         currentUser={currentUser}
         onLogout={handleLogout}
+        onRegenerate={handleRegenerate}
+        stats={stats}
+        onShowShortcuts={() => setShowShortcuts(true)}
       />
       <RagPipelinePanel
         open={!!pipeline}
@@ -242,6 +272,7 @@ export default function App() {
         source={viewerSource}
         onClose={() => setViewerSource(null)}
       />
+      <ShortcutsModal open={showShortcuts} onClose={() => setShowShortcuts(false)} />
     </div>
   );
 }
