@@ -382,8 +382,46 @@ button:not(:disabled):active, [role="button"]:active { transform: scale(0.975); 
 /* ── Prose (theme-aware) ──────────────────────────────────────────── */
 .prose { line-height: 1.75; color: var(--text); }
 .prose p { margin: 0.4em 0; }
-.prose ul, .prose ol { padding-left: 1.5em; margin: 0.4em 0; }
-.prose li { margin: 0.2em 0; }
+/* Tailwind's preflight strips list markers; restore them so answers that
+   come back as bullet or numbered lists actually read as lists. */
+.prose ul, .prose ol { padding-left: 1.35em; margin: 0.5em 0; }
+.prose ul { list-style: disc outside; }
+.prose ol { list-style: decimal outside; }
+.prose ul ul { list-style: circle outside; }
+.prose li { margin: 0.25em 0; padding-left: 0.15em; }
+.prose li::marker { color: var(--text-faded); }
+
+/* Answers regularly contain markdown tables (financials, policy grids).
+   Without this they collapse into unreadable runs of text. */
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.85em 0;
+  font-size: 0.9em;
+  display: block;
+  overflow-x: auto;
+}
+.prose th, .prose td {
+  border: 1px solid var(--border-2);
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+.prose th {
+  background: var(--bg-surface);
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+.prose tbody tr:nth-child(even) { background: var(--bg-surface); }
+
+.prose blockquote {
+  border-left: 2px solid var(--border-strong);
+  padding-left: 0.9em;
+  margin: 0.6em 0;
+  color: var(--text-muted);
+}
+.prose hr { border: 0; border-top: 1px solid var(--border-2); margin: 1em 0; }
 .prose strong { color: var(--text); font-weight: 600; }
 .prose code {
   background: var(--bg-surface-2);

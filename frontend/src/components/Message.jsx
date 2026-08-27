@@ -1,5 +1,6 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   ChevronDown, ChevronUp, FileText, ScanLine, BookOpen, Workflow,
   ShieldCheck, AlertTriangle, Copy, Check, RefreshCw, ThumbsUp, ThumbsDown,
@@ -33,7 +34,7 @@ export default function Message({ msg, query, onOpenSource, onOpenPipeline, onRe
             <ThinkingLine sources={msg.sources} />
           ) : (
             <>
-              <ReactMarkdown>{msg.content || " "}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content || " "}</ReactMarkdown>
               {msg.streaming && <span className="cursor" />}
             </>
           )}
