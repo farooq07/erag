@@ -2,22 +2,26 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import {
   MessageSquare, FolderOpen, Settings, Trash2, Plus, X,
-  ChevronRight, ChevronDown, FileText, Sparkles, Loader2,
+  ChevronRight, FileText, Sparkles, Loader2,
   Search, Tag, Building2, Pencil, Check,
 } from "lucide-react";
 import Dropdown, { DEPT_DOT } from "./Dropdown";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const DEPT_COLORS = {
-  HR:          "bg-pink-500/15 text-pink-300 border-pink-500/30",
-  Accounts:    "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-  Finance:     "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  IT:          "bg-sky-500/15 text-sky-300 border-sky-500/30",
-  Legal:       "bg-violet-500/15 text-violet-300 border-violet-500/30",
-  Operations:  "bg-orange-500/15 text-orange-300 border-orange-500/30",
-  General:     "bg-surface-2 text-muted-app border-app-2",
+  HR:          "bg-pink-500/15 text-pink-600 dark:text-pink-300 border-pink-500/30",
+  Accounts:    "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/30",
+  Finance:     "bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/30",
+  IT:          "bg-sky-500/15 text-sky-600 dark:text-sky-300 border-sky-500/30",
+  Legal:       "bg-violet-500/15 text-violet-600 dark:text-violet-300 border-violet-500/30",
+  Operations:  "bg-orange-500/15 text-orange-600 dark:text-orange-300 border-orange-500/30",
+  General:     "bg-muted text-muted-foreground border-border",
 };
 
-const deptClass = (d) => DEPT_COLORS[d] || "bg-surface-2 text-muted-app border-app-2";
+const deptClass = (d) => DEPT_COLORS[d] || "bg-muted text-muted-foreground border-border";
 
 const formatSize = (n) => {
   if (!n) return "";
@@ -31,7 +35,6 @@ export default function Sidebar({
   defaultDept, summaries,
   onUpload, onDelete, onUpdateMeta, onClear, model, onModelChange,
 }) {
-  // Departments this user can actually pick. Falls back to all if not yet known.
   const writableDepartments = (allowedDepartments.length ? allowedDepartments : departments);
   const [expanded, setExpanded] = useState(false);
   const [activePanel, setActivePanel] = useState(null);
@@ -42,9 +45,8 @@ export default function Sidebar({
   const [filterDept, setFilterDept] = useState("All");
   const [uploadDept, setUploadDept] = useState(defaultDept || "General");
   const [uploadTags, setUploadTags] = useState("");
-  const [editingDept, setEditingDept] = useState(null);   // doc name being edited
+  const [editingDept, setEditingDept] = useState(null);
 
-  // Keep upload/filter dept in sync with the user's permissions.
   useEffect(() => {
     if (writableDepartments.length === 0) return;
     if (!writableDepartments.includes(uploadDept)) {
@@ -91,7 +93,6 @@ export default function Sidebar({
     else { setActivePanel(panel); setExpanded(true); }
   };
 
-  // ── Filter + group docs ──────────────────────────────────────────────
   const filteredDocs = useMemo(() => {
     const q = search.trim().toLowerCase();
     return documents.filter((d) => {
@@ -124,14 +125,9 @@ export default function Sidebar({
       <input {...getInputProps()} />
 
       {/* Icon rail */}
-      <div className="w-14 h-full bg-rail border-r border-app flex flex-col items-center py-4 gap-1 z-10">
-        <div
-          title="Office RAG"
-          className="relative w-9 h-9 rounded-xl bg-panel-2 border border-app-2 flex items-center justify-center mb-4 overflow-hidden"
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/35 via-transparent to-ember-500/30" />
-          <MessageSquare size={15} className="relative text-indigo-700 dark:text-indigo-200" strokeWidth={1.75} />
-          <span className="absolute -bottom-px -right-px w-2 h-2 rounded-full bg-ember-500 shadow-ember" />
+      <div className="z-10 flex h-full w-14 flex-col items-center gap-1 border-r bg-card py-4">
+        <div title="Office RAG" className="mb-4 flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+          <MessageSquare size={15} strokeWidth={1.75} />
         </div>
 
         <NavIcon icon={<MessageSquare size={16} />} label="Chat" active={!expanded} onClick={() => { setActivePanel(null); setExpanded(false); }} />
@@ -140,10 +136,9 @@ export default function Sidebar({
 
         <div className="flex-1" />
         {canUpload && (
-          <button onClick={open} title="Upload document"
-            className="w-9 h-9 rounded-xl bg-indigo-600/15 dark:bg-indigo-600/25 hover:bg-indigo-600/35 dark:hover:bg-indigo-600/45 border border-indigo-500/40 flex items-center justify-center text-indigo-700 dark:text-indigo-200 hover:text-indigo-900 dark:hover:text-white transition-all mb-1 shadow-glow">
+          <Button onClick={open} title="Upload document" size="icon" className="mb-1 h-9 w-9 rounded-xl">
             <Plus size={16} strokeWidth={2} />
-          </button>
+          </Button>
         )}
         {canClear && (
           <NavIcon icon={<Trash2 size={15} />} label="Clear all" onClick={() => { if (confirm("Clear all documents and chat?")) onClear(); }} danger />
@@ -152,31 +147,28 @@ export default function Sidebar({
 
       {/* Expandable panel */}
       {expanded && (
-        <div className="w-80 h-full bg-panel border-r border-app flex flex-col">
-          <div className="px-4 py-4 border-b border-app flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="h-px w-5 bg-ember-500/70" />
-              <span className="text-[10.5px] font-semibold text-app uppercase tracking-[0.22em]">
-                {activePanel === "files" ? `Documents · ${documents.length}` : "Settings"}
-              </span>
-            </div>
-            <button
+        <div className="flex h-full w-80 flex-col border-r bg-card">
+          <div className="flex items-center justify-between border-b px-4 py-4">
+            <span className="text-[10.5px] font-semibold uppercase tracking-[0.22em] text-foreground">
+              {activePanel === "files" ? `Documents · ${documents.length}` : "Settings"}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => { setExpanded(false); setActivePanel(null); }}
               title="Close panel"
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-app hover:text-app hover:bg-surface-2 transition-all"
+              className="h-7 w-7"
             >
               <ChevronRight size={14} />
-            </button>
+            </Button>
           </div>
 
-          {/* ── Files panel ── */}
+          {/* Files panel */}
           {activePanel === "files" && (
-            <div className="flex-1 overflow-y-auto p-3 space-y-3">
-
-              {/* Upload form (dept + tags + drop) */}
+            <div className="flex-1 space-y-3 overflow-y-auto p-3">
               {canUpload ? (
-                <div className="rounded-xl border border-app bg-surface p-3 space-y-2">
-                  <label className="text-[10px] text-muted-app uppercase tracking-[0.2em] font-medium flex items-center gap-1.5">
+                <div className="space-y-2 rounded-xl border bg-background p-3">
+                  <label className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
                     <Building2 size={10} /> Department
                   </label>
                   <Dropdown
@@ -186,52 +178,59 @@ export default function Sidebar({
                     options={writableDepartments.map((d) => ({ value: d, label: d, dotClass: DEPT_DOT[d] }))}
                   />
 
-                  <label className="text-[10px] text-muted-app uppercase tracking-[0.2em] font-medium flex items-center gap-1.5 pt-1">
-                    <Tag size={10} /> Tags <span className="text-faded normal-case tracking-normal font-normal">(comma separated, optional)</span>
+                  <label className="flex items-center gap-1.5 pt-1 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                    <Tag size={10} /> Tags <span className="font-normal normal-case tracking-normal text-muted-foreground/70">(comma separated, optional)</span>
                   </label>
-                  <input
+                  <Input
                     value={uploadTags}
                     onChange={(e) => setUploadTags(e.target.value)}
                     placeholder="e.g. 2024, policy, contract"
-                    className="w-full bg-panel-2 border border-app-2 rounded-lg px-2.5 py-1.5 text-[11px] text-app placeholder:text-vanish focus:outline-none focus:border-indigo-500/50"
+                    className="h-8 text-[11px]"
                   />
 
-                  <div onClick={open}
-                    className={`mt-2 border border-dashed rounded-lg p-3 text-center cursor-pointer transition-all
-                      ${isDragActive ? "border-indigo-500 bg-indigo-500/10" : "border-app-2 hover:border-strong hover:bg-surface-2"}`}>
-                    <Plus size={14} className="mx-auto mb-1 text-muted-app" />
-                    <p className="text-[11px] text-muted-app">
-                      {uploading ? "Ingesting…" : isDragActive ? "Drop files here" : <>Drop into <span className="text-app font-medium">{uploadDept}</span> or click</>}
+                  <div
+                    onClick={open}
+                    className={cn(
+                      "mt-2 cursor-pointer rounded-lg border border-dashed p-3 text-center transition-colors",
+                      isDragActive ? "border-foreground bg-accent" : "hover:bg-accent"
+                    )}
+                  >
+                    <Plus size={14} className="mx-auto mb-1 text-muted-foreground" />
+                    <p className="text-[11px] text-muted-foreground">
+                      {uploading ? "Ingesting…" : isDragActive ? "Drop files here" : <>Drop into <span className="font-medium text-foreground">{uploadDept}</span> or click</>}
                     </p>
-                    {uploading && <Loader2 size={11} className="mx-auto mt-1 text-indigo-400 animate-spin" />}
-                    {uploadMsg && <p className="text-[10.5px] text-ember-500 mt-1.5 leading-relaxed">{uploadMsg}</p>}
+                    {uploading && <Loader2 size={11} className="mx-auto mt-1 animate-spin text-foreground" />}
+                    {uploadMsg && <p className="mt-1.5 text-[10.5px] leading-relaxed text-foreground">{uploadMsg}</p>}
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl border border-app bg-surface p-3 text-center">
-                  <p className="text-[10.5px] text-faded">Read-only role · uploads disabled</p>
+                <div className="rounded-xl border bg-background p-3 text-center">
+                  <p className="text-[10.5px] text-muted-foreground">Read-only role · uploads disabled</p>
                 </div>
               )}
 
               {/* Search + dept filter */}
               <div className="space-y-2">
                 <div className="relative">
-                  <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ghost" />
-                  <input
+                  <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search files or tags…"
-                    className="w-full bg-surface border border-app rounded-lg pl-7 pr-2 py-1.5 text-[11px] text-app placeholder:text-ghost focus:outline-none focus:border-indigo-500/40"
+                    className="h-8 pl-7 text-[11px]"
                   />
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {["All", ...writableDepartments].map((d) => (
-                    <button key={d} onClick={() => setFilterDept(d)}
-                      className={`text-[10px] px-2 py-0.5 rounded-full border transition-all
-                        ${filterDept === d
-                          ? d === "All" ? "bg-indigo-500/20 dark:bg-indigo-600/30 text-indigo-800 dark:text-indigo-200 border-indigo-500/40"
-                            : deptClass(d)
-                          : "bg-surface text-faded border-app hover:text-muted-app"}`}
+                    <button
+                      key={d}
+                      onClick={() => setFilterDept(d)}
+                      className={cn(
+                        "rounded-full border px-2 py-0.5 text-[10px] transition-colors",
+                        filterDept === d
+                          ? d === "All" ? "border-foreground bg-foreground text-background" : deptClass(d)
+                          : "border-border bg-background text-muted-foreground hover:text-foreground"
+                      )}
                     >
                       {d} {deptCounts[d] ? <span className="opacity-60">· {deptCounts[d]}</span> : null}
                     </button>
@@ -239,18 +238,18 @@ export default function Sidebar({
                 </div>
               </div>
 
-              {/* Grouped file list */}
+              {/* Grouped list */}
               {filteredDocs.length === 0
-                ? <p className="text-[11px] text-ghost text-center py-6">
+                ? <p className="py-6 text-center text-[11px] text-muted-foreground">
                     {documents.length === 0 ? "No documents yet" : "No matches"}
                   </p>
                 : Object.keys(grouped).sort().map((dept) => (
                   <div key={dept} className="space-y-1.5">
-                    <div className="flex items-center gap-1.5 mt-2 px-1">
-                      <span className={`text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded border ${deptClass(dept)}`}>
+                    <div className="mt-2 flex items-center gap-1.5 px-1">
+                      <span className={cn("rounded border px-1.5 py-0.5 text-[9px] uppercase tracking-widest", deptClass(dept))}>
                         {dept}
                       </span>
-                      <span className="text-[10px] text-ghost">{grouped[dept].length}</span>
+                      <span className="text-[10px] text-muted-foreground">{grouped[dept].length}</span>
                     </div>
                     {grouped[dept].map((doc) => (
                       <DocCard
@@ -261,10 +260,7 @@ export default function Sidebar({
                         editing={editingDept === doc.name}
                         onEdit={() => setEditingDept(doc.name)}
                         onCancelEdit={() => setEditingDept(null)}
-                        onSaveMeta={async (meta) => {
-                          await onUpdateMeta(doc.name, meta);
-                          setEditingDept(null);
-                        }}
+                        onSaveMeta={async (meta) => { await onUpdateMeta(doc.name, meta); setEditingDept(null); }}
                         onDelete={() => onDelete(doc.name)}
                         openSummary={openSummary === doc.name}
                         onToggleSummary={() => setOpenSummary(openSummary === doc.name ? null : doc.name)}
@@ -277,41 +273,37 @@ export default function Sidebar({
             </div>
           )}
 
-          {/* ── Settings panel ── */}
+          {/* Settings panel */}
           {activePanel === "settings" && (
-            <div className="p-4 space-y-5 overflow-y-auto">
+            <div className="space-y-5 overflow-y-auto p-4">
               <div>
-                <label className="text-[10px] text-muted-app uppercase tracking-[0.2em] font-medium block mb-1.5">LLM Model</label>
-                <input
-                  value={model}
-                  onChange={(e) => onModelChange(e.target.value)}
-                  className="w-full bg-surface border border-app-2 rounded-lg px-3 py-2 text-xs text-app focus:outline-none focus:border-indigo-500/50 transition-colors"
-                />
-                <p className="text-[10px] text-ghost mt-1">e.g. llama-3.3-70b-versatile</p>
+                <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">LLM Model</label>
+                <Input value={model} onChange={(e) => onModelChange(e.target.value)} className="h-9 text-xs" />
+                <p className="mt-1 text-[10px] text-muted-foreground">e.g. openai/gpt-oss-120b</p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] text-muted-app uppercase tracking-[0.2em] font-medium block">Departments</label>
+                <label className="block text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Departments</label>
                 <div className="flex flex-wrap gap-1">
                   {departments.map((d) => (
-                    <span key={d} className={`text-[10px] px-2 py-0.5 rounded-full border ${deptClass(d)}`}>{d}</span>
+                    <span key={d} className={cn("rounded-full border px-2 py-0.5 text-[10px]", deptClass(d))}>{d}</span>
                   ))}
                 </div>
-                <p className="text-[10px] text-ghost mt-1">Edit in <code className="text-faded">config.py</code> (DEPARTMENTS)</p>
+                <p className="mt-1 text-[10px] text-muted-foreground">Edit in <code className="text-foreground">config.py</code> (DEPARTMENTS)</p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] text-muted-app uppercase tracking-[0.2em] font-medium block">Pipeline</label>
-                <Row label="LLM" value="Groq API" accent />
+                <label className="block text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Pipeline</label>
+                <Row label="LLM" value="Groq API" />
                 <Row label="Embeddings" value="nomic-embed-text (local)" />
                 <Row label="Search" value="BM25 + Vector (RRF)" />
                 <Row label="Vector DB" value="ChromaDB (local)" />
                 <Row label="OCR" value="Tesseract (if installed)" />
               </div>
 
-              <div className="pt-3 border-t border-app">
-                <label className="text-[10px] text-muted-app uppercase tracking-[0.2em] font-medium block mb-1.5">Privacy</label>
-                <p className="text-[11.5px] text-muted-app leading-relaxed">
+              <div className="border-t pt-3">
+                <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Privacy</label>
+                <p className="text-[11.5px] leading-relaxed text-muted-foreground">
                   Documents stay on your machine. Only matched text chunks (~500 words) are sent to Groq per query.
                 </p>
               </div>
@@ -331,83 +323,78 @@ function DocCard({
   const [editTags, setEditTags] = useState((doc.tags || []).join(", "));
 
   return (
-    <div className="rounded-xl border border-app overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 hover:bg-surface-2 group">
-        <FileText size={12} className="text-indigo-300 flex-shrink-0" />
-        <div className="flex-1 min-w-0">
-          <div className="text-[11.5px] text-app truncate font-medium" title={doc.name}>{doc.name}</div>
-          <div className="flex items-center gap-1.5 mt-0.5 tabular-nums">
-            {doc.chunks > 0 && <span className="text-[9.5px] text-muted-app">{doc.chunks} chunks</span>}
-            {doc.size > 0 && <span className="text-[9.5px] text-muted-app">· {formatSize(doc.size)}</span>}
+    <div className="overflow-hidden rounded-xl border">
+      <div className="group flex items-center gap-2 px-3 py-2 hover:bg-accent">
+        <FileText size={12} className="flex-shrink-0 text-muted-foreground" />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[11.5px] font-medium text-foreground" title={doc.name}>{doc.name}</div>
+          <div className="mt-0.5 flex items-center gap-1.5 tabular-nums">
+            {doc.chunks > 0 && <span className="text-[9.5px] text-muted-foreground">{doc.chunks} chunks</span>}
+            {doc.size > 0 && <span className="text-[9.5px] text-muted-foreground">· {formatSize(doc.size)}</span>}
           </div>
           {doc.tags?.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1">
+            <div className="mt-1 flex flex-wrap gap-1">
               {doc.tags.map((t) => (
-                <span key={t} className="text-[9px] px-1.5 py-0 rounded bg-surface-2 text-muted-app border border-app-2">
-                  {t}
-                </span>
+                <Badge key={t} variant="secondary" className="px-1.5 py-0 text-[9px] font-normal">{t}</Badge>
               ))}
             </div>
           )}
         </div>
 
         {canEdit && (
-          <button onClick={onEdit} title="Edit department / tags"
-            className="opacity-0 group-hover:opacity-100 text-muted-app hover:text-indigo-300 transition-all">
+          <button onClick={onEdit} title="Edit department / tags" className="text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100">
             <Pencil size={11} />
           </button>
         )}
-        <button onClick={onToggleSummary} title="View summary"
-          className="opacity-0 group-hover:opacity-100 text-muted-app hover:text-ember-500 transition-all">
+        <button onClick={onToggleSummary} title="View summary" className="text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100">
           <Sparkles size={12} />
         </button>
         {canEdit && (
-          <button onClick={onDelete} title="Delete"
-            className="opacity-0 group-hover:opacity-100 text-muted-app hover:text-red-400 transition-all">
+          <button onClick={onDelete} title="Delete" className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100">
             <X size={12} />
           </button>
         )}
       </div>
 
       {editing && (
-        <div className="px-3 pb-3 pt-2 border-t border-white/[0.04] bg-surface space-y-1.5">
+        <div className="space-y-1.5 border-t bg-background px-3 pb-3 pt-2">
           <Dropdown
             value={editDept}
             onChange={setEditDept}
             className="w-full"
             options={departments.map((d) => ({ value: d, label: d, dotClass: DEPT_DOT[d] }))}
           />
-          <input
+          <Input
             value={editTags}
             onChange={(e) => setEditTags(e.target.value)}
             placeholder="tags, comma separated"
-            className="w-full bg-panel-2 border border-app-2 rounded-md px-2 py-1 text-[11px] text-app placeholder:text-vanish focus:outline-none focus:border-indigo-500/50"
+            className="h-8 text-[11px]"
           />
-          <div className="flex gap-1 justify-end">
-            <button onClick={onCancelEdit}
-              className="text-[10px] text-faded hover:text-app px-2 py-1">Cancel</button>
-            <button
+          <div className="flex justify-end gap-1">
+            <Button variant="ghost" size="sm" onClick={onCancelEdit} className="h-7 px-2 text-[10px]">Cancel</Button>
+            <Button
+              size="sm"
               onClick={() => onSaveMeta({
                 department: editDept,
                 tags: editTags.split(",").map((t) => t.trim()).filter(Boolean),
               })}
-              className="text-[10px] text-indigo-300 hover:text-indigo-200 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 rounded px-2 py-1 flex items-center gap-1"
+              className="h-7 gap-1 px-2 text-[10px]"
             >
               <Check size={10} /> Save
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       {openSummary && (
-        <div className="px-3 pb-3 bg-indigo-950/20 border-t border-white/[0.04]">
-          <div className="flex items-center gap-1 pt-2 mb-1.5">
-            <Sparkles size={10} className="text-indigo-400" />
-            <span className="text-[10px] text-indigo-400 uppercase tracking-widest">AI Summary</span>
+        <div className="border-t bg-accent/50 px-3 pb-3">
+          <div className="mb-1.5 flex items-center gap-1 pt-2">
+            <Sparkles size={10} className="text-foreground" />
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground">AI Summary</span>
           </div>
           {summary
-            ? <p className="text-[11px] text-muted-app leading-relaxed whitespace-pre-line">{summary}</p>
-            : <div className="flex items-center gap-2 text-[11px] text-ghost">
+            ? <p className="whitespace-pre-line text-[11px] leading-relaxed text-muted-foreground">{summary}</p>
+            : <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                 <Loader2 size={11} className="animate-spin" /> Generating summary…
               </div>
           }
@@ -419,16 +406,19 @@ function DocCard({
 
 function NavIcon({ icon, label, active, onClick, badge, danger }) {
   return (
-    <button onClick={onClick} title={label}
-      className={`relative w-9 h-9 rounded-xl flex items-center justify-center transition-all
-        ${danger ? "text-muted-app hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10"
-          : active
-            ? "bg-indigo-600/15 dark:bg-indigo-600/25 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-500/40 dark:ring-indigo-500/30"
-            : "text-muted-app hover:text-app hover:bg-surface-2"}`}
+    <button
+      onClick={onClick}
+      title={label}
+      className={cn(
+        "relative flex h-9 w-9 items-center justify-center rounded-xl transition-colors",
+        danger ? "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          : active ? "bg-accent text-foreground ring-1 ring-border"
+            : "text-muted-foreground hover:bg-accent hover:text-foreground"
+      )}
     >
       {icon}
       {badge > 0 && (
-        <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-ember-500 text-white text-[9px] flex items-center justify-center font-semibold tabular-nums shadow-ember">
+        <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[9px] font-semibold tabular-nums text-primary-foreground">
           {badge > 9 ? "9+" : badge}
         </span>
       )}
@@ -436,11 +426,11 @@ function NavIcon({ icon, label, active, onClick, badge, danger }) {
   );
 }
 
-function Row({ label, value, accent }) {
+function Row({ label, value }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[11px] text-muted-app">{label}</span>
-      <span className={`text-[11px] font-medium ${accent ? "text-indigo-300" : "text-app"}`}>{value}</span>
+      <span className="text-[11px] text-muted-foreground">{label}</span>
+      <span className="text-[11px] font-medium text-foreground">{value}</span>
     </div>
   );
 }

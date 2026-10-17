@@ -1,5 +1,10 @@
-import { useState, useRef, useEffect } from "react";
 import { ChevronDown, Shield, Check, Lock } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const ROLE_GRADIENT = {
   Admin:              "from-rose-500 to-amber-400",
@@ -10,103 +15,68 @@ const ROLE_GRADIENT = {
   "Legal Counsel":    "from-violet-500 to-purple-400",
   "Operations Lead":  "from-orange-500 to-amber-400",
 };
-const fallbackGradient = "from-indigo-500 to-indigo-300";
+const fallbackGradient = "from-zinc-500 to-zinc-300";
 
 const initials = (name) =>
   name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 
 export default function UserPicker({ user, users, onChange }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
-    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
   if (!user) return null;
 
   return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className={`flex items-center gap-2 px-2 py-1 rounded-lg border transition-all
-          ${open ? "bg-white/[0.08] border-indigo-500/40"
-                 : "bg-white/[0.03] border-white/[0.08] hover:bg-white/[0.06] hover:border-white/[0.15]"}`}
-      >
-        <Avatar user={user} size={22} />
-        <div className="flex flex-col items-start leading-tight">
-          <span className="text-[11px] text-white/85 font-medium">{user.name}</span>
-          <span className="text-[9.5px] text-white/40 uppercase tracking-widest">{user.role}</span>
-        </div>
-        <ChevronDown
-          size={11}
-          className={`text-white/35 transition-transform ${open ? "rotate-180 text-indigo-400" : ""}`}
-        />
-      </button>
-
-      {open && (
-        <div
-          className="absolute right-0 top-full mt-1.5 w-80 bg-panel-2/95 backdrop-blur-xl border border-app-2 rounded-xl shadow-2xl overflow-hidden z-50"
-          style={{ animation: "up-pop 160ms cubic-bezier(0.16, 1, 0.3, 1)" }}
-        >
-          <div className="px-3 py-2 border-b border-white/[0.06] flex items-center gap-1.5">
-            <Shield size={11} className="text-indigo-400" />
-            <span className="text-[10px] text-white/50 uppercase tracking-widest">
-              Switch user · demo
-            </span>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex items-center gap-2 rounded-md border border-input bg-background px-2 py-1 transition-colors hover:bg-accent">
+          <Avatar user={user} size={22} />
+          <div className="flex flex-col items-start leading-tight">
+            <span className="text-[11px] font-medium text-foreground">{user.name}</span>
+            <span className="text-[9.5px] uppercase tracking-widest text-muted-foreground">{user.role}</span>
           </div>
-          <div className="max-h-[60vh] overflow-y-auto py-1">
-            {users.map((u) => {
-              const active = u.id === user.id;
-              return (
-                <button
-                  key={u.id}
-                  onClick={() => { onChange(u); setOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors
-                    ${active ? "bg-indigo-500/10" : "hover:bg-white/[0.04]"}`}
-                >
-                  <Avatar user={u} size={28} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[12px] text-white/85 font-medium truncate">{u.name}</span>
-                      {!u.can_upload && <Lock size={9} className="text-white/30" title="Read-only" />}
-                    </div>
-                    <div className="text-[10px] text-white/45">{u.role}</div>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {u.departments.map((d) => (
-                        <span key={d} className="text-[9px] px-1.5 py-0 rounded bg-white/[0.04] border border-white/[0.06] text-white/40">
-                          {d}
-                        </span>
-                      ))}
-                    </div>
+          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+        </button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent align="end" className="w-80">
+        <DropdownMenuLabel className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-muted-foreground">
+          <Shield className="h-3 w-3" /> Switch user · demo
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <div className="max-h-[60vh] overflow-y-auto">
+          {users.map((u) => {
+            const active = u.id === user.id;
+            return (
+              <DropdownMenuItem
+                key={u.id}
+                onClick={() => onChange(u)}
+                className="gap-3 py-2.5"
+              >
+                <Avatar user={u} size={28} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate text-[12px] font-medium text-foreground">{u.name}</span>
+                    {!u.can_upload && <Lock className="h-2.5 w-2.5 text-muted-foreground" />}
                   </div>
-                  {active && <Check size={12} className="text-indigo-400 flex-shrink-0" />}
-                </button>
-              );
-            })}
-          </div>
-          <div className="px-3 py-2 border-t border-white/[0.06] text-[9.5px] text-white/30 leading-relaxed">
-            Identity comes from the <code className="text-white/45">X-User</code> header.
-            Wire your SSO / SAML / OAuth here in production.
-          </div>
+                  <div className="text-[10px] text-muted-foreground">{u.role}</div>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {u.departments.map((d) => (
+                      <Badge key={d} variant="secondary" className="px-1.5 py-0 text-[9px] font-normal">
+                        {d}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                {active && <Check className="h-3 w-3 shrink-0" />}
+              </DropdownMenuItem>
+            );
+          })}
         </div>
-      )}
-
-      <style>{`
-        @keyframes up-pop {
-          from { opacity: 0; transform: translateY(-6px) scale(0.97); }
-          to   { opacity: 1; transform: translateY(0)    scale(1); }
-        }
-      `}</style>
-    </div>
+        <DropdownMenuSeparator />
+        <p className="px-2 py-1.5 text-[9.5px] leading-relaxed text-muted-foreground">
+          Identity comes from the <code className="text-foreground">X-User</code> header.
+          Wire your SSO / SAML / OAuth here in production.
+        </p>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -114,7 +84,7 @@ function Avatar({ user, size = 24 }) {
   const grad = ROLE_GRADIENT[user.role] || fallbackGradient;
   return (
     <div
-      className={`rounded-full bg-gradient-to-br ${grad} flex items-center justify-center text-white font-bold flex-shrink-0 shadow-glow`}
+      className={cn("flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br font-bold text-white", grad)}
       style={{ width: size, height: size, fontSize: Math.max(9, size * 0.4) }}
     >
       {initials(user.name)}

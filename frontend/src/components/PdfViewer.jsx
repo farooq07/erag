@@ -6,8 +6,11 @@ import {
   X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut,
   Maximize2, ExternalLink, Loader2, FileText,
 } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 
-// Use the worker bundled with pdfjs-dist via Vite's URL import.
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
   import.meta.url,
@@ -15,14 +18,14 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 
 const API = "/api";
 
-/**
- * Pick a distinctive ~8-word phrase from the chunk to highlight.
- * Falls back to the first non-trivial sentence.
- */
+function authHeader() {
+  const token = localStorage.getItem("dm_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 function pickHighlightPhrase(chunk) {
   if (!chunk) return "";
   const clean = chunk.replace(/\s+/g, " ").trim();
-  // Prefer the first sentence longer than 25 chars.
   const sentences = clean.split(/(?<=[.!?])\s+/);
   const target = sentences.find((s) => s.length > 25) || clean;
   const words = target.split(" ").filter((w) => w.length > 2);
@@ -36,6 +39,19 @@ export default function PdfViewer({ open, source, onClose }) {
   const [loadError, setLoadError] = useState(null);
 
   const fileUrl = source ? `${API}/files/${encodeURIComponent(source.source)}` : null;
+  // /files requires auth, so pass the bearer token instead of a bare URL.
+  const pdfFile = useMemo(
+    () => (fileUrl ? { url: fileUrl, httpHeaders: authHeader() } : null),
+    [fileUrl],
+  );
+
+  const openInNewTab = async () => {
+    const res = await fetch(fileUrl, { headers: authHeader() });
+    if (!res.ok) return;
+    const blobUrl = URL.createObjectURL(await res.blob());
+    window.open(blobUrl, "_blank");
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+  };
   const isPdf = source?.source?.toLowerCase().endsWith(".pdf");
   const phrase = useMemo(() => pickHighlightPhrase(source?.chunk || source?.preview), [source]);
 
@@ -48,31 +64,26 @@ export default function PdfViewer({ open, source, onClose }) {
     }
   }, [source]);
 
-  // ESC to close, arrow keys to navigate
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => {
-      if (e.key === "Escape") onClose();
-      else if (e.key === "ArrowRight") setPage((p) => Math.min(p + 1, numPages || p));
+      if (e.key === "ArrowRight") setPage((p) => Math.min(p + 1, numPages || p));
       else if (e.key === "ArrowLeft") setPage((p) => Math.max(p - 1, 1));
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose, numPages]);
+  }, [open, numPages]);
 
-  // Custom text renderer — wraps any text item containing the phrase in <mark>.
   const textRenderer = useCallback(
     (textItem) => {
       if (!phrase) return textItem.str;
       const lower = textItem.str.toLowerCase();
-      const idx = lower.indexOf(phrase.split(" ")[0]); // anchor on first word
+      const idx = lower.indexOf(phrase.split(" ")[0]);
       if (idx === -1) return textItem.str;
-      // Check if a meaningful portion of the phrase exists nearby.
       const window = lower.slice(idx, idx + phrase.length + 20);
       const phraseWords = phrase.split(" ");
       const matchedWords = phraseWords.filter((w) => window.includes(w)).length;
       if (matchedWords < Math.max(2, Math.floor(phraseWords.length / 2))) return textItem.str;
-      // Highlight the matching segment.
       const before = textItem.str.slice(0, idx);
       const after = textItem.str.slice(idx);
       return `${before}<mark class="pdf-highlight">${after}</mark>`;
@@ -80,86 +91,71 @@ export default function PdfViewer({ open, source, onClose }) {
     [phrase],
   );
 
-  if (!open || !source) return null;
+  if (!source) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
-      onClick={onClose}
-      style={{ animation: "fade-in 180ms ease-out" }}
-    >
-      <div
-        className="relative w-full max-w-5xl h-[92vh] bg-panel border border-app-2 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-        style={{ animation: "scale-in 200ms cubic-bezier(0.16, 1, 0.3, 1)" }}
-      >
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="flex h-[92vh] max-w-5xl flex-col gap-0 overflow-hidden p-0 [&>button]:hidden">
         {/* Header */}
-        <div className="flex items-center gap-3 px-5 py-3 border-b border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0">
-            <FileText size={14} className="text-indigo-300" />
+        <div className="flex items-center gap-3 border-b px-5 py-3">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-secondary">
+            <FileText size={14} className="text-secondary-foreground" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-sm text-white/85 font-medium truncate" title={source.source}>
+            <div className="truncate text-sm font-medium text-foreground" title={source.source}>
               {source.source}
             </div>
-            <div className="flex items-center gap-2 text-[11px] text-white/40 mt-0.5">
-              {source.department && (
-                <span className="text-indigo-300/80 bg-indigo-600/15 border border-indigo-500/25 px-1.5 rounded">
-                  {source.department}
-                </span>
-              )}
+            <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+              {source.department && <Badge variant="secondary" className="px-1.5 py-0 text-[10px] font-normal">{source.department}</Badge>}
               {numPages > 0 && <span>Page {page} of {numPages}</span>}
-              {phrase && <span className="text-amber-300/70">· highlight active</span>}
+              {phrase && <span>· highlight active</span>}
             </div>
           </div>
 
-          {/* Zoom + open in new tab + close */}
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <IconBtn title="Zoom out" onClick={() => setScale((s) => Math.max(0.6, s - 0.2))}>
+          <div className="flex flex-shrink-0 items-center gap-1">
+            <Button variant="ghost" size="icon" className="h-8 w-8" title="Zoom out" onClick={() => setScale((s) => Math.max(0.6, s - 0.2))}>
               <ZoomOut size={14} />
-            </IconBtn>
-            <span className="text-[10px] text-white/40 w-10 text-center tabular-nums">
-              {Math.round(scale * 100)}%
-            </span>
-            <IconBtn title="Zoom in" onClick={() => setScale((s) => Math.min(2.4, s + 0.2))}>
+            </Button>
+            <span className="w-10 text-center text-[10px] tabular-nums text-muted-foreground">{Math.round(scale * 100)}%</span>
+            <Button variant="ghost" size="icon" className="h-8 w-8" title="Zoom in" onClick={() => setScale((s) => Math.min(2.4, s + 0.2))}>
               <ZoomIn size={14} />
-            </IconBtn>
-            <IconBtn title="Reset zoom" onClick={() => setScale(1.2)}>
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" title="Reset zoom" onClick={() => setScale(1.2)}>
               <Maximize2 size={13} />
-            </IconBtn>
-            <div className="w-px h-5 bg-white/10 mx-1" />
-            <IconBtn title="Open in new tab" onClick={() => window.open(fileUrl, "_blank")}>
+            </Button>
+            <div className="mx-1 h-5 w-px bg-border" />
+            <Button variant="ghost" size="icon" className="h-8 w-8" title="Open in new tab" onClick={openInNewTab}>
               <ExternalLink size={13} />
-            </IconBtn>
-            <IconBtn title="Close (Esc)" onClick={onClose} danger>
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" title="Close (Esc)" onClick={onClose}>
               <X size={15} />
-            </IconBtn>
+            </Button>
           </div>
         </div>
 
         {/* PDF area */}
-        <div className="flex-1 overflow-auto bg-base custom-scroll flex justify-center p-6">
+        <div className="custom-scroll flex flex-1 justify-center overflow-auto bg-muted/40 p-6">
           {!isPdf ? (
             <NonPdfFallback source={source} />
           ) : loadError ? (
-            <div className="text-center text-white/50 mt-12">
+            <div className="mt-12 text-center text-muted-foreground">
               <p className="text-sm">Couldn't load PDF.</p>
-              <p className="text-xs text-white/30 mt-1">{loadError}</p>
+              <p className="mt-1 text-xs">{loadError}</p>
             </div>
           ) : (
             <Document
-              file={fileUrl}
+              file={pdfFile}
               onLoadSuccess={({ numPages: n }) => setNumPages(n)}
               onLoadError={(err) => setLoadError(err.message)}
               loading={<ViewerLoading />}
-              error={<div className="text-white/50 mt-12 text-sm">Failed to load PDF.</div>}
+              error={<div className="mt-12 text-sm text-muted-foreground">Failed to load PDF.</div>}
             >
               <Page
                 pageNumber={page}
                 scale={scale}
                 customTextRenderer={textRenderer}
                 renderAnnotationLayer={false}
-                className="shadow-2xl shadow-black/60 rounded-lg overflow-hidden"
+                className="overflow-hidden rounded-lg shadow-xl"
               />
             </Document>
           )}
@@ -167,11 +163,11 @@ export default function PdfViewer({ open, source, onClose }) {
 
         {/* Footer: page nav */}
         {isPdf && numPages > 0 && (
-          <div className="flex items-center justify-center gap-3 px-5 py-3 border-t border-app-2 bg-rail">
-            <IconBtn title="Previous page (←)" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+          <div className="flex items-center justify-center gap-3 border-t bg-card px-5 py-3">
+            <Button variant="ghost" size="icon" className="h-8 w-8" title="Previous page (←)" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
               <ChevronLeft size={15} />
-            </IconBtn>
-            <input
+            </Button>
+            <Input
               type="number"
               min={1}
               max={numPages}
@@ -180,63 +176,38 @@ export default function PdfViewer({ open, source, onClose }) {
                 const v = parseInt(e.target.value, 10);
                 if (Number.isFinite(v)) setPage(Math.min(Math.max(1, v), numPages));
               }}
-              className="w-14 text-center bg-white/[0.04] border border-white/[0.08] rounded-md px-2 py-1 text-xs text-white/80 focus:outline-none focus:border-indigo-500/40"
+              className="h-8 w-16 text-center text-xs"
             />
-            <span className="text-xs text-white/35">/ {numPages}</span>
-            <IconBtn title="Next page (→)" onClick={() => setPage((p) => Math.min(numPages, p + 1))} disabled={page >= numPages}>
+            <span className="text-xs text-muted-foreground">/ {numPages}</span>
+            <Button variant="ghost" size="icon" className="h-8 w-8" title="Next page (→)" onClick={() => setPage((p) => Math.min(numPages, p + 1))} disabled={page >= numPages}>
               <ChevronRight size={15} />
-            </IconBtn>
+            </Button>
           </div>
         )}
-      </div>
+      </DialogContent>
 
       <style>{`
-        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes scale-in {
-          from { opacity: 0; transform: scale(0.96) translateY(8px); }
-          to   { opacity: 1; transform: scale(1) translateY(0); }
-        }
         .pdf-highlight {
-          background: rgba(251, 191, 36, 0.55);
+          background: rgba(250, 204, 21, 0.55);
           color: transparent;
           border-radius: 2px;
-          box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.3);
+          box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.3);
           padding: 0 1px;
           animation: hl-pulse 1.4s ease-out;
         }
         @keyframes hl-pulse {
-          0%   { background: rgba(251, 191, 36, 0.9); box-shadow: 0 0 0 6px rgba(251, 191, 36, 0.4); }
-          100% { background: rgba(251, 191, 36, 0.55); box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.3); }
+          0%   { background: rgba(250, 204, 21, 0.9); box-shadow: 0 0 0 6px rgba(250, 204, 21, 0.4); }
+          100% { background: rgba(250, 204, 21, 0.55); box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.3); }
         }
-        .custom-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
-        .custom-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
       `}</style>
-    </div>
-  );
-}
-
-function IconBtn({ children, onClick, title, disabled, danger }) {
-  return (
-    <button
-      type="button"
-      title={title}
-      onClick={onClick}
-      disabled={disabled}
-      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all
-        ${disabled ? "text-white/15 cursor-not-allowed"
-          : danger ? "text-white/40 hover:text-red-400 hover:bg-red-500/10"
-          : "text-white/50 hover:text-white/90 hover:bg-white/[0.06]"}`}
-    >
-      {children}
-    </button>
+    </Dialog>
   );
 }
 
 function ViewerLoading() {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 text-white/40 mt-20">
-      <Loader2 size={22} className="animate-spin text-indigo-400" />
+    <div className="mt-20 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+      <Loader2 size={22} className="animate-spin" />
       <span className="text-xs">Loading document…</span>
     </div>
   );
@@ -244,12 +215,12 @@ function ViewerLoading() {
 
 function NonPdfFallback({ source }) {
   return (
-    <div className="max-w-2xl w-full bg-panel-2 border border-app-2 rounded-xl p-6 text-app text-sm">
-      <p className="text-xs text-white/40 uppercase tracking-widest mb-3">Chunk preview</p>
-      <p className="whitespace-pre-wrap font-mono text-[12.5px] leading-relaxed text-white/65">
+    <div className="w-full max-w-2xl rounded-xl border bg-card p-6 text-sm text-foreground">
+      <p className="mb-3 text-xs uppercase tracking-widest text-muted-foreground">Chunk preview</p>
+      <p className="whitespace-pre-wrap font-mono text-[12.5px] leading-relaxed text-muted-foreground">
         {source.chunk || source.preview}
       </p>
-      <p className="mt-5 text-[11px] text-white/30">
+      <p className="mt-5 text-[11px] text-muted-foreground">
         Inline PDF viewer is only available for .pdf files. Open the source file in a new tab from the toolbar above.
       </p>
     </div>

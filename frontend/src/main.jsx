@@ -5,7 +5,7 @@ import App from './App.jsx'
 
 // Apply theme before first paint to avoid flash.
 ;(() => {
-  const saved = localStorage.getItem('erag.theme') || 'system'
+  const saved = localStorage.getItem('dm.theme') || 'dark'
   const dark = saved === 'system'
     ? window.matchMedia('(prefers-color-scheme: dark)').matches
     : saved === 'dark'

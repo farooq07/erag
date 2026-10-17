@@ -1,6 +1,9 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { ChevronDown, ChevronUp, FileText, ScanLine, BookOpen, Workflow, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import ThinkingLine from "./ThinkingLine";
 
 export default function Message({ msg, query, onOpenSource, onOpenPipeline }) {
@@ -9,8 +12,8 @@ export default function Message({ msg, query, onOpenSource, onOpenPipeline }) {
 
   if (isUser) {
     return (
-      <div className="flex justify-end mb-5 user-pop">
-        <div className="max-w-[78%] bg-indigo-500/15 dark:bg-indigo-600/20 border border-indigo-500/30 dark:border-indigo-500/20 text-indigo-950 dark:text-white/85 rounded-2xl rounded-tr-sm px-4 py-3 text-sm leading-relaxed shadow-lg shadow-indigo-900/10 dark:shadow-indigo-900/20">
+      <div className="user-pop mb-5 flex justify-end">
+        <div className="max-w-[78%] rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-sm leading-relaxed text-primary-foreground">
           {msg.content}
         </div>
       </div>
@@ -20,12 +23,14 @@ export default function Message({ msg, query, onOpenSource, onOpenPipeline }) {
   const isThinking = msg.streaming && !msg.content;
 
   return (
-    <div className="flex gap-3 mb-5 msg-in">
-      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-600 to-indigo-400 flex-shrink-0 flex items-center justify-center mt-0.5 shadow-glow">
-        <span className="text-white text-[10px] font-bold">AI</span>
+    <div className="msg-in mb-5 flex gap-3">
+      <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+        <span className="text-[10px] font-bold">AI</span>
       </div>
-      <div className="flex-1 min-w-0 pt-0.5">
-        <div className="prose text-sm text-white/80 leading-relaxed">
+
+      <div className="min-w-0 flex-1 pt-0.5">
+        {/* Answer */}
+        <div className="prose text-sm leading-relaxed">
           {isThinking ? (
             <ThinkingLine sources={msg.sources} />
           ) : (
@@ -36,30 +41,37 @@ export default function Message({ msg, query, onOpenSource, onOpenPipeline }) {
           )}
         </div>
 
+        {/* Grounding verdict */}
         {msg.grounding && !msg.streaming && <GroundingBadge grounding={msg.grounding} />}
 
+        {/* Citations */}
         {msg.sources?.length > 0 && !msg.streaming && (
           <div className="mt-3">
             <div className="flex items-center gap-1">
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setShowSources((s) => !s)}
-                className="flex items-center gap-1.5 text-[11px] text-faded hover:text-indigo-400 transition-colors px-2 py-1 rounded-lg hover:bg-indigo-500/10 -mx-2"
+                className="h-7 gap-1.5 px-2 text-[11px] text-muted-foreground"
               >
-                <FileText size={11} />
+                <FileText className="h-3 w-3" />
                 <span>{msg.sources.length} source{msg.sources.length > 1 ? "s" : ""}</span>
-                {showSources ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-              </button>
+                {showSources ? <ChevronUp className="h-2.5 w-2.5" /> : <ChevronDown className="h-2.5 w-2.5" />}
+              </Button>
               {onOpenPipeline && (
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => onOpenPipeline({ query, sources: msg.sources, scope: msg.scope })}
                   title="See how this answer was retrieved"
-                  className="flex items-center gap-1.5 text-[11px] text-faded hover:text-indigo-400 transition-colors px-2 py-1 rounded-lg hover:bg-indigo-500/10"
+                  className="h-7 gap-1.5 px-2 text-[11px] text-muted-foreground"
                 >
-                  <Workflow size={11} />
+                  <Workflow className="h-3 w-3" />
                   <span>How it was retrieved</span>
-                </button>
+                </Button>
               )}
             </div>
+
             {showSources && (
               <div className="mt-2 space-y-2">
                 {msg.sources.map((s, i) => (
@@ -81,26 +93,28 @@ function GroundingBadge({ grounding }) {
   const { score, warning, ungrounded = [] } = grounding;
   const pct = Math.round((score ?? 1) * 100);
   if (!warning && pct >= 100) return null;
+
   if (!warning) {
     return (
-      <div className="mt-2 flex items-center gap-1.5 text-[10px] text-emerald-400/70">
-        <ShieldCheck size={11} /><span>Grounded ({pct}%)</span>
+      <div className="mt-2 flex items-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400/80">
+        <ShieldCheck className="h-3 w-3" /><span>Grounded ({pct}%)</span>
       </div>
     );
   }
+
   return (
-    <div className="mt-2 rounded-xl border border-amber-500/25 bg-amber-900/10 overflow-hidden">
-      <button onClick={() => setExpanded((e) => !e)} className="w-full flex items-center gap-2 px-3 py-2 text-left">
-        <AlertTriangle size={11} className="text-amber-400 flex-shrink-0" />
-        <span className="text-[10px] text-amber-300/80 flex-1">
+    <div className="mt-2 overflow-hidden rounded-xl border border-amber-500/30 bg-amber-500/10">
+      <button onClick={() => setExpanded((e) => !e)} className="flex w-full items-center gap-2 px-3 py-2 text-left">
+        <AlertTriangle className="h-3 w-3 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+        <span className="flex-1 text-[10px] text-amber-700 dark:text-amber-300/80">
           Partial grounding ({pct}%) — {ungrounded.length} claim{ungrounded.length !== 1 ? "s" : ""} may not be in the documents
         </span>
-        {expanded ? <ChevronUp size={10} className="text-amber-400/60" /> : <ChevronDown size={10} className="text-amber-400/60" />}
+        {expanded ? <ChevronUp className="h-2.5 w-2.5 text-amber-600/70" /> : <ChevronDown className="h-2.5 w-2.5 text-amber-600/70" />}
       </button>
       {expanded && ungrounded.length > 0 && (
-        <div className="px-3 pb-3 border-t border-amber-500/15 space-y-1.5 pt-2">
+        <div className="space-y-1.5 border-t border-amber-500/20 px-3 pb-3 pt-2">
           {ungrounded.map((s, i) => (
-            <p key={i} className="text-[10px] text-amber-200/60 font-mono leading-relaxed">• {s}</p>
+            <p key={i} className="font-mono text-[10px] leading-relaxed text-amber-700/80 dark:text-amber-200/60">• {s}</p>
           ))}
         </div>
       )}
@@ -111,39 +125,68 @@ function GroundingBadge({ grounding }) {
 function SourceCard({ source: s, index, onOpenSource }) {
   const [expanded, setExpanded] = useState(false);
   const isPdf = s.source?.toLowerCase().endsWith(".pdf");
+
   return (
-    <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl overflow-hidden hover:border-indigo-500/25 transition-colors group">
-      <div className="flex items-center gap-2 px-3 py-2.5 cursor-pointer" onClick={() => setExpanded((e) => !e)}>
-        <span className="w-5 h-5 rounded-md bg-indigo-500/15 dark:bg-indigo-600/20 text-indigo-800 dark:text-indigo-400 text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+    <div className="group overflow-hidden rounded-xl border bg-card transition-colors hover:border-foreground/20">
+      {/* Header */}
+      <div
+        className="flex cursor-pointer items-center gap-2 px-3 py-2.5"
+        onClick={() => setExpanded((e) => !e)}
+      >
+        <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md bg-secondary text-[10px] font-bold text-secondary-foreground">
           {index + 1}
         </span>
-        <FileText size={11} className="text-indigo-400/70 flex-shrink-0" />
-        <span className="text-[11px] font-medium text-white/60 truncate flex-1" title={s.source}>{s.source}</span>
+        <FileText className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+        <span className="flex-1 truncate text-[11px] font-medium text-foreground" title={s.source}>
+          {s.source}
+        </span>
+
         {s.department && (
-          <span className="text-[10px] text-white/55 bg-white/[0.05] border border-white/[0.08] px-1.5 py-0.5 rounded-full flex-shrink-0">{s.department}</span>
+          <Badge variant="secondary" className="px-1.5 py-0.5 text-[10px] font-normal">
+            {s.department}
+          </Badge>
         )}
         {s.page !== "?" && (
-          <span className="text-[10px] text-indigo-800 dark:text-indigo-300/60 bg-indigo-500/15 dark:bg-indigo-900/30 border border-indigo-500/30 dark:border-indigo-500/20 px-2 py-0.5 rounded-full flex-shrink-0">p.{s.page}</span>
+          <Badge variant="outline" className="px-2 py-0.5 text-[10px] font-normal">
+            p.{s.page}
+          </Badge>
         )}
         {s.ocr && (
-          <span className="flex items-center gap-1 text-[10px] text-amber-400/60 bg-amber-900/20 border border-amber-500/20 px-1.5 py-0.5 rounded-full flex-shrink-0"><ScanLine size={9} /> OCR</span>
+          <Badge variant="outline" className="gap-1 px-1.5 py-0.5 text-[10px] font-normal">
+            <ScanLine className="h-2.5 w-2.5" /> OCR
+          </Badge>
         )}
+
         {isPdf && onOpenSource && (
-          <button onClick={(e) => { e.stopPropagation(); onOpenSource(s); }} title="Open page with highlight"
-            className="flex items-center gap-1 text-[10px] text-indigo-800 dark:text-indigo-300 bg-indigo-500/15 dark:bg-indigo-600/15 hover:bg-indigo-500/30 dark:hover:bg-indigo-600/30 border border-indigo-500/40 dark:border-indigo-500/30 px-1.5 py-0.5 rounded-md transition-all opacity-80 dark:opacity-70 group-hover:opacity-100">
-            <BookOpen size={10} /> View
-          </button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={(e) => { e.stopPropagation(); onOpenSource(s); }}
+            title="Open page with highlight"
+            className="h-6 gap-1 px-1.5 text-[10px]"
+          >
+            <BookOpen className="h-2.5 w-2.5" /> View
+          </Button>
         )}
-        {expanded ? <ChevronUp size={11} className="text-ghost flex-shrink-0" /> : <ChevronDown size={11} className="text-ghost flex-shrink-0" />}
+
+        {expanded
+          ? <ChevronUp className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+          : <ChevronDown className="h-3 w-3 flex-shrink-0 text-muted-foreground" />}
       </div>
+
+      {/* Expanded chunk */}
       {expanded && (
-        <div className="px-3 pb-3 border-t border-white/[0.04]">
-          <p className="text-[11px] text-faded leading-relaxed mt-2 font-mono bg-white/[0.02] rounded-lg px-3 py-2 whitespace-pre-wrap">{s.chunk || s.preview}</p>
+        <div className="border-t px-3 pb-3">
+          <p className="mt-2 whitespace-pre-wrap rounded-lg bg-muted px-3 py-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
+            {s.chunk || s.preview}
+          </p>
         </div>
       )}
+
+      {/* Collapsed preview */}
       {!expanded && (
         <div className="px-3 pb-2.5">
-          <p className="text-[11px] text-faded leading-relaxed line-clamp-2">{s.preview}</p>
+          <p className="line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">{s.preview}</p>
         </div>
       )}
     </div>

@@ -22,7 +22,7 @@ export default function App() {
   const [summaries, setSummaries] = useState({});
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [model, setModel] = useState("llama-3.1-8b-instant");
+  const [model, setModel] = useState("openai/gpt-oss-20b");
   const [scopeDept, setScopeDept] = useState("All");
   const [viewerSource, setViewerSource] = useState(null);
   const [pipeline, setPipeline] = useState(null);
@@ -180,6 +180,8 @@ export default function App() {
             setMessages((m) => { const c = [...m]; c[c.length - 1] = { ...c[c.length - 1], content: c[c.length - 1].content + payload.content }; return c; });
           } else if (payload.type === "grounding") {
             setMessages((m) => { const c = [...m]; c[c.length - 1] = { ...c[c.length - 1], grounding: payload }; return c; });
+          } else if (payload.type === "error") {
+            setMessages((m) => { const c = [...m]; c[c.length - 1] = { ...c[c.length - 1], content: `⚠️ ${payload.message}`, streaming: false }; return c; });
           } else if (payload.type === "done") {
             setMessages((m) => { const c = [...m]; c[c.length - 1] = { ...c[c.length - 1], streaming: false }; return c; });
           }
@@ -200,7 +202,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-base spotlight">
+    <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
       <Sidebar
         documents={documents}
         departments={allDepartments}
