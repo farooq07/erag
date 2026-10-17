@@ -16,12 +16,15 @@ import time
 import uuid
 
 import bcrypt
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from config import USERS_FILE
 
-SECRET = os.getenv("JWT_SECRET", "documind-dev-secret-change-in-production").encode()
+_DEV_SECRET = "documind-dev-secret-change-in-production"
+SECRET = os.getenv("JWT_SECRET", _DEV_SECRET).encode()
+if SECRET == _DEV_SECRET.encode():
+    print("[auth] WARNING: JWT_SECRET is not set; using the insecure dev secret.")
 TOKEN_SECONDS = 7 * 24 * 3600  # 7 days
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -144,28 +147,30 @@ def do_login(email: str, password: str) -> tuple[dict, str]:
 
 # ── FastAPI dependency ───────────────────────────────────────────────────
 
+def user_from_token(token: str) -> dict:
+    uid = decode_token(token)
+    user = load_users().get(uid)
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return _public(user)
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-    x_user: str | None = Header(default=None, alias="X-User"),
 ) -> dict:
-    users = load_users()
+    if not credentials or not credentials.credentials:
+        raise HTTPException(
+            status_code=401,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user_from_token(credentials.credentials)
 
-    if credentials and credentials.credentials:
-        uid = decode_token(credentials.credentials)
-        user = users.get(uid)
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-        return _public(user)
 
-    if x_user:
-        user = users.get(x_user)
-        if not user:
-            raise HTTPException(status_code=401, detail=f"Unknown user: {x_user}")
-        return _public(user)
-
-    if not users:
-        raise HTTPException(status_code=500, detail="No users configured")
-    return _public(next(iter(users.values())))
+def require_admin(user: dict = Depends(get_current_user)) -> dict:
+    if user.get("role") != "Admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    return user
 
 
 # ── RBAC helpers ─────────────────────────────────────────────────────────

@@ -18,7 +18,7 @@ EMBED_MODEL = "nomic-embed-text"
 # LLM provider: "groq" or "ollama"
 LLM_PROVIDER = "groq"
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = "llama-3.1-8b-instant"   # fast + smart
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")   # fast + smart
 LLM_MODEL = "qwen2.5:3b"              # fallback if groq off
 
 CHUNK_SIZE = 800
@@ -42,6 +42,28 @@ RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 GROUNDING_CHECK_ENABLED = True # Post-gen faithfulness check; adds ~1s after answer
 
 SUPPORTED_EXTS = {".pdf", ".docx", ".doc", ".txt", ".md", ".xlsx", ".pptx"}
+MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_MB", "50")) * 1024 * 1024
+
+# ── Security ─────────────────────────────────────────────────────────────
+# Comma-separated list of origins allowed to call the API from a browser.
+ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:8000,http://localhost:5173").split(",")
+    if o.strip()
+]
+
+# Models a client may request. Anything else is rejected with 400.
+ALLOWED_MODELS = {
+    m.strip()
+    for m in os.getenv(
+        "ALLOWED_MODELS",
+        "openai/gpt-oss-20b,openai/gpt-oss-120b,qwen/qwen3.8-27b",
+    ).split(",")
+    if m.strip()
+} | {GROQ_MODEL, LLM_MODEL}
+
+MAX_QUESTION_CHARS = 4000
+MAX_HISTORY_TURNS = 20
 
 # Departments — used to categorise uploads and scope retrieval.
 DEPARTMENTS = ["HR", "Accounts", "Finance", "IT", "Legal", "Operations", "General"]

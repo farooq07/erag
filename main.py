@@ -1,14 +1,16 @@
 import asyncio
 import json
 import shutil
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -18,12 +20,17 @@ from auth import (
     allowed_departments,
     assert_can_access,
     assert_can_upload,
+    bearer_scheme,
     do_login,
     do_signup,
     get_current_user,
     list_users,
+    require_admin,
+    user_from_token,
 )
 from config import (
+    ALLOWED_MODELS,
+    ALLOWED_ORIGINS,
     AUDIT_LOG_PATH,
     DEFAULT_DEPARTMENT,
     DEMO_CORPUS,
@@ -33,6 +40,10 @@ from config import (
     GROQ_MODEL,
     LLM_MODEL,
     LLM_PROVIDER,
+    MAX_HISTORY_TURNS,
+    MAX_QUESTION_CHARS,
+    MAX_UPLOAD_BYTES,
+    SUPPORTED_EXTS,
     UPLOADS_DIR,
 )
 from ingest import (
@@ -50,16 +61,22 @@ DEFAULT_MODEL = GROQ_MODEL if LLM_PROVIDER == "groq" else LLM_MODEL
 # ── Rate limiter ─────────────────────────────────────────────────────────
 limiter = Limiter(key_func=get_remote_address, default_limits=[])
 
-app = FastAPI(title="DocuMind API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await seed_demo_corpus()
+    yield
+
+
+app = FastAPI(title="DocuMind API", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 
@@ -73,8 +90,6 @@ class _StripApiPrefix(BaseHTTPMiddleware):
 
 
 app.add_middleware(_StripApiPrefix)
-
-app.mount("/files", StaticFiles(directory=str(UPLOADS_DIR)), name="files")
 
 
 # ── Audit log ────────────────────────────────────────────────────────────
@@ -95,7 +110,6 @@ def _audit(event: str, user_id, extra=None):
 
 # ── Demo corpus auto-ingest on startup ───────────────────────────────────
 
-@app.on_event("startup")
 async def seed_demo_corpus():
     if HASH_INDEX.exists():
         try:
@@ -144,17 +158,27 @@ class SignupRequest(BaseModel):
     password: str
 
 
+def _check_model(v: str) -> str:
+    if v not in ALLOWED_MODELS:
+        raise ValueError(f"Model not allowed: {v}")
+    return v
+
+
 class ChatRequest(BaseModel):
-    question: str
+    question: str = Field(min_length=1, max_length=MAX_QUESTION_CHARS)
     model: str = DEFAULT_MODEL
-    history: list[dict] = []
+    history: list[dict] = Field(default=[], max_length=MAX_HISTORY_TURNS)
     department: str | None = None
     check_grounding: bool = GROUNDING_CHECK_ENABLED
+
+    _model_ok = field_validator("model")(_check_model)
 
 
 class SummaryRequest(BaseModel):
     filename: str
     model: str = DEFAULT_MODEL
+
+    _model_ok = field_validator("model")(_check_model)
 
 
 class UpdateMetaRequest(BaseModel):
@@ -165,14 +189,22 @@ class UpdateMetaRequest(BaseModel):
 # ── Auth endpoints ───────────────────────────────────────────────────────
 
 @app.post("/auth/signup")
-def signup(req: SignupRequest):
+@limiter.limit("5/minute")
+def signup(request: Request, req: SignupRequest):
     user, token = do_signup(req.name, req.email, req.password)
+    _audit("signup", user.get("id"))
     return {"token": token, "user": user}
 
 
 @app.post("/auth/login")
-def login(req: AuthRequest):
-    user, token = do_login(req.email, req.password)
+@limiter.limit("5/minute")
+def login(request: Request, req: AuthRequest):
+    try:
+        user, token = do_login(req.email, req.password)
+    except HTTPException:
+        _audit("login_failed", None, {"email": req.email[:120]})
+        raise
+    _audit("login", user.get("id"))
     return {"token": token, "user": user}
 
 
@@ -184,7 +216,7 @@ def auth_me(user: dict = Depends(get_current_user)):
 # ── Identity ─────────────────────────────────────────────────────────────
 
 @app.get("/users")
-def get_users():
+def get_users(user: dict = Depends(require_admin)):
     return {"users": list_users()}
 
 
@@ -209,7 +241,8 @@ def get_departments(user: dict = Depends(get_current_user)):
 
 @app.get("/stats")
 def get_stats(user: dict = Depends(get_current_user)):
-    docs = list_indexed()
+    allowed = set(allowed_departments(user))
+    docs = [d for d in list_indexed() if d.get("department") in allowed]
     total_chunks = sum(d.get("chunks", 0) for d in docs)
 
     today = datetime.now(timezone.utc).date().isoformat()
@@ -268,16 +301,37 @@ async def upload_files(
 
     saved = []
     for f in files:
-        dest = UPLOADS_DIR / f.filename
+        name = _safe_filename(f.filename)
+        if Path(name).suffix.lower() not in SUPPORTED_EXTS:
+            raise HTTPException(status_code=400, detail=f"Unsupported file type: {name}")
+        dest = UPLOADS_DIR / name
+        written = 0
         with open(dest, "wb") as out:
-            shutil.copyfileobj(f.file, out)
-        saved.append(Path(dest))
-    stats = ingest_paths(saved, department=department, tags=_parse_tags(tags))
-    _audit("upload", user.get("id"), {"files": [f.filename for f in files], "department": department})
+            while chunk := f.file.read(1024 * 1024):
+                written += len(chunk)
+                if written > MAX_UPLOAD_BYTES:
+                    out.close()
+                    dest.unlink(missing_ok=True)
+                    raise HTTPException(status_code=413, detail=f"File too large: {name}")
+                out.write(chunk)
+        saved.append(dest)
+    loop = asyncio.get_event_loop()
+    stats = await loop.run_in_executor(
+        None, lambda: ingest_paths(saved, department=department, tags=_parse_tags(tags))
+    )
+    _audit("upload", user.get("id"), {"files": [p.name for p in saved], "department": department})
 
     allowed = set(allowed_departments(user))
     visible = [d for d in list_indexed() if d.get("department") in allowed]
     return {"stats": stats, "documents": visible}
+
+
+def _safe_filename(raw: str | None) -> str:
+    # Drop any directory parts (both separators) so uploads can't escape UPLOADS_DIR.
+    name = Path((raw or "").replace("\\", "/")).name.strip()
+    if not name or name in {".", ".."}:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    return name
 
 
 def _doc_dept(name):
@@ -285,6 +339,25 @@ def _doc_dept(name):
         if d["name"] == name:
             return d.get("department")
     return None
+
+
+@app.get("/files/{name}")
+def get_file(
+    name: str,
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+):
+    if not credentials or not credentials.credentials:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    user = user_from_token(credentials.credentials)
+    name = _safe_filename(name)
+    dept = _doc_dept(name)
+    if dept is None:
+        raise HTTPException(status_code=404, detail=f"Document not found: {name}")
+    assert_can_access(user, dept)
+    path = UPLOADS_DIR / name
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail=f"File missing: {name}")
+    return FileResponse(str(path))
 
 
 @app.patch("/documents/{name}")
@@ -299,6 +372,7 @@ def patch_document(name: str, req: UpdateMetaRequest, user: dict = Depends(get_c
         assert_can_access(user, req.department)
     try:
         update_document_meta(name, department=req.department, tags=req.tags)
+        _audit("update_doc", user.get("id"), {"file": name, "department": req.department, "tags": req.tags})
         allowed = set(allowed_departments(user))
         visible = [d for d in list_indexed() if d.get("department") in allowed]
         return {"documents": visible}
@@ -318,6 +392,7 @@ def delete_document(name: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail=f"{user.get('role')} is read-only")
     try:
         remove_document(name)
+        _audit("delete_doc", user.get("id"), {"file": name, "department": current_dept})
         allowed = set(allowed_departments(user))
         visible = [d for d in list_indexed() if d.get("department") in allowed]
         return {"documents": visible}
@@ -347,6 +422,7 @@ async def summarize(req: SummaryRequest, user: dict = Depends(get_current_user))
         summary = await loop.run_in_executor(
             None, lambda: generate_doc_summary(req.filename, model=req.model)
         )
+        _audit("summary", user.get("id"), {"file": req.filename})
         return {"filename": req.filename, "summary": summary}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -361,11 +437,15 @@ async def chat(request: Request, req: ChatRequest, user: dict = Depends(get_curr
     _audit("chat", user.get("id"), {"question": req.question[:120], "department": req.department})
 
     async def stream():
-        docs = retrieve(
-            req.question,
-            department=req.department,
-            allowed_departments=allowed,
-            history=req.history,
+        loop = asyncio.get_event_loop()
+        docs = await loop.run_in_executor(
+            None,
+            lambda: retrieve(
+                req.question,
+                department=req.department,
+                allowed_departments=allowed,
+                history=req.history,
+            ),
         )
         sources = [
             {
@@ -380,10 +460,14 @@ async def chat(request: Request, req: ChatRequest, user: dict = Depends(get_curr
         ]
         yield f"data: {json.dumps({'type': 'sources', 'sources': sources, 'scope': req.department or 'All'})}\n\n"
 
-        loop = asyncio.get_event_loop()
         queue: asyncio.Queue = asyncio.Queue()
         SENTINEL = object()
+
+        class ERROR(str):
+            pass
+
         full_answer: list = []
+        cancelled = False
 
         def producer():
             try:
@@ -394,18 +478,30 @@ async def chat(request: Request, req: ChatRequest, user: dict = Depends(get_curr
                     department=req.department,
                     allowed_departments=allowed,
                 ):
+                    if cancelled:
+                        break
                     full_answer.append(token)
                     loop.call_soon_threadsafe(queue.put_nowait, token)
+            except Exception as e:
+                print(f"[chat] LLM error: {e!r}")
+                loop.call_soon_threadsafe(queue.put_nowait, ERROR(str(e)))
             finally:
                 loop.call_soon_threadsafe(queue.put_nowait, SENTINEL)
 
         loop.run_in_executor(None, producer)
 
-        while True:
-            item = await queue.get()
-            if item is SENTINEL:
-                break
-            yield f"data: {json.dumps({'type': 'token', 'content': item})}\n\n"
+        try:
+            while True:
+                item = await queue.get()
+                if item is SENTINEL:
+                    break
+                if isinstance(item, ERROR):
+                    yield f"data: {json.dumps({'type': 'error', 'message': 'The language model failed to answer. Please try again or pick another model.'})}\n\n"
+                    continue
+                yield f"data: {json.dumps({'type': 'token', 'content': item})}\n\n"
+        finally:
+            # Client disconnected (generator closed) or stream ended: stop the LLM producer.
+            cancelled = True
 
         if req.check_grounding and docs and full_answer:
             answer_text = "".join(full_answer)
@@ -431,8 +527,8 @@ if DIST.exists():
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def spa(full_path: str):
-        candidate = DIST / full_path
-        if candidate.is_file():
+        candidate = (DIST / full_path).resolve()
+        if candidate.is_relative_to(DIST.resolve()) and candidate.is_file():
             return FileResponse(str(candidate))
         return FileResponse(str(DIST / "index.html"))
 
