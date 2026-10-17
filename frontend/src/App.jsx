@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Sidebar from "./components/Sidebar";
 import ChatPanel from "./components/ChatPanel";
 import PdfViewer from "./components/PdfViewer";
@@ -25,6 +25,7 @@ export default function App() {
   const [model, setModel] = useState("openai/gpt-oss-20b");
   const [scopeDept, setScopeDept] = useState("All");
   const [viewerSource, setViewerSource] = useState(null);
+  const pendingSummaries = useRef(new Set());
   const [pipeline, setPipeline] = useState(null);
 
   // Build auth headers for every request
@@ -110,21 +111,42 @@ export default function App() {
     form.append("tags", (tags || []).join(","));
     const r = await authedFetch(`${API}/upload`, { method: "POST", body: form });
     const d = await r.json();
-    if (!r.ok) return { added: 0, skipped: 0, failed: [d.detail || "upload failed"] };
+    if (!r.ok) return { queued: 0, failed: [d.detail || "upload failed"] };
     setDocuments(d.documents || []);
-    files.forEach(async ({ name }) => {
-      try {
-        const sr = await authedFetch(`${API}/summary`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ filename: name, model }),
-        });
-        const sd = await sr.json();
-        if (sr.ok) setSummaries((prev) => ({ ...prev, [name]: sd.summary }));
-      } catch {}
-    });
-    return d.stats;
+    // Ingestion runs in the background; summarise each file once it's ready.
+    pendingSummaries.current = new Set([...pendingSummaries.current, ...(d.queued || [])]);
+    return { queued: (d.queued || []).length, failed: [] };
   };
+
+  const fetchSummary = async (name) => {
+    try {
+      const sr = await authedFetch(`${API}/summary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: name, model }),
+      });
+      const sd = await sr.json();
+      if (sr.ok) setSummaries((prev) => ({ ...prev, [name]: sd.summary }));
+    } catch {}
+  };
+
+  // Poll while any document is still being ingested.
+  const ingesting = documents.some((doc) => doc.status === "queued" || doc.status === "processing");
+  useEffect(() => {
+    if (!ingesting) return;
+    const id = setInterval(fetchDocs, 2000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ingesting]);
+
+  useEffect(() => {
+    for (const doc of documents) {
+      if (!pendingSummaries.current.has(doc.name)) continue;
+      if (doc.status === "ready") fetchSummary(doc.name);
+      if (doc.status === "ready" || doc.status === "failed") pendingSummaries.current.delete(doc.name);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documents]);
 
   const handleDelete = async (name) => {
     const r = await authedFetch(`${API}/documents/${encodeURIComponent(name)}`, { method: "DELETE" });

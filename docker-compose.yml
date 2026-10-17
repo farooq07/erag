@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   app:
     build: .
@@ -8,20 +6,39 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/app/data
-      - ./.env:/app/.env:ro
     env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://documind:${POSTGRES_PASSWORD:-documind}@postgres:5432/documind
     depends_on:
-      ollama:
-        condition: service_started
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/users"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/readyz', timeout=5)"]
       interval: 30s
       timeout: 10s
+      start_period: 60s
       retries: 3
 
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: documind
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-documind}
+      POSTGRES_DB: documind
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U documind -d documind"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Only needed when LLM_PROVIDER=ollama: `docker compose --profile ollama up`
   ollama:
     image: ollama/ollama:latest
+    profiles: ["ollama"]
     ports:
       - "11434:11434"
     volumes:
@@ -29,4 +46,5 @@ services:
     restart: unless-stopped
 
 volumes:
+  pgdata:
   ollama_models:

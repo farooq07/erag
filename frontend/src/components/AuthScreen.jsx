@@ -90,7 +90,7 @@ export default function AuthScreen({ onAuth }) {
                   type={showPw ? "text" : "password"} required
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
                   value={form.password} onChange={set("password")}
-                  placeholder={mode === "signup" ? "Min. 6 characters" : "••••••••"}
+                  placeholder={mode === "signup" ? "Min. 8 characters" : "••••••••"}
                   className="pr-10"
                 />
                 <button

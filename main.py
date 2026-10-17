@@ -2,7 +2,7 @@ import asyncio
 import json
 import shutil
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, time, timezone
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, field_validator
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
+from sqlalchemy import func, select, text
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from auth import (
@@ -31,13 +32,13 @@ from auth import (
 from config import (
     ALLOWED_MODELS,
     ALLOWED_ORIGINS,
-    AUDIT_LOG_PATH,
     DEFAULT_DEPARTMENT,
     DEMO_CORPUS,
     DEMO_DIR,
     DEPARTMENTS,
     GROUNDING_CHECK_ENABLED,
     GROQ_MODEL,
+    INGEST_WORKER_ENABLED,
     LLM_MODEL,
     LLM_PROVIDER,
     MAX_HISTORY_TURNS,
@@ -46,14 +47,16 @@ from config import (
     SUPPORTED_EXTS,
     UPLOADS_DIR,
 )
+from db import AuditEvent, Document, import_legacy_data, run_migrations, session_scope
 from ingest import (
     HASH_INDEX,
     clear_all,
-    ingest_paths,
+    get_document,
     list_indexed,
     remove_document,
     update_document_meta,
 )
+from jobs import Worker, enqueue
 from rag import answer_stream, check_answer_grounding, generate_doc_summary, retrieve
 
 DEFAULT_MODEL = GROQ_MODEL if LLM_PROVIDER == "groq" else LLM_MODEL
@@ -64,8 +67,15 @@ limiter = Limiter(key_func=get_remote_address, default_limits=[])
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await seed_demo_corpus()
+    run_migrations()
+    import_legacy_data(HASH_INDEX)
+    seed_demo_corpus()
+    worker = Worker() if INGEST_WORKER_ENABLED else None
+    if worker:
+        worker.start()
     yield
+    if worker:
+        worker.stop()
 
 
 app = FastAPI(title="DocuMind API", lifespan=lifespan)
@@ -95,31 +105,20 @@ app.add_middleware(_StripApiPrefix)
 # ── Audit log ────────────────────────────────────────────────────────────
 
 def _audit(event: str, user_id, extra=None):
-    entry = {
-        "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "event": event,
-        "user": user_id,
-        **(extra or {}),
-    }
     try:
-        with open(AUDIT_LOG_PATH, "a") as f:
-            f.write(json.dumps(entry) + "\n")
-    except Exception:
-        pass
+        with session_scope() as s:
+            s.add(AuditEvent(event=event, user_id=user_id, data=extra or {}))
+    except Exception as e:
+        print(f"[audit] failed to record {event}: {e!r}")
 
 
 # ── Demo corpus auto-ingest on startup ───────────────────────────────────
 
-async def seed_demo_corpus():
-    if HASH_INDEX.exists():
-        try:
-            existing = json.loads(HASH_INDEX.read_text())
-            if existing:
-                return
-        except Exception:
-            pass
+def seed_demo_corpus():
+    with session_scope() as s:
+        if s.scalar(select(Document).limit(1)) is not None:
+            return
 
-    paths_to_ingest = []
     for filename, dept in DEMO_CORPUS:
         src = DEMO_DIR / filename
         if not src.exists():
@@ -127,22 +126,25 @@ async def seed_demo_corpus():
         dest = UPLOADS_DIR / filename
         if not dest.exists():
             shutil.copy2(src, dest)
-        paths_to_ingest.append((dest, dept))
+        enqueue(filename, dept, [], None)
+        print(f"[demo-seed] queued {filename} → {dept}")
 
-    if not paths_to_ingest:
-        return
 
-    loop = asyncio.get_event_loop()
+# ── Health ───────────────────────────────────────────────────────────────
 
-    def _do_ingest():
-        for dest, dept in paths_to_ingest:
-            try:
-                ingest_paths([dest], department=dept)
-                print(f"[demo-seed] ingested {dest.name} → {dept}")
-            except Exception as e:
-                print(f"[demo-seed] failed {dest.name}: {e}")
+@app.get("/healthz", include_in_schema=False)
+def healthz():
+    return {"status": "ok"}
 
-    await loop.run_in_executor(None, _do_ingest)
+
+@app.get("/readyz", include_in_schema=False)
+def readyz():
+    try:
+        with session_scope() as s:
+            s.execute(text("SELECT 1"))
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"database unavailable: {e.__class__.__name__}")
+    return {"status": "ready"}
 
 
 # ── Models ───────────────────────────────────────────────────────────────
@@ -245,20 +247,13 @@ def get_stats(user: dict = Depends(get_current_user)):
     docs = [d for d in list_indexed() if d.get("department") in allowed]
     total_chunks = sum(d.get("chunks", 0) for d in docs)
 
-    today = datetime.now(timezone.utc).date().isoformat()
-    queries_today = 0
-    try:
-        if AUDIT_LOG_PATH.exists():
-            with open(AUDIT_LOG_PATH) as f:
-                for line in f:
-                    try:
-                        entry = json.loads(line)
-                        if entry.get("event") == "chat" and entry.get("ts", "").startswith(today):
-                            queries_today += 1
-                    except Exception:
-                        pass
-    except Exception:
-        pass
+    midnight = datetime.combine(datetime.now(timezone.utc).date(), time.min, tzinfo=timezone.utc)
+    with session_scope() as s:
+        queries_today = s.scalar(
+            select(func.count())
+            .select_from(AuditEvent)
+            .where(AuditEvent.event == "chat", AuditEvent.ts >= midnight)
+        )
 
     dept_breakdown: dict = {}
     for d in docs:
@@ -298,12 +293,17 @@ async def upload_files(
     if department not in DEPARTMENTS:
         raise HTTPException(status_code=400, detail=f"Unknown department: {department}")
     assert_can_upload(user, department)
+    allowed = set(allowed_departments(user))
 
     saved = []
     for f in files:
         name = _safe_filename(f.filename)
         if Path(name).suffix.lower() not in SUPPORTED_EXTS:
             raise HTTPException(status_code=400, detail=f"Unsupported file type: {name}")
+        existing = get_document(name)
+        if existing and existing["department"] not in allowed:
+            # Don't let an upload overwrite a document the user can't see.
+            raise HTTPException(status_code=409, detail=f"A document named {name} already exists")
         dest = UPLOADS_DIR / name
         written = 0
         with open(dest, "wb") as out:
@@ -315,15 +315,14 @@ async def upload_files(
                     raise HTTPException(status_code=413, detail=f"File too large: {name}")
                 out.write(chunk)
         saved.append(dest)
-    loop = asyncio.get_event_loop()
-    stats = await loop.run_in_executor(
-        None, lambda: ingest_paths(saved, department=department, tags=_parse_tags(tags))
-    )
+
+    tag_list = _parse_tags(tags)
+    for p in saved:
+        enqueue(p.name, department, tag_list, user.get("id"))
     _audit("upload", user.get("id"), {"files": [p.name for p in saved], "department": department})
 
-    allowed = set(allowed_departments(user))
     visible = [d for d in list_indexed() if d.get("department") in allowed]
-    return {"stats": stats, "documents": visible}
+    return {"queued": [p.name for p in saved], "documents": visible}
 
 
 def _safe_filename(raw: str | None) -> str:
@@ -335,10 +334,8 @@ def _safe_filename(raw: str | None) -> str:
 
 
 def _doc_dept(name):
-    for d in list_indexed():
-        if d["name"] == name:
-            return d.get("department")
-    return None
+    doc = get_document(name)
+    return doc["department"] if doc else None
 
 
 @app.get("/files/{name}")

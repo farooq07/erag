@@ -18,8 +18,9 @@ import uuid
 import bcrypt
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
 
-from config import USERS_FILE
+from db import User, session_scope
 
 _DEV_SECRET = "documind-dev-secret-change-in-production"
 SECRET = os.getenv("JWT_SECRET", _DEV_SECRET).encode()
@@ -80,33 +81,13 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 # ── User store ───────────────────────────────────────────────────────────
 
-def _read() -> dict:
-    if not USERS_FILE.exists():
-        return {"users": []}
-    return json.loads(USERS_FILE.read_text())
-
-
-def _write(data: dict) -> None:
-    USERS_FILE.write_text(json.dumps(data, indent=2))
-
-
-def load_users() -> dict:
-    return {u["id"]: u for u in _read().get("users", [])}
-
-
-def _public(user: dict) -> dict:
-    return {k: v for k, v in user.items() if k != "password_hash"}
-
-
 def list_users() -> list[dict]:
-    return [_public(u) for u in load_users().values()]
+    with session_scope() as s:
+        return [u.public() for u in s.scalars(select(User).order_by(User.created_at))]
 
 
-def _by_email(email: str) -> dict | None:
-    for u in load_users().values():
-        if u.get("email", "").lower() == email.lower():
-            return u
-    return None
+def _by_email(s, email: str) -> User | None:
+    return s.scalar(select(User).where(User.email == email.lower().strip()))
 
 
 # ── Auth operations ──────────────────────────────────────────────────────
@@ -116,43 +97,44 @@ def do_signup(name: str, email: str, password: str) -> tuple[dict, str]:
         raise HTTPException(status_code=400, detail="Name is required")
     if not email.strip() or "@" not in email:
         raise HTTPException(status_code=400, detail="Valid email is required")
-    if len(password) < 6:
-        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
-    if _by_email(email):
-        raise HTTPException(status_code=400, detail="Email already registered")
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
 
-    data = _read()
-    user = {
-        "id": str(uuid.uuid4())[:8],
-        "name": name.strip(),
-        "email": email.lower().strip(),
-        "password_hash": hash_password(password),
-        "role": "Staff",
-        "departments": ["General"],
-        "can_upload": False,
-    }
-    data["users"].append(user)
-    _write(data)
-    return _public(user), create_token(user["id"])
+    with session_scope() as s:
+        if _by_email(s, email):
+            raise HTTPException(status_code=400, detail="Email already registered")
+        user = User(
+            id=uuid.uuid4().hex[:12],
+            name=name.strip(),
+            email=email.lower().strip(),
+            password_hash=hash_password(password),
+            role="Staff",
+            departments=["General"],
+            can_upload=False,
+        )
+        s.add(user)
+        public = user.public()
+    return public, create_token(public["id"])
 
 
 def do_login(email: str, password: str) -> tuple[dict, str]:
-    user = _by_email(email)
-    if not user or not user.get("password_hash"):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-    if not verify_password(password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-    return _public(user), create_token(user["id"])
+    with session_scope() as s:
+        user = _by_email(s, email)
+        if not user or not user.password_hash or not verify_password(password, user.password_hash):
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+        public = user.public()
+    return public, create_token(public["id"])
 
 
 # ── FastAPI dependency ───────────────────────────────────────────────────
 
 def user_from_token(token: str) -> dict:
     uid = decode_token(token)
-    user = load_users().get(uid)
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return _public(user)
+    with session_scope() as s:
+        user = s.get(User, uid)
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user.public()
 
 
 def get_current_user(

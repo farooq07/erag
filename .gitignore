@@ -17,5 +17,7 @@ frontend/node_modules/
 server.log
 *.log
 data/audit.jsonl
+data/documind.db*
+data/chroma_db.bak*/
 screenshots/
 frontend/shot.cjs

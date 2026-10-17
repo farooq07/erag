@@ -65,9 +65,9 @@ export default function Sidebar({
     try {
       const tags = uploadTags.split(",").map((t) => t.trim()).filter(Boolean);
       const stats = await onUpload(acceptedFiles, { department: uploadDept, tags });
-      const ocr = stats.ocr_used?.length ? ` · OCR: ${stats.ocr_used.join(", ")}` : "";
-      const failed = stats.failed?.length ? ` · ${stats.failed.length} failed` : "";
-      setUploadMsg(`✓ ${stats.added} added · ${stats.skipped} skipped${ocr}${failed}`);
+      setUploadMsg(stats.failed?.length
+        ? `✗ ${stats.failed.join("; ")}`
+        : `✓ ${stats.queued} queued for indexing`);
       setUploadTags("");
     } catch { setUploadMsg("Upload failed."); }
     setUploading(false);
@@ -295,7 +295,7 @@ export default function Sidebar({
               <div className="space-y-2">
                 <label className="block text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Pipeline</label>
                 <Row label="LLM" value="Groq API" />
-                <Row label="Embeddings" value="nomic-embed-text (local)" />
+                <Row label="Embeddings" value="all-MiniLM-L6-v2 (local ONNX)" />
                 <Row label="Search" value="BM25 + Vector (RRF)" />
                 <Row label="Vector DB" value="ChromaDB (local)" />
                 <Row label="OCR" value="Tesseract (if installed)" />
@@ -315,6 +315,21 @@ export default function Sidebar({
   );
 }
 
+function DocStatus({ status, error }) {
+  if (status === "queued" || status === "processing") {
+    return (
+      <span className="flex items-center gap-1 text-[9.5px] text-muted-foreground">
+        <Loader2 size={9} className="animate-spin" />
+        {status === "queued" ? "Queued" : "Indexing…"}
+      </span>
+    );
+  }
+  if (status === "failed") {
+    return <span className="text-[9.5px] text-destructive" title={error || ""}>Failed</span>;
+  }
+  return null;
+}
+
 function DocCard({
   doc, departments, canEdit = true, editing, onEdit, onCancelEdit, onSaveMeta,
   onDelete, openSummary, onToggleSummary, summary,
@@ -329,7 +344,8 @@ function DocCard({
         <div className="min-w-0 flex-1">
           <div className="truncate text-[11.5px] font-medium text-foreground" title={doc.name}>{doc.name}</div>
           <div className="mt-0.5 flex items-center gap-1.5 tabular-nums">
-            {doc.chunks > 0 && <span className="text-[9.5px] text-muted-foreground">{doc.chunks} chunks</span>}
+            <DocStatus status={doc.status} error={doc.error} />
+            {doc.chunks > 0 &&<span className="text-[9.5px] text-muted-foreground">{doc.chunks} chunks</span>}
             {doc.size > 0 && <span className="text-[9.5px] text-muted-foreground">· {formatSize(doc.size)}</span>}
           </div>
           {doc.tags?.length > 0 && (

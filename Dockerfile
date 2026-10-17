@@ -14,7 +14,10 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
-RUN mkdir -p data/uploads data/chroma_db
+RUN useradd --create-home --uid 10001 documind \
+    && mkdir -p data/uploads data/chroma_db \
+    && chown -R documind:documind /app
+USER documind
 EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
 CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

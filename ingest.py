@@ -6,10 +6,10 @@ Document ingestion pipeline with:
 - Department / tag categorisation
 """
 import hashlib
-import json
-from datetime import datetime
 from pathlib import Path
 from typing import Iterable
+
+from sqlalchemy import delete, select
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
@@ -33,6 +33,7 @@ from config import (
     SUPPORTED_EXTS,
     UPLOADS_DIR,
 )
+from db import Document as DocumentRow, IngestJob, session_scope, utcnow
 
 # Thin wrapper so langchain-chroma accepts the chromadb EmbeddingFunction
 class _ONNXEmbeddings:
@@ -169,29 +170,12 @@ def _file_hash(path: Path) -> str:
     return h.hexdigest()
 
 
-def _load_index() -> dict:
-    """Load index; migrate old {name: hash_str} → {name: {hash, ...}}."""
-    if not HASH_INDEX.exists():
-        return {}
-    raw = json.loads(HASH_INDEX.read_text())
-    migrated = {}
-    for name, value in raw.items():
-        if isinstance(value, str):
-            migrated[name] = {
-                "hash": value,
-                "department": DEFAULT_DEPARTMENT,
-                "tags": [],
-                "uploaded_at": None,
-                "chunks": 0,
-                "size": 0,
-            }
-        else:
-            migrated[name] = value
-    return migrated
-
-
-def _save_index(index: dict) -> None:
-    HASH_INDEX.write_text(json.dumps(index, indent=2))
+def _invalidate_bm25() -> None:
+    try:
+        from rag import invalidate_bm25_cache
+        invalidate_bm25_cache()
+    except ImportError:
+        pass
 
 
 # ── OCR helper ───────────────────────────────────────────────────────────
@@ -310,9 +294,15 @@ def ingest_paths(
     department: str = DEFAULT_DEPARTMENT,
     tags: list[str] | None = None,
     progress=None,
+    uploaded_by: str | None = None,
 ) -> dict:
+    """Parse, chunk and embed files synchronously, recording each in the DB.
+
+    The API does not call this directly any more; it enqueues a job and the
+    worker in jobs.py calls it. A failed file raises nothing; it is reported
+    in stats["failed"] and its document row is marked failed.
+    """
     vs = get_vectorstore()
-    index = _load_index()
     stats = {"added": 0, "skipped": 0, "failed": [], "ocr_used": []}
     paths = list(paths)
     tags = tags or []
@@ -326,77 +316,82 @@ def ingest_paths(
             continue
         try:
             h = _file_hash(p)
-            existing = index.get(p.name)
-            # Skip only if file unchanged AND department/tags unchanged
-            if (
-                existing
-                and existing.get("hash") == h
-                and existing.get("department") == department
-                and existing.get("tags", []) == tags
-            ):
-                stats["skipped"] += 1
-                continue
+            with session_scope() as s:
+                existing = s.get(DocumentRow, p.name)
+                # Skip only if file unchanged AND department/tags unchanged
+                if (
+                    existing
+                    and existing.chunks > 0
+                    and existing.hash == h
+                    and existing.department == department
+                    and list(existing.tags or []) == tags
+                ):
+                    existing.status = "ready"
+                    existing.error = None
+                    stats["skipped"] += 1
+                    continue
+                if existing:
+                    existing.status = "processing"
             if existing:
                 vs.delete(where={"source": p.name})
 
             raw_docs, pre_chunked = _loader_for(p)
-            if raw_docs and raw_docs[0].metadata.get("ocr"):
+            ocr_used = bool(raw_docs and raw_docs[0].metadata.get("ocr"))
+            if ocr_used:
                 stats["ocr_used"].append(p.name)
 
             chunks = _split(raw_docs, p.name, department, tags, pre_chunked=pre_chunked)
             if not chunks:
-                stats["failed"].append(f"{p.name} (empty after parsing)")
-                continue
+                raise ValueError("empty after parsing")
             vs.add_documents(chunks)
-            index[p.name] = {
-                "hash": h,
-                "department": department,
-                "tags": tags,
-                "uploaded_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
-                "chunks": len(chunks),
-                "size": p.stat().st_size,
-            }
+            with session_scope() as s:
+                row = s.get(DocumentRow, p.name) or DocumentRow(name=p.name)
+                row.hash = h
+                row.department = department
+                row.tags = tags
+                row.status = "ready"
+                row.error = None
+                row.chunks = len(chunks)
+                row.size = p.stat().st_size
+                row.ocr = ocr_used
+                row.uploaded_at = utcnow()
+                row.uploaded_by = uploaded_by or row.uploaded_by
+                s.merge(row)
             stats["added"] += 1
         except Exception as e:
             stats["failed"].append(f"{p.name} ({e})")
+            with session_scope() as s:
+                row = s.get(DocumentRow, p.name)
+                if row:
+                    row.status = "failed"
+                    row.error = str(e)[:1000]
 
-    _save_index(index)
     if stats["added"]:
-        try:
-            from rag import invalidate_bm25_cache
-            invalidate_bm25_cache()
-        except ImportError:
-            pass
+        _invalidate_bm25()
     if progress:
         progress(len(paths), len(paths), "done")
     return stats
 
 
 def list_indexed() -> list[dict]:
-    """Return list of documents with their metadata."""
-    index = _load_index()
-    out = []
-    for name in sorted(index.keys()):
-        meta = index[name]
-        out.append({
-            "name": name,
-            "department": meta.get("department", DEFAULT_DEPARTMENT),
-            "tags": meta.get("tags", []),
-            "uploaded_at": meta.get("uploaded_at"),
-            "chunks": meta.get("chunks", 0),
-            "size": meta.get("size", 0),
-        })
-    return out
+    """Return all documents (any status) with their metadata."""
+    with session_scope() as s:
+        return [d.as_dict() for d in s.scalars(select(DocumentRow).order_by(DocumentRow.name))]
+
+
+def get_document(name: str) -> dict | None:
+    with session_scope() as s:
+        row = s.get(DocumentRow, name)
+        return row.as_dict() if row else None
 
 
 def update_document_meta(name: str, department: str | None = None, tags: list[str] | None = None) -> None:
     """Update department/tags for an already-ingested document (re-stamps chunks)."""
-    index = _load_index()
-    if name not in index:
+    entry = get_document(name)
+    if entry is None:
         raise KeyError(name)
-    entry = index[name]
-    new_dept = department if department is not None else entry.get("department", DEFAULT_DEPARTMENT)
-    new_tags = tags if tags is not None else entry.get("tags", [])
+    new_dept = department if department is not None else entry["department"]
+    new_tags = tags if tags is not None else entry["tags"]
 
     vs = get_vectorstore()
     col = vs._collection.get(where={"source": name}, include=["documents", "metadatas"])
@@ -415,45 +410,35 @@ def update_document_meta(name: str, department: str | None = None, tags: list[st
             new_metas.append(m)
         vs._collection.update(ids=ids, metadatas=new_metas)
 
-    entry["department"] = new_dept
-    entry["tags"] = new_tags
-    _save_index(index)
-    try:
-        from rag import invalidate_bm25_cache
-        invalidate_bm25_cache()
-    except ImportError:
-        pass
+    with session_scope() as s:
+        row = s.get(DocumentRow, name)
+        row.department = new_dept
+        row.tags = new_tags
+    _invalidate_bm25()
 
 
 def remove_document(name: str) -> None:
     vs = get_vectorstore()
     vs.delete(where={"source": name})
-    index = _load_index()
-    index.pop(name, None)
-    _save_index(index)
+    with session_scope() as s:
+        s.execute(delete(DocumentRow).where(DocumentRow.name == name))
+        s.execute(delete(IngestJob).where(IngestJob.document_name == name, IngestJob.status == "queued"))
     f = UPLOADS_DIR / name
     if f.exists():
         f.unlink()
-    try:
-        from rag import invalidate_bm25_cache
-        invalidate_bm25_cache()
-    except ImportError:
-        pass
+    _invalidate_bm25()
 
 
 def clear_all() -> None:
     vs = get_vectorstore()
     vs.delete_collection()
-    if HASH_INDEX.exists():
-        HASH_INDEX.unlink()
+    with session_scope() as s:
+        s.execute(delete(DocumentRow))
+        s.execute(delete(IngestJob).where(IngestJob.status == "queued"))
     for f in UPLOADS_DIR.iterdir():
         if f.is_file():
             f.unlink()
-    try:
-        from rag import invalidate_bm25_cache
-        invalidate_bm25_cache()
-    except ImportError:
-        pass
+    _invalidate_bm25()
 
 
 if __name__ == "__main__":

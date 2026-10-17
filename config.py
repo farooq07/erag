@@ -77,7 +77,18 @@ USERS_FILE = ROOT / "users.json"
 GROUNDING_CHECK_ENABLED = True
 
 # ── Audit log ────────────────────────────────────────────────────────────
+# Legacy JSONL log; imported into the audit_events table on first start.
 AUDIT_LOG_PATH = DATA_DIR / "audit.jsonl"
+
+# ── Database ─────────────────────────────────────────────────────────────
+# SQLite for zero-setup local dev; set a postgresql+psycopg:// URL in production.
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{(DATA_DIR / 'documind.db').as_posix()}")
+
+# ── Background ingestion ─────────────────────────────────────────────────
+# Run the ingest worker inside the API process. Set to false when running
+# workers separately (`python -m jobs`).
+INGEST_WORKER_ENABLED = os.getenv("INGEST_WORKER_ENABLED", "true").lower() == "true"
+INGEST_MAX_ATTEMPTS = 3
 
 # ── Demo corpus ──────────────────────────────────────────────────────────
 DEMO_DIR = ROOT / "demo"
