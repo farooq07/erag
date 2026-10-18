@@ -1,96 +1,95 @@
-# ERAG — Office RAG Assistant
+# DocuMind (ERAG) — answers from your company's documents
 
-An end-to-end Retrieval-Augmented Generation (RAG) system for office documents. Upload PDFs, Word docs, spreadsheets, slides, and text files; ask questions in natural language; get grounded answers with inline source citations. Built with a React + Tailwind frontend and a FastAPI + LangChain + Chroma backend.
+Upload policies, reports, contracts and slide decks; ask questions in plain language; get answers that cite the exact passage they came from. Each person only gets answers from documents in departments they're allowed to see.
 
-The retrieval pipeline is what makes this more than a toy: **Query Rewriting → HyDE → Hybrid (BM25 + Vector) → RRF → Cross-encoder Reranking → CRAG-lite filtering**, each step independently toggleable.
+FastAPI + LangChain + Chroma backend, React + Tailwind + shadcn/ui frontend, Groq (or local Ollama) for the language model.
+
+**Measured quality** (58-question benchmark in [`eval/`](eval/README.md)): 98.1% of answers contain every expected fact, 100% of unanswerable questions are refused, 0 passages leak across departments.
 
 ---
 
 ## Table of Contents
 
+- [Status](#status)
 - [Features](#features)
 - [Architecture](#architecture)
 - [Project Layout](#project-layout)
-- [Tech Stack](#tech-stack)
-- [Setup](#setup)
+- [Quick Start](#quick-start)
 - [Configuration](#configuration)
-- [Backend — Deep Dive](#backend--deep-dive)
-- [RAG Pipeline — Deep Dive](#rag-pipeline--deep-dive)
-- [Frontend — Deep Dive](#frontend--deep-dive)
+- [RAG Pipeline](#rag-pipeline)
+- [Evaluation](#evaluation)
 - [Authentication & Roles](#authentication--roles)
 - [API Reference](#api-reference)
+- [Testing](#testing)
+- [Before Going to Production](#before-going-to-production)
 - [Troubleshooting](#troubleshooting)
+
+---
+
+## Status
+
+| Phase | State |
+|---|---|
+| 0 · Security fixes | ✅ Done |
+| 1 · Production foundation (database, job queue, sessions, SSO) | ✅ Mostly done — pgvector, S3 storage and multi-tenancy pending |
+| 2 · Answer quality (benchmark + retrieval fixes) | ✅ Done |
+| 3 · Product features (chat history, feedback, connectors, admin console) | ⬜ Not started |
+| 4 · Frontend polish | 🟡 Partly done — homepage, shadcn/ui, auth screens; routing, bundle splitting, a11y audit pending |
+| 5 · Observability & security operations | 🟡 Partly done — audit log, health checks; Sentry, tracing, security headers pending |
+| 6 · Testing, CI/CD, deployment | 🟡 Partly done — 28 tests, eval gate, Docker files; CI and a tested deploy pending |
+| 7 · SaaS business layer | ⬜ Not started |
 
 ---
 
 ## Features
 
-**Document handling**
-- Multi-format ingestion: PDF, DOCX, XLSX, PPTX, TXT, MD
-- Automatic OCR fallback for scanned PDFs (via Tesseract + pdf2image)
-- SHA-256 hash-based deduplication — re-uploading an unchanged file is a no-op
-- Auto-generated 4–5 bullet document summaries after ingestion
-- Per-document department + tags metadata, editable in place
+**Documents**
+- PDF, Word, Excel, PowerPoint, Markdown and text; scanned PDFs via OCR (Tesseract)
+- Background ingestion: uploads return immediately, each document shows *queued → indexing → ready / failed*, with retries
+- Structure-aware chunking: one chunk per document section, tables kept with their heading, every chunk labelled with its location ("Operations SOPs › 2. Procurement Thresholds")
+- Hash-based deduplication, per-document department and tags, auto-generated summaries
 
-**Retrieval**
-- Query rewriting (LLM expands acronyms, fixes typos, sharpens keywords)
-- HyDE — embeds a hypothetical answer instead of the raw query for vector search
-- Hybrid BM25 + dense-vector retrieval fused via Reciprocal Rank Fusion
-- Cross-encoder reranking with `ms-marco-MiniLM-L-6-v2`
-- CRAG-lite: drops chunks below a relevance threshold; warns the user on low-confidence answers
-- Every stage is independently toggleable in `config.py`
+**Answers**
+- Streaming answers with numbered source citations; click one to open the PDF at the cited page
+- Hybrid search (keyword BM25 + semantic vectors) → cross-encoder reranking → relevance filtering
+- Follow-up questions understood from chat history
+- Says "I couldn't find this" instead of guessing; low-confidence warning only when no passage is a strong match
+- Post-answer grounding check flags sentences the sources don't support
 
-**Chat**
-- Streaming responses over Server-Sent Events
-- Multi-turn conversation memory (last 6 turns)
-- Inline source citations with page numbers, previews, and OCR badges
-- Click a citation → opens the source PDF in an in-app viewer at the cited page
+**Access & security**
+- Department-based permissions enforced inside search, so restricted passages never reach an answer, citation or summary
+- Email/password with lockout, password reset, rotating sessions, "sign out of all devices"
+- Google and Microsoft Entra single sign-on, optional domain restriction
+- Audit log of logins, uploads, edits, deletions and questions
 
-**Access control**
-- Role-based access: per-user `departments` whitelist and `can_upload` flag
-- Header-based user switching (`X-User`) — drop-in replacement seam for SSO / SAML / OAuth
-- All retrieval and document endpoints are scoped to a user's allowed departments
-
-**UX**
-- Dark / light theme toggle
-- Department filter dropdown
-- Drag-and-drop upload zone
-- Sidebar with per-document chips for department & tags, plus delete / summarize actions
+**Interface**
+- Product homepage at `/` with an interactive, permission-aware demo
+- Chat with sources panel, PDF viewer, dark/light theme, drag-and-drop upload
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Browser (React)                         │
-│  ChatPanel · Sidebar · PdfViewer · UserPicker · ThemeToggle     │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │ HTTP + SSE   X-User header
-                           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                       FastAPI  (main.py)                        │
-│  /chat  /upload  /documents  /summary  /users  /me  /departments│
-│            └─ auth.py: role + department gating                 │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-        ┌──────────────────┼─────────────────────┐
-        ▼                  ▼                     ▼
-   ingest.py           rag.py              data/uploads/
-   (loaders, OCR,      (Query Rewrite,     (raw files served
-    splitter,          HyDE, Hybrid+RRF,    via /files)
-    Chroma writer)     Reranker, CRAG,
-                       LLM streaming)
-        │                  │
-        ▼                  ▼
-   ┌──────────────────────────────┐
-   │   Chroma  (data/chroma_db)   │
-   │   nomic-embed-text (Ollama)  │
-   └──────────────────────────────┘
+Browser (React)
+  Homepage /  ·  Sign-in /login  ·  App: Chat, Sidebar, PdfViewer
+        │  HTTPS: JSON + SSE (/api/*)
+        │  Authorization: Bearer <15-min access token>
+        │  httpOnly refresh cookie (/api/auth)
+        ▼
+FastAPI  (main.py)
+  auth.py  sessions, lockout, password reset, RBAC
+  sso.py   Google / Microsoft OpenID Connect
+  /chat ─► rag.py   rewrite → BM25 + vectors → RRF → rerank → filter → LLM
+  /upload ─► jobs.py  DB-backed queue ─► ingest.py  parse → section chunks → embed
+        │                       │                          │
+        ▼                       ▼                          ▼
+  SQL database             Chroma (data/chroma_db)    data/uploads/
+  (SQLite or Postgres)     all-MiniLM-L6-v2 (ONNX)    original files
+  users, documents, jobs,
+  sessions, audit log
 
-LLM provider:
-  - Groq (default)  → llama-3.1-8b-instant
-  - Ollama fallback → qwen2.5:3b
+LLM: Groq (openai/gpt-oss-20b by default) or local Ollama
 ```
 
 ---
@@ -99,221 +98,139 @@ LLM provider:
 
 ```
 ERAG/
-├── main.py                  # FastAPI app, all HTTP endpoints
-├── rag.py                   # Retrieval pipeline + LLM streaming
-├── ingest.py                # Loaders, splitter, OCR, Chroma writer
-├── auth.py                  # X-User header → role + department gating
-├── config.py                # All knobs: paths, models, flags, thresholds
-├── users.json               # Demo users (admin, CEO, dept leads)
-├── requirements.txt
-├── data/
-│   ├── uploads/             # Raw user files (served at /files)
-│   ├── chroma_db/           # Vector store + ingest index
-│   └── chroma_db/_ingested.json   # name → {hash, dept, tags, chunks, …}
+├── main.py            FastAPI app and HTTP endpoints
+├── rag.py             Retrieval pipeline and answer generation
+├── ingest.py          Loaders, OCR, structure-aware chunking, Chroma writer, re-index CLI
+├── jobs.py            Background ingestion queue (in-process or `python -m jobs`)
+├── auth.py            Sessions, passwords, lockout, reset, RBAC helpers
+├── sso.py             Google / Microsoft single sign-on
+├── db.py              SQLAlchemy models and session helpers
+├── mailer.py          SMTP (or log) email for password resets
+├── config.py          Paths, models, retrieval flags, security settings
+├── migrations/        Alembic database migrations (applied on startup)
+├── users.json         Demo users, imported into the database on first start
+├── demo/              Demo corpus (HR, Finance, IT, Legal, Operations, Handbook)
+├── eval/              Benchmark corpus, questions, runner, baseline — see eval/README.md
+├── tests/             pytest suite (SSO, retrieval building blocks)
+├── Dockerfile, docker-compose.yml, run.bat, run.sh
 └── frontend/
-    ├── package.json
-    ├── tailwind.config.js
-    ├── vite.config.js
     └── src/
-        ├── App.jsx
-        ├── main.jsx
-        ├── index.css
-        └── components/
-            ├── ChatPanel.jsx
-            ├── Sidebar.jsx
-            ├── Message.jsx
-            ├── PdfViewer.jsx
-            ├── UserPicker.jsx
-            ├── ThemeToggle.jsx
-            └── Dropdown.jsx
+        ├── App.jsx                 Routing: homepage / login / app
+        ├── lib/session.js          In-memory access token, refresh-and-retry
+        ├── landing/                Homepage (Landing, HeroDemo, HowItWorks)
+        └── components/             Chat, Sidebar, PdfViewer, AuthScreen, AccountMenu, ui/
 ```
 
 ---
 
-## Tech Stack
+## Quick Start
 
-**Backend**
-- Python 3.11
-- FastAPI + uvicorn (server, SSE streaming)
-- LangChain 0.3 (loaders, splitter, prompt templating)
-- Chroma 0.5 (persistent vector DB)
-- Ollama (embeddings via `nomic-embed-text`; optional local LLM)
-- Groq SDK (default LLM provider; `llama-3.1-8b-instant`)
-- `sentence-transformers` (`cross-encoder/ms-marco-MiniLM-L-6-v2` reranker)
-- `rank_bm25` for keyword search
-- PyMuPDF, docx2txt, openpyxl, unstructured (multi-format parsing)
-- pytesseract + pdf2image (OCR fallback)
+### Windows, one click
 
-**Frontend**
-- React 19 + Vite
-- Tailwind CSS 3
-- axios (HTTP)
-- react-markdown (assistant message rendering)
-- react-pdf (PDF viewer panel)
-- react-dropzone (upload zone)
-- lucide-react (icons)
+Run `run.bat`. It installs Python and Node dependencies, builds the frontend and starts the server at **http://localhost:8000**. On first run it creates `.env` from `.env.example` and asks for your Groq key.
 
----
+### Manual
 
-## Setup
-
-### 1. Prerequisites
-
-- **Python 3.11+**
-- **Node 18+** (for the frontend)
-- **Ollama** running locally at `http://127.0.0.1:11434`
-  - Pull the embedding model: `ollama pull nomic-embed-text`
-  - (Optional) pull a chat model for local fallback: `ollama pull qwen2.5:3b`
-- **Groq API key** (default LLM provider) — get one at https://console.groq.com
-- **(Optional) Tesseract** — only needed if you upload scanned PDFs
-  - Windows: https://github.com/UB-Mannheim/tesseract/wiki
-  - Also install `poppler` for `pdf2image`
-
-### 2. Backend
+Prerequisites: Python 3.11+, Node 18+, a [Groq API key](https://console.groq.com). Tesseract and poppler are only needed for scanned PDFs.
 
 ```bash
-git clone <repo-url> ERAG
-cd ERAG
-
 python -m venv .venv
-.venv\Scripts\activate          # PowerShell: .venv\Scripts\Activate.ps1
+.venv\Scripts\activate                 # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env                    # then set GROQ_API_KEY and JWT_SECRET
 
-# Set your Groq key (or skip and set LLM_PROVIDER="ollama" in config.py)
-echo GROQ_API_KEY=gsk_xxxxx > .env
-
-python main.py
-# → http://127.0.0.1:8000
+cd frontend && npm install && npm run build && cd ..
+python -m uvicorn main:app --port 8000  # → http://localhost:8000
 ```
 
-First chat request will download the cross-encoder (~90 MB) into `~/.cache/huggingface`. One-time.
+For frontend development, run `npm run dev` in `frontend/` (http://localhost:5173, proxies `/api` to port 8000).
 
-### 3. Frontend
+On first start the database is created, the demo users are imported, and — if no documents exist yet — the demo corpus is queued for indexing. The reranker model (~90 MB) downloads on the first question.
+
+Sign in with `admin@acme.com` / `Admin123!` (other demo users use `Demo123!`; see [roles](#authentication--roles)).
+
+### Docker
 
 ```bash
-cd frontend
-npm install
-npm run dev
-# → http://127.0.0.1:5173
+docker compose up --build              # app + Postgres
+docker compose --profile ollama up     # also start a local Ollama
 ```
-
-The dev server proxies API calls to `http://127.0.0.1:8000`.
 
 ---
 
 ## Configuration
 
-All knobs live in [`config.py`](config.py):
+Secrets and deployment settings go in `.env` (see [`.env.example`](.env.example)):
+
+| Variable | Purpose |
+|---|---|
+| `GROQ_API_KEY` | Groq key for the language model |
+| `GROQ_MODEL` | Default model (`openai/gpt-oss-20b`); `ALLOWED_MODELS` lists what clients may pick |
+| `JWT_SECRET` | **Required in production.** Signs access tokens |
+| `DATABASE_URL` | Defaults to SQLite at `data/documind.db`; use `postgresql+psycopg://…` in production |
+| `APP_BASE_URL` | Public URL, used in reset links and SSO redirects |
+| `ALLOWED_ORIGINS` | Browser origins allowed to call the API |
+| `GOOGLE_CLIENT_ID/SECRET`, `MICROSOFT_CLIENT_ID/SECRET/TENANT` | Single sign-on |
+| `SSO_ALLOWED_DOMAINS`, `SSO_AUTO_SIGNUP` | Who may sign in with SSO |
+| `SMTP_HOST/PORT/USER/PASSWORD/FROM` | Password-reset email (printed to the log when unset) |
+| `INGEST_WORKER_ENABLED` | Run the ingest worker in the API process (default `true`) |
+| `MAX_UPLOAD_MB`, `ACCESS_TOKEN_MINUTES`, `REFRESH_TOKEN_DAYS`, `COOKIE_SECURE` | Limits and session settings |
+
+Retrieval knobs live in [`config.py`](config.py). Defaults are the configuration measured in `eval/baseline.json`:
 
 | Setting | Default | Purpose |
 |---|---|---|
-| `LLM_PROVIDER` | `"groq"` | `"groq"` or `"ollama"` |
-| `GROQ_MODEL` | `"llama-3.1-8b-instant"` | Groq chat model |
-| `LLM_MODEL` | `"qwen2.5:3b"` | Ollama fallback model |
-| `EMBED_MODEL` | `"nomic-embed-text"` | Ollama embedding model |
-| `CHUNK_SIZE` / `CHUNK_OVERLAP` | `800` / `120` | Recursive splitter |
-| `TOP_K` | `5` | Final chunks sent to the LLM |
-| `DEPARTMENTS` | HR, Accounts, Finance, IT, Legal, Operations, General | Document tags |
-| **`QUERY_REWRITE_ENABLED`** | `True` | LLM rewrites the question before retrieval |
-| **`HYDE_ENABLED`** | `True` | Embed a hypothetical answer for vector search |
-| **`RERANKER_ENABLED`** | `True` | Cross-encoder rescore over the fused pool |
-| **`CRAG_ENABLED`** | `True` | Filter low-relevance chunks + low-confidence warning |
-| `CRAG_THRESHOLD` | `0.3` | Min sigmoid-normalised cross-encoder score to keep |
-| `CRAG_MIN_CHUNKS` | `2` | Below this many survivors → low-confidence flag |
-| `RERANK_POOL` | `10` | Fused pool size handed to the reranker |
-| `RERANKER_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | Reranker checkpoint |
+| `CHUNK_SIZE` / `CHUNK_OVERLAP` | 800 / 120 | Sub-split size for sections longer than 1.5 × chunk size |
+| `TOP_K` | 5 | Chunks sent to the language model |
+| `QUERY_REWRITE_ENABLED` | `True` | Rewrite the question (resolves follow-ups) |
+| `HYDE_ENABLED` | `False` | Hypothetical-answer embeddings; measured no gain, costs a call |
+| `RERANKER_ENABLED` | `True` | Cross-encoder rescoring |
+| `RERANK_POOL` / `POOL_PER_RETRIEVER` | 20 / 5 | Reranker candidate pool; each retriever's top hits always included |
+| `CRAG_ENABLED` | `True` | Drop weak chunks, flag low confidence |
+| `CRAG_MIN_CHUNKS` / `CRAG_THRESHOLD` | 2 / 0.3 | Always keep the top 2; keep others scoring ≥ 0.3 |
+| `CRAG_LOW_CONFIDENCE` | 0.02 | Warn when the best chunk scores below this |
+| `DEPARTMENTS` | HR, Accounts, Finance, IT, Legal, Operations, General | Permission scopes |
 
-Flip any of the four pipeline flags to `False` to disable that stage — no code changes needed.
+After changing chunking or embeddings, rebuild the index without losing departments: `python ingest.py --reindex`.
 
 ---
 
-## Backend — Deep Dive
+## RAG Pipeline
 
-### `main.py` — FastAPI app
+A `/chat` request retrieves once; the same passages are shown as sources and used for the answer.
 
-- `GET /users` — demo user list for the picker
-- `GET /me` — resolved current user (via `X-User` header)
-- `GET /departments` — full list, default, current user's allowed subset, `can_upload`
-- `GET /documents` — documents visible to the current user (department-scoped)
-- `POST /upload` — multipart files + `department` + `tags`; runs ingest pipeline; returns updated visible doc list
-- `PATCH /documents/{name}` — change department / tags; re-stamps Chroma chunks
-- `DELETE /documents/{name}` — removes chunks + raw file
-- `POST /clear` — Admin-only nuke of the whole collection
-- `POST /summary` — 4-5 bullet summary of a specific document
-- `POST /chat` — SSE stream: emits `sources` event first, then `token` events, then `done`
-
-Streaming bridges a sync generator (`answer_stream`) to an async queue so tokens flush as they arrive from the LLM.
-
-### `ingest.py`
-
-- `_loader_for(path)` — dispatches to the right LangChain loader per extension
-- `_is_scanned_pdf(path)` — opens with PyMuPDF; if < 100 chars/page it's treated as scanned
-- `_ocr_pdf(path)` — pdf2image → pytesseract; tags chunks with `ocr: True` metadata
-- `_split()` — `RecursiveCharacterTextSplitter` (800 / 120), stamps `source`, `chunk_id`, `department`, `tags`
-- `ingest_paths()` — hashes file, skips if unchanged AND dept/tags unchanged; on update deletes old chunks then re-adds
-- `_ingested.json` — name → `{hash, department, tags, uploaded_at, chunks, size}`
-
-### `auth.py`
-
-The whole file is ~60 lines. `get_current_user` is the FastAPI dependency used by every protected endpoint; replace its body with your SSO/JWT logic and the rest of the codebase doesn't change.
+1. **Query rewrite** (`_rewrite_query`) — one model call turns the question into a standalone, keyword-rich query, resolving follow-ups from history ("and the quarter before?").
+2. **Hybrid search** (`hybrid_retrieve`)
+   - Vectors: Chroma similarity search on the rewritten query (top 20), filtered to the user's departments.
+   - Keywords: BM25 over the original question **plus** the rewrite, so exact terms like "Q1" or "IT-14" survive. Tokenised on word characters with numbers kept intact.
+   - Fusion: Reciprocal Rank Fusion, keyed by `source#chunk_id`.
+3. **Rerank** — `cross-encoder/ms-marco-MiniLM-L-6-v2` scores a pool of 20, which always includes each retriever's own top 5.
+4. **Filter** — keep the top 2 plus any chunk scoring ≥ 0.3; mark *low confidence* only when the best chunk scores below 0.02.
+5. **Answer** — the top chunks, labelled `[n] source (page)`, plus recent history go to the model, which answers only from them and streams tokens over SSE. A grounding check then flags unsupported sentences.
 
 ---
 
-## RAG Pipeline — Deep Dive
+## Evaluation
 
-A `/chat` call walks through five stages. The numbered tags match the `# [TAG]` comments in [`rag.py`](rag.py).
+[`eval/`](eval/README.md) holds a reproducible benchmark: the demo documents plus look-alike distractors, 58 questions (look-ups, paraphrases, codes, distractor traps, comparisons, follow-ups, unanswerable and wrong-department questions), deterministic fact-based scoring, and a regression gate.
 
-### 1. `# [QUERY REWRITE]`
+```bash
+python eval/eval_runner.py --retrieval-only   # fast, nearly free
+python eval/eval_runner.py --check            # full run; exit 1 if worse than eval/baseline.json
+```
 
-`_rewrite_query(question)` — small LLM call that expands acronyms, fixes typos, and makes the question keyword-rich. Output is bounded to 500 chars; on any error it falls back to the raw question. Results cached in-process so the same question doesn't trigger two LLM calls (one in `retrieve()` for sources, one in `answer_stream()` for tokens).
+| | Phase 2 start | Now |
+|---|---|---|
+| Answer accuracy | 92.3% | **98.1%** |
+| Context recall | 94.2% | **98.1%** |
+| False refusals | 5.8% | **1.9%** |
+| Refusal accuracy | 100% | **100%** |
+| Low-confidence warnings on answerable questions | ~81% | **7.7%** |
+| Model calls per question | 2.9 | **2.0** |
+| Retrieval latency (p50) | 2.9 s | **2.3 s** |
+| Department leaks | 0 | **0** |
 
-### 2. `# [HYDE]`
-
-`_generate_hyde(question)` — LLM writes a 2–3 sentence plausible passage that would *appear* in an office document and answer the question. The embedding of this passage is closer in vector space to real chunks than the raw query is. Used **only** for the vector branch — BM25 still gets the real (rewritten) query because keywords matter for lexical match.
-
-Chroma path: `vs._embedding_function.embed_query(hyde_text)` → `vs.similarity_search_by_vector(vec, k=k*4, filter=dept_filter)`.
-
-Also cached.
-
-### 3. Hybrid retrieval + RRF (`hybrid_retrieve`)
-
-- Vector branch: HyDE-augmented `similarity_search_by_vector`, k=20
-- BM25 branch: `BM25Okapi` over the (department-scoped) corpus, top-20 by score
-- Reciprocal Rank Fusion: `score = Σ 1 / (60 + rank + 1)` across branches
-- Pool size: `max(TOP_K, RERANK_POOL)` so the reranker has room to work
-
-### 4. `# [RERANKER]`
-
-`_score_pairs(question, docs)` lazy-loads `cross-encoder/ms-marco-MiniLM-L-6-v2` (cached as a module-level singleton). Each `(query, chunk)` pair gets a logit; sigmoid-normalised to `[0, 1]`. Docs are reordered by this score. On model load failure it returns `0.5` for everything so the user still gets *an* answer.
-
-### 5. `# [CRAG]`
-
-CRAG-lite filtering using the cross-encoder scores:
-- Drop chunks with `score < CRAG_THRESHOLD` (0.3 by default)
-- If fewer than `CRAG_MIN_CHUNKS` (2) survive → set `low_confidence=True` and fall back to the **top-k of the unfiltered list** so we never leave the user empty-handed
-- `answer_stream` prepends a ⚠️ low-confidence warning to the streamed response
-
-### 6. Generation
-
-Top-K (5) chunks formatted as `[1] source.pdf (page 3)\n<content>`. Last 6 turns of history pasted into the system prompt. LLM streams tokens via `chain.stream()`; main.py forwards each token as an SSE `token` event.
-
----
-
-## Frontend — Deep Dive
-
-Single-page React 19 app under `frontend/`. State lives in `App.jsx` and is drilled down to:
-
-- **`UserPicker`** — header dropdown to switch identity. Stores `X-User` in `localStorage`; axios interceptor adds it to every request.
-- **`Sidebar`** — drag-and-drop upload (`react-dropzone`), department picker, per-document cards with chips for dept + tags, summary trigger, delete button.
-- **`ChatPanel`** — input box, voice input (browser Speech Recognition API), department scope dropdown, model picker, message list.
-- **`Message`** — `react-markdown` for assistant text; expandable source-citation cards with file name, page number, OCR badge, and preview snippet. Clicking a citation opens `PdfViewer`.
-- **`PdfViewer`** — `react-pdf`-backed modal that loads `/files/<name>` and jumps to the cited page.
-- **`ThemeToggle`** — dark / light, persisted in `localStorage`.
-
-SSE handling: `ChatPanel` uses `fetch()` with a streaming reader, parses each `data: {...}` line, dispatches on `type`:
-- `sources` → renders citation cards immediately, before any tokens arrive
-- `token` → appends to the in-flight assistant message
-- `done` → marks streaming complete
+The eval README explains each fix and the finding behind it.
 
 ---
 
@@ -331,7 +248,7 @@ Users live in the database (`users` table). On first start the seven demo users 
 | `legal_counsel` | Legal Counsel | Legal, General | ✅ |
 | `ops_lead` | Operations Lead | Operations, General | ✅ |
 
-Every backend endpoint that touches documents calls `assert_can_access` / `assert_can_upload`. Retrieval (`hybrid_retrieve`) takes `allowed_departments` and intersects it with the user-chosen scope — there is no way to retrieve a chunk you aren't allowed to see, even via crafted requests.
+Every endpoint that touches documents calls `assert_can_access` / `assert_can_upload`. Retrieval takes `allowed_departments` and intersects it with the user-chosen scope, so there is no way to retrieve a chunk you aren't allowed to see, even with crafted requests.
 
 ### Sessions
 
@@ -384,34 +301,54 @@ The rest of the codebase reads `user["role"]`, `user["departments"]`, and `user[
 | DELETE | `/documents/{name}` | — | Removes chunks + raw file |
 | POST | `/clear` | — | Admin only — wipes collection |
 | POST | `/summary` | `{filename, model}` | 4–5 bullet summary |
-| POST | `/chat` | `{question, model, history, department?}` | SSE stream |
+| POST | `/chat` | `{question, model, history, department?, check_grounding?}` | SSE stream: `sources`, `token`…, `grounding`, `error`, `done` |
 | GET | `/healthz`, `/readyz` | — | Liveness / readiness (DB check) |
 
 Everything except `/auth/*` (other than `me`, `logout-all`, `change-password`) and the health checks requires `Authorization: Bearer <access_token>`. The browser app calls these under `/api/…`.
 
-Run the tests with `pip install -r requirements-dev.txt && python -m pytest tests`.
+---
+
+## Testing
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest tests                  # 28 tests: SSO flows, tokeniser, chunking
+python eval/eval_runner.py --check      # answer-quality regression gate
+```
+
+Tests use a throwaway data directory and database, so they never touch `data/`.
+
+---
+
+## Before Going to Production
+
+- **Language model quota.** Groq's free tier allows 1,000 requests and 200,000 tokens per day per model — roughly 100 questions a day for the whole company. Use a paid Groq tier or another provider.
+- **Set `JWT_SECRET`** (`python -c "import secrets; print(secrets.token_urlsafe(48))"`). Without it the server warns at startup and uses an insecure dev key.
+- **Use Postgres** (`DATABASE_URL`) and serve over HTTPS; set `APP_BASE_URL` and `ALLOWED_ORIGINS` to the public address.
+- **Configure SMTP** so password-reset emails are delivered.
+- **SSO** — add Google/Microsoft credentials and set `SSO_ALLOWED_DOMAINS`.
 
 ---
 
 ## Troubleshooting
 
-**Groq dependency conflict during `pip install -r requirements.txt`**
-The `langchain-groq==1.1.2` pin clashes with newer `langchain-core`. If your env is already working, you can ignore the resolver error; pip will leave the working versions in place. Otherwise, loosen the pin: `langchain-groq>=1.1.2`.
+**"Collection expecting embedding with dimension of 768, got 384"**
+The index was built with a different embedding model. Run `python ingest.py --reindex` (stop the server first).
 
-**Cross-encoder downloads on every restart**
-It shouldn't — it's cached in `~/.cache/huggingface`. If you see repeated downloads, check `HF_HOME` env var and disk space.
+**Chat says the AI provider's usage limit was reached**
+The Groq quota is used up; the message says when to retry. See [Before Going to Production](#before-going-to-production).
 
-**OCR is slow / fails**
-Tesseract + poppler must both be on `PATH`. Test with `tesseract --version` and `pdftoppm -v`. On Windows install both via the official installers.
+**A document stays "Queued"**
+The ingest worker runs inside the API process; check the server log. If you set `INGEST_WORKER_ENABLED=false`, start a worker with `python -m jobs`.
 
-**Empty answers on a known-good question**
-Likely the CRAG threshold is too aggressive. Lower `CRAG_THRESHOLD` in `config.py` (try 0.2), or set `CRAG_ENABLED = False` to bypass filtering.
+**OCR is slow or fails**
+Tesseract and poppler must both be on `PATH` (`tesseract --version`, `pdftoppm -v`).
 
-**Ollama "connection refused"**
-The backend assumes Ollama at `http://127.0.0.1:11434`. Start it (`ollama serve`) or change `OLLAMA_BASE_URL` in `config.py`.
+**Reranker downloads on every restart**
+It's cached in `~/.cache/huggingface`; check the `HF_HOME` variable and disk space.
 
-**Chroma collection is stale / weird**
-`POST /clear` (as Admin) wipes both the vector store and the raw uploads. Or delete `data/chroma_db/` and `data/uploads/` manually and restart.
+**Locked out after failed logins**
+Wait 15 minutes or use *Forgot password* — a reset also clears the lock.
 
 ---
 
