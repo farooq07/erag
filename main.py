@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 import shutil
 from contextlib import asynccontextmanager
 from datetime import datetime, time, timezone
@@ -70,7 +71,12 @@ from ingest import (
     update_document_meta,
 )
 from jobs import Worker, enqueue
-from rag import answer_stream, check_answer_grounding, generate_doc_summary, retrieve
+from rag import (
+    check_answer_grounding,
+    generate_answer_stream,
+    generate_doc_summary,
+    retrieve_with_confidence,
+)
 
 DEFAULT_MODEL = GROQ_MODEL if LLM_PROVIDER == "groq" else LLM_MODEL
 
@@ -360,7 +366,7 @@ def sso_callback(request: Request, provider: str, code: str | None = None,
 
 
 def _sso_error_url(message: str) -> str:
-    return f"/?{urlencode({'sso_error': message})}"
+    return f"/login?{urlencode({'sso_error': message})}"
 
 
 @app.post("/auth/forgot-password")
@@ -607,6 +613,16 @@ async def summarize(req: SummaryRequest, user: dict = Depends(get_current_user))
 
 # ── Chat (SSE streaming) ─────────────────────────────────────────────────
 
+def _llm_error_message(e: Exception) -> str:
+    """A user-facing explanation of a model failure."""
+    if getattr(e, "status_code", None) == 429:
+        m = re.search(r"try again in ((?:\d+h)?(?:\d+m)?[\d.]+s)", str(e))
+        when = f" in about {m.group(1).split('.')[0]}s" if m and "m" not in m.group(1) else (
+            f" in about {m.group(1).split('m')[0]} minutes" if m else " shortly")
+        return f"The AI provider's usage limit has been reached. Try again{when}, or ask an admin to raise the plan's limits."
+    return "The language model failed to answer. Please try again or pick another model."
+
+
 @app.post("/chat")
 @limiter.limit("30/minute")
 async def chat(request: Request, req: ChatRequest, user: dict = Depends(get_current_user)):
@@ -615,9 +631,10 @@ async def chat(request: Request, req: ChatRequest, user: dict = Depends(get_curr
 
     async def stream():
         loop = asyncio.get_event_loop()
-        docs = await loop.run_in_executor(
+        # Retrieve once; the same docs are shown as sources and used for the answer.
+        docs, low_confidence = await loop.run_in_executor(
             None,
-            lambda: retrieve(
+            lambda: retrieve_with_confidence(
                 req.question,
                 department=req.department,
                 allowed_departments=allowed,
@@ -648,12 +665,13 @@ async def chat(request: Request, req: ChatRequest, user: dict = Depends(get_curr
 
         def producer():
             try:
-                for token in answer_stream(
+                for token in generate_answer_stream(
                     req.question,
+                    docs,
+                    low_confidence,
                     model=req.model,
                     history=req.history,
                     department=req.department,
-                    allowed_departments=allowed,
                 ):
                     if cancelled:
                         break
@@ -661,7 +679,7 @@ async def chat(request: Request, req: ChatRequest, user: dict = Depends(get_curr
                     loop.call_soon_threadsafe(queue.put_nowait, token)
             except Exception as e:
                 print(f"[chat] LLM error: {e!r}")
-                loop.call_soon_threadsafe(queue.put_nowait, ERROR(str(e)))
+                loop.call_soon_threadsafe(queue.put_nowait, ERROR(_llm_error_message(e)))
             finally:
                 loop.call_soon_threadsafe(queue.put_nowait, SENTINEL)
 
@@ -673,7 +691,7 @@ async def chat(request: Request, req: ChatRequest, user: dict = Depends(get_curr
                 if item is SENTINEL:
                     break
                 if isinstance(item, ERROR):
-                    yield f"data: {json.dumps({'type': 'error', 'message': 'The language model failed to answer. Please try again or pick another model.'})}\n\n"
+                    yield f"data: {json.dumps({'type': 'error', 'message': str(item)})}\n\n"
                     continue
                 yield f"data: {json.dumps({'type': 'token', 'content': item})}\n\n"
         finally:

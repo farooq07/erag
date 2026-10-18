@@ -17,11 +17,11 @@ from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
 
 from config import (
-    CRAG_ENABLED, CRAG_MIN_CHUNKS, CRAG_THRESHOLD,
+    CRAG_ENABLED, CRAG_LOW_CONFIDENCE, CRAG_MIN_CHUNKS, CRAG_THRESHOLD,
     GROQ_API_KEY, GROQ_MODEL,
-    HYDE_ENABLED, LLM_MODEL, LLM_PROVIDER,
+    HYDE_ENABLED, LLM_MAX_RETRIES, LLM_MODEL, LLM_PROVIDER,
     OLLAMA_BASE_URL, QUERY_REWRITE_ENABLED,
-    RERANK_POOL, RERANKER_ENABLED, RERANKER_MODEL,
+    POOL_PER_RETRIEVER, RERANK_POOL, RERANKER_ENABLED, RERANKER_MODEL,
     TOP_K,
 )
 from ingest import get_vectorstore
@@ -61,6 +61,7 @@ def _get_llm(model: str = None, streaming: bool = True):
             model=model or GROQ_MODEL,
             temperature=0.1,
             streaming=streaming,
+            max_retries=LLM_MAX_RETRIES,  # the Groq client backs off on 429s
         )
     from langchain_ollama import ChatOllama
     return ChatOllama(model=model or LLM_MODEL, base_url=OLLAMA_BASE_URL, temperature=0.1)
@@ -213,6 +214,24 @@ def _score_pairs(question: str, docs: list[Document]) -> list[float]:
 _BM25_CACHE: dict | None = None  # {"corpus": list[str], "metas": list[dict], "bm25": BM25Okapi}
 
 
+# Splitting on whitespace kept punctuation glued to words ("esop:", "net-zero",
+# "(q1:"), so exact-term matches silently failed. Tokenise on word characters,
+# keep decimals/thousands together ("18.4", "2,000"), drop question filler.
+_TOKEN_RE = re.compile(r"[^\W_]+(?:\.\d+)?", re.UNICODE)
+_THOUSANDS_RE = re.compile(r"(?<=\d),(?=\d{3}\b)")
+# "it" stays searchable: in office documents it usually means IT.
+_STOPWORDS = frozenset(
+    "a an and are as at be by can could did do does for from had has have how i if in is its "
+    "me my of on or our should so that the their there they this to was we were what when where "
+    "which who why will with would you your".split()
+)
+
+
+def _bm25_tokens(text: str) -> list[str]:
+    text = _THOUSANDS_RE.sub("", text.lower())
+    return [t for t in _TOKEN_RE.findall(text) if t not in _STOPWORDS]
+
+
 def invalidate_bm25_cache() -> None:
     """Drop the cached BM25 index. Called by ingest after corpus mutations."""
     global _BM25_CACHE
@@ -230,7 +249,7 @@ def _get_bm25_cache() -> dict:
     bm25 = None
     if corpus:
         from rank_bm25 import BM25Okapi
-        bm25 = BM25Okapi([d.lower().split() for d in corpus])
+        bm25 = BM25Okapi([_bm25_tokens(d) for d in corpus])
     _BM25_CACHE = {"corpus": corpus, "metas": metas, "bm25": bm25}
     return _BM25_CACHE
 
@@ -285,11 +304,14 @@ def hybrid_retrieve(
     k: int = TOP_K,
     department: str | None = None,
     allowed_departments: list[str] | None = None,
+    keyword_query: str | None = None,
 ) -> list[Document]:
     """Fuse BM25 keyword + (HyDE-augmented) vector results via RRF.
 
     Retrieval is scoped to chunks the current user is allowed to see, optionally
-    further narrowed to a single department.
+    further narrowed to a single department. Pass keyword_query to search
+    BM25 with different text than the vector side (the pipeline sends
+    the original question plus its rewrite, so exact terms like "Q1" survive).
     """
     vs = get_vectorstore()
     dept_filter = _build_dept_filter(department, allowed_departments)
@@ -313,7 +335,7 @@ def hybrid_retrieve(
     try:
         cache = _get_bm25_cache()
         if cache["bm25"] is not None:
-            scores = cache["bm25"].get_scores(question.lower().split())
+            scores = cache["bm25"].get_scores(_bm25_tokens(keyword_query or question))
             top_idx = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
             bm25_docs = []
             for i in top_idx:
@@ -324,31 +346,47 @@ def hybrid_retrieve(
                 if not _meta_matches_filter(cache["metas"][i], dept_filter):
                     continue
                 bm25_docs.append(
-                    Document(page_content=cache["corpus"][i], metadata=cache["metas"][i])
+                    Document(page_content=cache["corpus"][i], metadata=dict(cache["metas"][i]))
                 )
         else:
             bm25_docs = []
     except Exception:
         bm25_docs = []
 
-    # RRF fusion
+    # RRF fusion. Key on the chunk's identity: chunks of one section share a
+    # location prefix, so a text prefix would wrongly merge them.
+    def _key(doc: Document) -> str:
+        m = doc.metadata
+        return f"{m.get('source')}#{m.get('chunk_id')}" if "chunk_id" in m else doc.page_content
+
     fused: dict[str, dict] = {}
     for rank, doc in enumerate(vector_docs):
-        key = doc.page_content[:120]
+        key = _key(doc)
         if key not in fused:
             fused[key] = {"doc": doc, "score": 0.0}
         fused[key]["score"] += _rrf_score(rank)
 
     for rank, doc in enumerate(bm25_docs):
-        key = doc.page_content[:120]
+        key = _key(doc)
         if key not in fused:
             fused[key] = {"doc": doc, "score": 0.0}
         fused[key]["score"] += _rrf_score(rank)
 
-    ranked = sorted(fused.values(), key=lambda x: x["score"], reverse=True)
-    # Return a larger pool so the reranker has room to work; caller trims to k.
-    pool = max(k, RERANK_POOL) if RERANKER_ENABLED else k
-    return [item["doc"] for item in ranked[:pool]]
+    ranked = [item["doc"] for item in sorted(fused.values(), key=lambda x: x["score"], reverse=True)]
+    if not RERANKER_ENABLED:
+        return ranked[:k]
+    # Pool for the reranker: each retriever's own top hits are guaranteed a
+    # place (RRF favours chunks found by both, which can push out a chunk that
+    # only one side found but ranked first), then fill by fused rank.
+    pool, seen = [], set()
+    for doc in [*vector_docs[:POOL_PER_RETRIEVER], *bm25_docs[:POOL_PER_RETRIEVER], *ranked]:
+        key = _key(doc)
+        if key not in seen:
+            seen.add(key)
+            pool.append(fused[key]["doc"])
+        if len(pool) >= max(k, RERANK_POOL):
+            break
+    return pool
 
 
 # ── Pipeline orchestration ──────────────────────────────────────────────
@@ -367,6 +405,7 @@ def _retrieve_pipeline(
     docs = hybrid_retrieve(
         effective_q, k=k,
         department=department, allowed_departments=allowed_departments,
+        keyword_query=question if effective_q == question else f"{question} {effective_q}",
     )
     if not docs:
         return [], False
@@ -378,19 +417,23 @@ def _retrieve_pipeline(
         ranked = sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)
         docs = [d for d, _ in ranked]
         scores = [s for _, s in ranked]
+        for d, s in ranked:
+            d.metadata["rerank_score"] = round(float(s), 4)
 
-    # [CRAG] Drop chunks below threshold; flag low-confidence if too few survive.
+    # [CRAG] Keep the strongest chunks and drop weak ones from the context.
+    # Low confidence is judged on the best chunk alone: with one section per
+    # chunk, a single strong passage usually answers the question, and the old
+    # "fewer than N chunks above threshold" rule flagged ~2 in 3 good answers.
+    # Threshold calibrated on the eval set (eval/): see docs in config.py.
     low_confidence = False
     if CRAG_ENABLED:
         if scores is None:
             scores = _score_pairs(effective_q, docs)
-        kept = [(d, s) for d, s in zip(docs, scores) if s >= CRAG_THRESHOLD]
-        if len(kept) < CRAG_MIN_CHUNKS:
-            low_confidence = True
-            # Fall back to top-k of the unfiltered list so we still answer.
-            kept_docs = docs[:k]
-        else:
-            kept_docs = [d for d, _ in kept][:k]
+            ranked = sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)
+            docs, scores = [d for d, _ in ranked], [s for _, s in ranked]
+        low_confidence = bool(scores) and scores[0] < CRAG_LOW_CONFIDENCE
+        kept_docs = [d for i, (d, s) in enumerate(zip(docs, scores))
+                     if i < CRAG_MIN_CHUNKS or s >= CRAG_THRESHOLD][:k]
         return kept_docs, low_confidence
 
     return docs[:k], low_confidence
@@ -437,6 +480,77 @@ def retrieve(
     return docs
 
 
+def retrieve_with_confidence(
+    question: str,
+    k: int = TOP_K,
+    department: str | None = None,
+    allowed_departments: list[str] | None = None,
+    history: list[dict] | None = None,
+) -> tuple[list[Document], bool]:
+    """Like retrieve(), but also returns the CRAG low-confidence flag."""
+    return _retrieve_pipeline(
+        question, k=k,
+        department=department, allowed_departments=allowed_departments,
+        history=history,
+    )
+
+
+NO_ANSWER = "I couldn't find this in the uploaded documents"
+LOW_CONFIDENCE_NOTE = ("⚠️ *Low-confidence answer — limited relevant context was found "
+                       "for this question. Please verify against the cited sources.*\n\n")
+
+
+def _answer_chain(model: str | None, streaming: bool):
+    prompt = ChatPromptTemplate.from_messages([("system", SYSTEM_PROMPT), ("user", USER_PROMPT)])
+    return prompt | _get_llm(model, streaming=streaming)
+
+
+def _answer_inputs(question: str, docs: list[Document], history: list[dict] | None) -> dict:
+    return {
+        "context": _format_context(docs),
+        "question": question,
+        "history_block": _format_history(history or []),
+    }
+
+
+def _no_docs_message(department: str | None) -> str:
+    scope = f" for the **{department}** department" if department and department.lower() != "all" else ""
+    return f"{NO_ANSWER}{scope}."
+
+
+def generate_answer_stream(
+    question: str,
+    docs: list[Document],
+    low_confidence: bool = False,
+    model: str | None = None,
+    history: list[dict] | None = None,
+    department: str | None = None,
+) -> Iterator[str]:
+    """Stream an answer grounded in already-retrieved docs."""
+    if not docs:
+        yield _no_docs_message(department)
+        return
+    if low_confidence:
+        yield LOW_CONFIDENCE_NOTE
+    for chunk in _answer_chain(model, streaming=True).stream(_answer_inputs(question, docs, history)):
+        yield chunk.content
+
+
+def generate_answer(
+    question: str,
+    docs: list[Document],
+    low_confidence: bool = False,
+    model: str | None = None,
+    history: list[dict] | None = None,
+    department: str | None = None,
+) -> str:
+    """Non-streaming twin of generate_answer_stream (used by the eval)."""
+    if not docs:
+        return _no_docs_message(department)
+    text = _answer_chain(model, streaming=False).invoke(_answer_inputs(question, docs, history)).content
+    return (LOW_CONFIDENCE_NOTE if low_confidence else "") + text
+
+
 def answer_stream(
     question: str,
     model: str = None,
@@ -444,94 +558,13 @@ def answer_stream(
     department: str | None = None,
     allowed_departments: list[str] | None = None,
 ) -> Iterator[str]:
+    """Retrieve + answer in one call."""
     docs, low_confidence = _retrieve_pipeline(
         question,
         department=department, allowed_departments=allowed_departments,
         history=history,
     )
-    if not docs:
-        scope = f" for the **{department}** department" if department and department.lower() != "all" else ""
-        yield f"I couldn't find this in the uploaded documents{scope}."
-        return
-
-    # [CRAG] Prepend low-confidence warning if filtering thinned the pool.
-    if low_confidence:
-        yield ("⚠️ *Low-confidence answer — limited relevant context was found "
-               "for this question. Please verify against the cited sources.*\n\n")
-
-    context = _format_context(docs)
-    history_block = _format_history(history or [])
-
-    llm = _get_llm(model)
-    prompt = ChatPromptTemplate.from_messages(
-        [("system", SYSTEM_PROMPT), ("user", USER_PROMPT)]
-    )
-    chain = prompt | llm
-    for chunk in chain.stream(
-        {"context": context, "question": question, "history_block": history_block}
-    ):
-        yield chunk.content
-
-
-def check_answer_grounding(
-    answer: str,
-    docs: list[Document],
-    model: str | None = None,
-) -> dict:
-    """Post-generation faithfulness check: classify each answer claim as grounded or not.
-
-    Uses an LLM judge to split the answer into atomic claims and verify each
-    against the retrieved chunks.  Surfaces ungrounded sentences so the UI can
-    flag them to the user without altering the answer text.
-
-    Returns:
-        grounded   — sentences directly supported by context
-        ungrounded — sentences with no support in retrieved chunks
-        score      — fraction grounded (1.0 = fully faithful, no hallucination)
-        warning    — True when any ungrounded sentences exist
-    """
-    if not answer.strip() or not docs:
-        return {"grounded": [], "ungrounded": [], "score": 1.0, "warning": False}
-
-    context = "\n\n".join(
-        f"[{i}] {d.metadata.get('source', '?')}\n{d.page_content}"
-        for i, d in enumerate(docs, 1)
-    )[:4000]
-
-    try:
-        llm = _get_llm(model, streaming=False)
-        prompt = ChatPromptTemplate.from_messages([
-            ("system",
-             "You verify whether an AI-generated answer is grounded in a given context. "
-             "Split the answer into individual factual claims or sentences. "
-             "Classify each as GROUNDED (directly supported by context) or "
-             "UNGROUNDED (not present in or contradicted by context). "
-             "Reply with ONLY valid JSON — no markdown, no explanation:\n"
-             '{"grounded": ["..."], "ungrounded": ["..."]}'),
-            ("user",
-             f"Context:\n{context}\n\n"
-             f"Answer to verify:\n{answer}"),
-        ])
-        raw = (prompt | llm).invoke({}).content.strip()
-        # Strip markdown code fences if the model wraps its output.
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json\n"):
-                raw = raw[5:]
-        parsed = json.loads(raw)
-        grounded = [s for s in parsed.get("grounded", []) if s]
-        ungrounded = [s for s in parsed.get("ungrounded", []) if s]
-        total = len(grounded) + len(ungrounded)
-        score = len(grounded) / total if total else 1.0
-        return {
-            "grounded": grounded,
-            "ungrounded": ungrounded,
-            "score": round(score, 3),
-            "warning": len(ungrounded) > 0,
-        }
-    except Exception:
-        # Safe fallback — never disrupt the chat flow on LLM or parse errors.
-        return {"grounded": [], "ungrounded": [], "score": 1.0, "warning": False}
+    yield from generate_answer_stream(question, docs, low_confidence, model, history, department)
 
 
 def generate_doc_summary(file_name: str, model: str = None) -> str:

@@ -1,0 +1,17 @@
+{
+  "_about": "Documents indexed for the eval: the demo corpus plus distractors in eval/corpus/ that share vocabulary with it. Paths are relative to the repo root.",
+  "documents": [
+    {"path": "demo/HR_Leave_Policy.md", "department": "HR"},
+    {"path": "demo/Finance_Q3_2024_Report.md", "department": "Finance"},
+    {"path": "demo/IT_Security_Policy.md", "department": "IT"},
+    {"path": "demo/Legal_NDA_Template.md", "department": "Legal"},
+    {"path": "demo/Operations_SOPs.md", "department": "Operations"},
+    {"path": "demo/Company_Handbook.md", "department": "General"},
+    {"path": "eval/corpus/Finance_Q2_2024_Report.md", "department": "Finance"},
+    {"path": "eval/corpus/Finance_Travel_Expenses_Policy.md", "department": "Finance"},
+    {"path": "eval/corpus/HR_Recruitment_and_Onboarding.md", "department": "HR"},
+    {"path": "eval/corpus/IT_Acceptable_Use_Policy.md", "department": "IT"},
+    {"path": "eval/corpus/Legal_Data_Protection_Policy.md", "department": "Legal"},
+    {"path": "eval/corpus/Operations_Amsterdam_Office_Guide.md", "department": "Operations"}
+  ]
+}

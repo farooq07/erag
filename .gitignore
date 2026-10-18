@@ -19,5 +19,8 @@ server.log
 data/audit.jsonl
 data/documind.db*
 data/chroma_db.bak*/
+eval/.work/
+eval/.cache/
+eval/results/
 screenshots/
 frontend/shot.cjs

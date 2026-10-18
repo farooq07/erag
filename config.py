@@ -20,6 +20,7 @@ LLM_PROVIDER = "groq"
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")   # fast + smart
 LLM_MODEL = "qwen2.5:3b"              # fallback if groq off
+LLM_MAX_RETRIES = int(os.getenv("LLM_MAX_RETRIES", "2"))
 
 CHUNK_SIZE = 800
 CHUNK_OVERLAP = 120
@@ -30,13 +31,19 @@ COLLECTION_NAME = "office_docs"
 # ── Advanced retrieval feature flags ────────────────────────────────────
 # Toggle each independently. All default ON.
 QUERY_REWRITE_ENABLED = True   # LLM rewrites/expands the query before retrieval
-HYDE_ENABLED = True            # Hypothetical Document Embeddings for vector search
+# Off: on the eval set HyDE gave identical retrieval scores but cost one model
+# call and ~0.9s per question (see eval/README.md).
+HYDE_ENABLED = False           # Hypothetical Document Embeddings for vector search
 RERANKER_ENABLED = True        # Cross-encoder reranks fused results
 CRAG_ENABLED = True            # Corrective-RAG: filter low-relevance chunks + warn
 
-CRAG_THRESHOLD = 0.3           # Min relevance score (0-1) to keep a chunk
-CRAG_MIN_CHUNKS = 2            # Below this many surviving chunks → low-confidence
-RERANK_POOL = 10               # How many fused candidates the reranker sees
+CRAG_THRESHOLD = 0.3           # Chunks beyond the top CRAG_MIN_CHUNKS need this reranker score (0-1)
+CRAG_MIN_CHUNKS = 2            # Always keep this many top-ranked chunks
+# Warn "low confidence" when even the best chunk scores below this. On the eval set
+# 0.02 flags 4/52 answerable questions and 5/6 unanswerable ones.
+CRAG_LOW_CONFIDENCE = 0.02
+RERANK_POOL = 20               # How many fused candidates the reranker sees
+POOL_PER_RETRIEVER = 5         # Each retriever's top hits always reach the reranker
 RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
 GROUNDING_CHECK_ENABLED = True # Post-gen faithfulness check; adds ~1s after answer

@@ -1,72 +1,749 @@
 {
-  "_instructions": [
-    "Replace the placeholder entries below with real Q&A pairs from your documents.",
-    "Each entry needs: 'question' (what a user would ask), 'expected_sources' (exact filenames",
-    "  from data/uploads/ that should appear in the top-k results), and 'department' (optional).",
-    "Aim for 30-50 entries covering a mix of departments and question types.",
-    "",
-    "Run retrieval eval:        python eval/eval_runner.py",
-    "Run with faithfulness:     python eval/eval_runner.py --faithfulness",
-    "Sweep all flag combos:     python eval/eval_runner.py --flag-combos",
-    "Flag sweep + faithfulness: python eval/eval_runner.py --flag-combos --faithfulness",
-    "Filter one question:       python eval/eval_runner.py --question 'leave policy'",
-    "Change top-k:              python eval/eval_runner.py --k 10",
-    "",
-    "Scoring guide:",
-    "  hit_rate    — 1.0 if any expected_source appears in retrieved top-k",
-    "  mrr         — mean reciprocal rank (1.0 = expected source is rank #1)",
-    "  faithfulness— LLM judge 0-1: are all answer claims grounded in context?",
-    "",
-    "Entries with '_example' anywhere in the object are automatically skipped."
+  "_about": [
+    "Golden questions over the documents in eval/corpus.json.",
+    "expected_sources: any of these in the top-k counts as a retrieval hit.",
+    "facts: every fact must appear in the answer; a fact may be a list of acceptable phrasings.",
+    "answerable=false: the right answer is a refusal (\"couldn't find\").",
+    "department: the scope the user picked; omitted = all departments.",
+    "history: earlier turns, for follow-up questions."
   ],
   "questions": [
     {
-      "_example": "HR — fact lookup",
-      "question": "What is the annual leave entitlement for full-time employees?",
-      "expected_sources": ["HR_Leave_Policy_2024.pdf"],
-      "department": "HR"
+      "id": "hr-annual-leave",
+      "type": "lookup",
+      "question": "How many days of annual leave do full-time employees get?",
+      "expected_sources": [
+        "HR_Leave_Policy.md"
+      ],
+      "facts": [
+        "25"
+      ]
     },
     {
-      "_example": "HR — procedure",
-      "question": "How do employees apply for parental leave?",
-      "expected_sources": ["HR_Leave_Policy_2024.pdf"],
-      "department": "HR"
+      "id": "hr-sick-cert",
+      "type": "lookup",
+      "question": "After how many days off sick do I need a doctor's certificate?",
+      "expected_sources": [
+        "HR_Leave_Policy.md"
+      ],
+      "facts": [
+        [
+          "3 consecutive days",
+          "three consecutive days",
+          "more than 3",
+          "exceeding 3",
+          "3 days"
+        ]
+      ]
     },
     {
-      "_example": "Accounts — number lookup",
-      "question": "What are the payment terms for vendor invoices?",
-      "expected_sources": ["Accounts_Payable_Guidelines.pdf"],
-      "department": "Accounts"
+      "id": "hr-maternity",
+      "type": "lookup",
+      "question": "How long is paid maternity leave and what is the service requirement?",
+      "expected_sources": [
+        "HR_Leave_Policy.md"
+      ],
+      "facts": [
+        "20 weeks",
+        [
+          "12 months",
+          "one year",
+          "1 year"
+        ]
+      ]
     },
     {
-      "_example": "Accounts — policy",
-      "question": "What is the approval threshold for purchase orders over $10,000?",
-      "expected_sources": ["Accounts_Payable_Guidelines.pdf"],
-      "department": "Accounts"
+      "id": "hr-paternity",
+      "type": "paraphrase",
+      "question": "My partner is having a baby next month. How much paid time off do I get as the father?",
+      "expected_sources": [
+        "HR_Leave_Policy.md"
+      ],
+      "facts": [
+        [
+          "4 weeks",
+          "four weeks"
+        ]
+      ]
     },
     {
-      "_example": "Finance — comparative",
-      "question": "How did Q3 revenue compare to Q2?",
-      "expected_sources": ["Q3_Financial_Report.pdf"],
-      "department": "Finance"
+      "id": "hr-carry-over",
+      "type": "lookup",
+      "question": "Can I carry unused holiday into next year, and by when must I use it?",
+      "expected_sources": [
+        "HR_Leave_Policy.md"
+      ],
+      "facts": [
+        "5",
+        "31 march"
+      ]
     },
     {
-      "_example": "IT — procedure",
-      "question": "What is the process for requesting a new software license?",
-      "expected_sources": ["IT_Asset_Management_Policy.pdf"],
-      "department": "IT"
+      "id": "hr-bereavement-grandparent",
+      "type": "lookup",
+      "question": "How much bereavement leave is given when a grandparent dies?",
+      "expected_sources": [
+        "HR_Leave_Policy.md"
+      ],
+      "facts": [
+        [
+          "3 working days",
+          "three working days",
+          "3 days"
+        ]
+      ]
     },
     {
-      "_example": "Legal — definition",
-      "question": "What are the confidentiality obligations under the NDA template?",
-      "expected_sources": ["Standard_NDA_Template.docx"],
-      "department": "Legal"
+      "id": "hr-overtime",
+      "type": "lookup",
+      "question": "What is the overtime rate after the first 10 hours in a month?",
+      "expected_sources": [
+        "HR_Leave_Policy.md"
+      ],
+      "facts": [
+        [
+          "2×",
+          "2x",
+          "double",
+          "twice"
+        ]
+      ]
     },
     {
-      "_example": "cross-department — tests that the right doc wins across depts",
-      "question": "What is the company's data retention policy?",
-      "expected_sources": ["Data_Retention_Policy.pdf"],
-      "department": null
+      "id": "hr-form-09",
+      "type": "keyword",
+      "question": "What is form HR-09 used for?",
+      "expected_sources": [
+        "HR_Leave_Policy.md"
+      ],
+      "facts": [
+        "maternity"
+      ]
+    },
+    {
+      "id": "hr-probation",
+      "type": "lookup",
+      "question": "How long is the probation period for new starters?",
+      "expected_sources": [
+        "HR_Recruitment_and_Onboarding.md"
+      ],
+      "facts": [
+        [
+          "6-month",
+          "6 months",
+          "six months"
+        ]
+      ]
+    },
+    {
+      "id": "hr-notice-grade6",
+      "type": "lookup",
+      "question": "What notice period applies to a Grade 6 employee?",
+      "expected_sources": [
+        "HR_Recruitment_and_Onboarding.md"
+      ],
+      "facts": [
+        [
+          "2 months",
+          "two months",
+          "2-month",
+          "two-month"
+        ]
+      ]
+    },
+    {
+      "id": "hr-referral",
+      "type": "paraphrase",
+      "question": "Do I get anything if a friend I recommended gets hired?",
+      "expected_sources": [
+        "HR_Recruitment_and_Onboarding.md"
+      ],
+      "facts": [
+        "2,000"
+      ]
+    },
+    {
+      "id": "fin-q3-revenue",
+      "type": "lookup",
+      "question": "What was total revenue in Q3 2024?",
+      "expected_sources": [
+        "Finance_Q3_2024_Report.md"
+      ],
+      "facts": [
+        "18.4"
+      ]
+    },
+    {
+      "id": "fin-q2-revenue",
+      "type": "distractor",
+      "question": "What was Acme's total revenue in Q2 2024?",
+      "expected_sources": [
+        "Finance_Q2_2024_Report.md",
+        "Finance_Q3_2024_Report.md"
+      ],
+      "facts": [
+        "16.1"
+      ]
+    },
+    {
+      "id": "fin-q2-closing-cash",
+      "type": "distractor",
+      "question": "What was the closing cash balance at the end of Q2 2024?",
+      "expected_sources": [
+        "Finance_Q2_2024_Report.md",
+        "Finance_Q3_2024_Report.md"
+      ],
+      "facts": [
+        "8.3"
+      ]
+    },
+    {
+      "id": "fin-q3-closing-cash",
+      "type": "distractor",
+      "question": "What was the closing cash balance on 30 September 2024?",
+      "expected_sources": [
+        "Finance_Q3_2024_Report.md"
+      ],
+      "facts": [
+        "11.3"
+      ]
+    },
+    {
+      "id": "fin-q3-cac",
+      "type": "lookup",
+      "question": "What was customer acquisition cost in Q3 2024?",
+      "expected_sources": [
+        "Finance_Q3_2024_Report.md"
+      ],
+      "facts": [
+        "4,200"
+      ]
+    },
+    {
+      "id": "fin-q1-headcount",
+      "type": "distractor",
+      "question": "How many employees did Acme have at the end of Q1 2024?",
+      "expected_sources": [
+        "Finance_Q2_2024_Report.md"
+      ],
+      "facts": [
+        "304"
+      ]
+    },
+    {
+      "id": "fin-ebitda-growth",
+      "type": "comparison",
+      "question": "How did EBITDA change between Q2 and Q3 2024?",
+      "expected_sources": [
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q2_2024_Report.md"
+      ],
+      "facts": [
+        "3.5",
+        "4.2"
+      ]
+    },
+    {
+      "id": "fin-q4-outlook",
+      "type": "lookup",
+      "question": "What revenue is projected for Q4 2024?",
+      "expected_sources": [
+        "Finance_Q3_2024_Report.md"
+      ],
+      "facts": [
+        "19.5",
+        "20.5"
+      ]
+    },
+    {
+      "id": "fin-hotel-london",
+      "type": "lookup",
+      "question": "What is the maximum hotel rate per night in London?",
+      "expected_sources": [
+        "Finance_Travel_Expenses_Policy.md"
+      ],
+      "facts": [
+        "220"
+      ]
+    },
+    {
+      "id": "fin-mileage",
+      "type": "paraphrase",
+      "question": "I drove my own car to a client site. How much do I get back per mile?",
+      "expected_sources": [
+        "Finance_Travel_Expenses_Policy.md"
+      ],
+      "facts": [
+        [
+          "45p",
+          "45 pence",
+          "£0.45"
+        ]
+      ]
+    },
+    {
+      "id": "fin-expense-deadline",
+      "type": "lookup",
+      "question": "How long do I have to submit an expense claim?",
+      "expected_sources": [
+        "Finance_Travel_Expenses_Policy.md"
+      ],
+      "facts": [
+        "30 days"
+      ]
+    },
+    {
+      "id": "fin-business-class",
+      "type": "lookup",
+      "question": "Who has to approve business class flights?",
+      "expected_sources": [
+        "Finance_Travel_Expenses_Policy.md"
+      ],
+      "facts": [
+        "cfo"
+      ]
+    },
+    {
+      "id": "it-password-length",
+      "type": "lookup",
+      "question": "What is the minimum password length?",
+      "expected_sources": [
+        "IT_Security_Policy.md"
+      ],
+      "facts": [
+        "14"
+      ]
+    },
+    {
+      "id": "it-password-expiry",
+      "type": "paraphrase",
+      "question": "How often will I be forced to change my password on a normal account?",
+      "expected_sources": [
+        "IT_Security_Policy.md"
+      ],
+      "facts": [
+        "90 days"
+      ]
+    },
+    {
+      "id": "it-form-14",
+      "type": "keyword",
+      "question": "Which form do I use to request a new software license?",
+      "expected_sources": [
+        "IT_Security_Policy.md"
+      ],
+      "facts": [
+        "it-14"
+      ]
+    },
+    {
+      "id": "it-critical-incident",
+      "type": "lookup",
+      "question": "What is the initial response time for a critical security incident?",
+      "expected_sources": [
+        "IT_Security_Policy.md"
+      ],
+      "facts": [
+        "15"
+      ]
+    },
+    {
+      "id": "it-vpn",
+      "type": "lookup",
+      "question": "Which VPN must be used for remote access?",
+      "expected_sources": [
+        "IT_Security_Policy.md"
+      ],
+      "facts": [
+        "zscaler"
+      ]
+    },
+    {
+      "id": "it-screen-lock",
+      "type": "lookup",
+      "question": "After how long does a company laptop lock itself?",
+      "expected_sources": [
+        "IT_Acceptable_Use_Policy.md"
+      ],
+      "facts": [
+        [
+          "5 minutes",
+          "five minutes"
+        ]
+      ]
+    },
+    {
+      "id": "it-lost-laptop",
+      "type": "paraphrase",
+      "question": "I left my work laptop on the train. How quickly must I tell someone?",
+      "expected_sources": [
+        "IT_Acceptable_Use_Policy.md"
+      ],
+      "facts": [
+        [
+          "2 hours",
+          "two hours"
+        ]
+      ]
+    },
+    {
+      "id": "it-ai-tools",
+      "type": "lookup",
+      "question": "Which AI tools are approved for use with confidential data?",
+      "expected_sources": [
+        "IT_Acceptable_Use_Policy.md"
+      ],
+      "facts": [
+        "copilot"
+      ]
+    },
+    {
+      "id": "legal-nda-term",
+      "type": "lookup",
+      "question": "How long does the standard NDA last, and how long do confidentiality obligations survive?",
+      "expected_sources": [
+        "Legal_NDA_Template.md"
+      ],
+      "facts": [
+        [
+          "three (3) years",
+          "3 years",
+          "three years"
+        ],
+        [
+          "five (5) years",
+          "5 years",
+          "five years"
+        ]
+      ]
+    },
+    {
+      "id": "legal-nda-law",
+      "type": "lookup",
+      "question": "Which country's law governs our NDA?",
+      "expected_sources": [
+        "Legal_NDA_Template.md"
+      ],
+      "facts": [
+        "england"
+      ]
+    },
+    {
+      "id": "legal-dsar",
+      "type": "lookup",
+      "question": "How long do we have to respond to a data subject access request?",
+      "expected_sources": [
+        "Legal_Data_Protection_Policy.md"
+      ],
+      "facts": [
+        [
+          "one calendar month",
+          "1 month",
+          "one month"
+        ]
+      ]
+    },
+    {
+      "id": "legal-ico",
+      "type": "lookup",
+      "question": "Within how many hours must a serious data breach be reported to the ICO?",
+      "expected_sources": [
+        "Legal_Data_Protection_Policy.md"
+      ],
+      "facts": [
+        "72"
+      ]
+    },
+    {
+      "id": "legal-retention-candidates",
+      "type": "lookup",
+      "question": "How long do we keep data about unsuccessful job candidates?",
+      "expected_sources": [
+        "Legal_Data_Protection_Policy.md"
+      ],
+      "facts": [
+        [
+          "6 months",
+          "six months"
+        ]
+      ]
+    },
+    {
+      "id": "legal-dpo-name",
+      "type": "lookup",
+      "question": "Who is the Data Protection Officer?",
+      "expected_sources": [
+        "Legal_Data_Protection_Policy.md"
+      ],
+      "facts": [
+        "priya"
+      ]
+    },
+    {
+      "id": "ops-po-threshold",
+      "type": "lookup",
+      "question": "Above what amount does a purchase need a formal purchase order in SAP?",
+      "expected_sources": [
+        "Operations_SOPs.md"
+      ],
+      "facts": [
+        "2,000"
+      ]
+    },
+    {
+      "id": "ops-approval-cfo",
+      "type": "lookup",
+      "question": "Who needs to approve a purchase of £60,000?",
+      "expected_sources": [
+        "Operations_SOPs.md"
+      ],
+      "facts": [
+        "cfo"
+      ]
+    },
+    {
+      "id": "ops-rto",
+      "type": "keyword",
+      "question": "What is the RTO for critical systems?",
+      "expected_sources": [
+        "Operations_SOPs.md"
+      ],
+      "facts": [
+        [
+          "4 hours",
+          "four hours"
+        ]
+      ]
+    },
+    {
+      "id": "ops-london-hours",
+      "type": "distractor",
+      "question": "What are the office opening hours set out in the Operations SOPs?",
+      "expected_sources": [
+        "Operations_SOPs.md"
+      ],
+      "facts": [
+        "08:00",
+        "20:00"
+      ]
+    },
+    {
+      "id": "ops-amsterdam-hours",
+      "type": "distractor",
+      "question": "What time does the Amsterdam office open and close?",
+      "expected_sources": [
+        "Operations_Amsterdam_Office_Guide.md"
+      ],
+      "facts": [
+        "07:30",
+        "19:00"
+      ]
+    },
+    {
+      "id": "ops-amsterdam-tram",
+      "type": "lookup",
+      "question": "What's the nearest tram stop to the Amsterdam office?",
+      "expected_sources": [
+        "Operations_Amsterdam_Office_Guide.md"
+      ],
+      "facts": [
+        "dam"
+      ]
+    },
+    {
+      "id": "ops-net-zero",
+      "type": "lookup",
+      "question": "By what year does Acme aim to be net zero?",
+      "expected_sources": [
+        "Operations_SOPs.md"
+      ],
+      "facts": [
+        "2035"
+      ]
+    },
+    {
+      "id": "gen-pension",
+      "type": "lookup",
+      "question": "How much does the company contribute to my pension?",
+      "expected_sources": [
+        "Company_Handbook.md"
+      ],
+      "facts": [
+        "6%"
+      ]
+    },
+    {
+      "id": "gen-learning-budget",
+      "type": "paraphrase",
+      "question": "Is there money available for me to take a course or go to a conference?",
+      "expected_sources": [
+        "Company_Handbook.md"
+      ],
+      "facts": [
+        "1,500"
+      ]
+    },
+    {
+      "id": "gen-gift-limit",
+      "type": "lookup",
+      "question": "What is the limit on gifts I can accept without approval?",
+      "expected_sources": [
+        "Company_Handbook.md"
+      ],
+      "facts": [
+        "50"
+      ]
+    },
+    {
+      "id": "gen-office-days",
+      "type": "lookup",
+      "question": "How many days a week do I have to be in the office?",
+      "expected_sources": [
+        "Company_Handbook.md"
+      ],
+      "facts": [
+        [
+          "2 days",
+          "two days"
+        ]
+      ]
+    },
+    {
+      "id": "gen-esop",
+      "type": "keyword",
+      "question": "What is the ESOP vesting schedule?",
+      "expected_sources": [
+        "Company_Handbook.md"
+      ],
+      "facts": [
+        [
+          "4-year",
+          "4 years",
+          "four years",
+          "four-year"
+        ],
+        [
+          "1-year cliff",
+          "one-year cliff",
+          "1 year cliff"
+        ]
+      ]
+    },
+    {
+      "id": "multi-breach-two-deadlines",
+      "type": "comparison",
+      "question": "If I suspect a personal data breach, who do I tell and how quickly, and when does the regulator need to hear about it?",
+      "expected_sources": [
+        "Company_Handbook.md",
+        "Legal_Data_Protection_Policy.md"
+      ],
+      "facts": [
+        "dpo",
+        "72"
+      ]
+    },
+    {
+      "id": "follow-up-paternity",
+      "type": "follow-up",
+      "question": "And what about the father?",
+      "history": [
+        {
+          "role": "user",
+          "content": "How long is maternity leave?"
+        },
+        {
+          "role": "assistant",
+          "content": "Eligible employees get 20 weeks of fully paid maternity leave, plus an optional 10 weeks unpaid."
+        }
+      ],
+      "expected_sources": [
+        "HR_Leave_Policy.md"
+      ],
+      "facts": [
+        [
+          "4 weeks",
+          "four weeks"
+        ]
+      ]
+    },
+    {
+      "id": "follow-up-q2",
+      "type": "follow-up",
+      "question": "And the quarter before that?",
+      "history": [
+        {
+          "role": "user",
+          "content": "What was net profit in Q3 2024?"
+        },
+        {
+          "role": "assistant",
+          "content": "Net profit in Q3 2024 was £2.4 million, a 13.0% margin."
+        }
+      ],
+      "expected_sources": [
+        "Finance_Q2_2024_Report.md",
+        "Finance_Q3_2024_Report.md"
+      ],
+      "facts": [
+        "1.9"
+      ]
+    },
+    {
+      "id": "unans-pets",
+      "type": "unanswerable",
+      "question": "Am I allowed to bring my dog to the office?",
+      "answerable": false,
+      "expected_sources": [],
+      "facts": []
+    },
+    {
+      "id": "unans-ceo-salary",
+      "type": "unanswerable",
+      "question": "What is the CEO's salary?",
+      "answerable": false,
+      "expected_sources": [],
+      "facts": []
+    },
+    {
+      "id": "unans-q4-actuals",
+      "type": "unanswerable",
+      "question": "What was the actual revenue for Q4 2024?",
+      "answerable": false,
+      "expected_sources": [],
+      "facts": []
+    },
+    {
+      "id": "unans-singapore-tram",
+      "type": "unanswerable",
+      "question": "What is the nearest MRT station to the Singapore office?",
+      "answerable": false,
+      "expected_sources": [],
+      "facts": []
+    },
+    {
+      "id": "scope-hr-in-finance",
+      "type": "scope",
+      "department": "Finance",
+      "question": "How many days of annual leave do full-time employees get?",
+      "answerable": false,
+      "expected_sources": [],
+      "forbidden_sources": [
+        "HR_Leave_Policy.md"
+      ],
+      "facts": []
+    },
+    {
+      "id": "scope-finance-in-it",
+      "type": "scope",
+      "department": "IT",
+      "question": "What was total revenue in Q3 2024?",
+      "answerable": false,
+      "expected_sources": [],
+      "forbidden_sources": [
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q2_2024_Report.md"
+      ],
+      "facts": []
     }
   ]
 }

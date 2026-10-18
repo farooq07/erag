@@ -6,6 +6,7 @@ Document ingestion pipeline with:
 - Department / tag categorisation
 """
 import hashlib
+import re
 from pathlib import Path
 from typing import Iterable
 
@@ -253,6 +254,53 @@ def get_vectorstore():
 
 # ── Splitter ─────────────────────────────────────────────────────────────
 
+# ── Structure-aware chunking ─────────────────────────────────────────────
+# Fixed-size chunks used to cut across sections (a table separated from its
+# heading, three unrelated sections in one chunk), which hurt keyword search,
+# embeddings and the reranker alike. Markdown-structured text is now split on
+# headings, one section per chunk, and every chunk starts with a location
+# line ("Operations SOPs › 2. Procurement Thresholds") so it can be matched
+# and understood out of context.
+
+_MD_HEADING_RE = re.compile(r"^(#{1,3})\s+(.+?)\s*#*\s*$", re.MULTILINE)
+
+
+def _doc_title(docs: list[Document], source_name: str) -> str:
+    for d in docs[:1]:
+        m = re.search(r"^#\s+(.+)$", d.page_content, re.MULTILINE)
+        if m:
+            # "Acme Corp — Operations Standard Operating Procedures" → the part after the dash
+            return re.split(r"\s+[—–-]\s+", m.group(1).strip(), maxsplit=1)[-1]
+    return Path(source_name).stem.replace("_", " ")
+
+
+def _split_by_sections(doc: Document, title: str, splitter) -> list[Document]:
+    text = doc.page_content
+    marks = list(_MD_HEADING_RE.finditer(text))
+    sections, path = [], {}
+    starts = [m.start() for m in marks] + [len(text)]
+    if marks and marks[0].start() > 0:
+        sections.append(([], text[: marks[0].start()]))
+    for m, end in zip(marks, starts[1:]):
+        level = len(m.group(1))
+        path = {k: v for k, v in path.items() if k < level}
+        path[level] = m.group(2).strip()
+        trail = [path[k] for k in sorted(path) if k > 1]  # h1 is the document title
+        sections.append((trail, text[m.start():end]))
+
+    out = []
+    for trail, body in sections:
+        body = body.strip()
+        # A heading with nothing under it (e.g. the h1) is folded into the next section.
+        if not body or _MD_HEADING_RE.fullmatch(body):
+            continue
+        where = " › ".join([title, *trail])
+        pieces = [body] if len(body) <= CHUNK_SIZE * 1.5 else splitter.split_text(body)
+        for piece in pieces:
+            out.append(Document(page_content=f"{where}\n{piece}", metadata=dict(doc.metadata)))
+    return out
+
+
 def _split(
     docs: list[Document],
     source_name: str,
@@ -277,7 +325,17 @@ def _split(
         chunk_overlap=CHUNK_OVERLAP,
         separators=["\n\n", "\n", ". ", " ", ""],
     )
-    chunks = splitter.split_documents(docs)
+    title = _doc_title(docs, source_name)
+    chunks = []
+    for d in docs:
+        if len(_MD_HEADING_RE.findall(d.page_content)) >= 2:
+            chunks.extend(_split_by_sections(d, title, splitter))
+        else:
+            for c in splitter.split_documents([d]):
+                page = c.metadata.get("page")
+                where = f"{title} (page {page + 1 if isinstance(page, int) else page})" if page is not None else title
+                c.page_content = f"{where}\n{c.page_content}"
+                chunks.append(c)
     for i, c in enumerate(chunks):
         c.metadata["source"] = source_name
         c.metadata["chunk_id"] = i
@@ -295,6 +353,7 @@ def ingest_paths(
     tags: list[str] | None = None,
     progress=None,
     uploaded_by: str | None = None,
+    force: bool = False,
 ) -> dict:
     """Parse, chunk and embed files synchronously, recording each in the DB.
 
@@ -320,7 +379,8 @@ def ingest_paths(
                 existing = s.get(DocumentRow, p.name)
                 # Skip only if file unchanged AND department/tags unchanged
                 if (
-                    existing
+                    not force
+                    and existing
                     and existing.chunks > 0
                     and existing.hash == h
                     and existing.department == department
@@ -441,6 +501,28 @@ def clear_all() -> None:
     _invalidate_bm25()
 
 
+def reindex_all() -> dict:
+    """Re-chunk and re-embed every indexed document, keeping its department
+    and tags. Run after changing chunking or embeddings: `python ingest.py --reindex`."""
+    totals = {"added": 0, "skipped": 0, "failed": [], "ocr_used": []}
+    for doc in list_indexed():
+        path = UPLOADS_DIR / doc["name"]
+        if not path.is_file():
+            totals["failed"].append(f"{doc['name']} (file missing)")
+            continue
+        stats = ingest_paths([path], department=doc["department"], tags=doc["tags"], force=True)
+        for key in totals:
+            totals[key] += stats[key]
+        print(f"[reindex] {doc['name']}: {'ok' if stats['added'] else stats['failed']}")
+    return totals
+
+
 if __name__ == "__main__":
-    files = [p for p in UPLOADS_DIR.iterdir() if p.is_file()]
-    print(ingest_paths(files))
+    import sys
+
+    if "--reindex" not in sys.argv:
+        raise SystemExit("Usage: python ingest.py --reindex   (re-chunk every document, keeping departments)")
+    from db import run_migrations
+
+    run_migrations()
+    print(reindex_all())
