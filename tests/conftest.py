@@ -15,6 +15,8 @@ os.environ["DATABASE_URL"] = f"sqlite:///{(_TMP / 'test.db').as_posix()}"
 os.environ["INGEST_WORKER_ENABLED"] = "false"   # no embedding work in API tests
 os.environ["JWT_SECRET"] = "test-secret-not-for-production"
 os.environ["APP_BASE_URL"] = "http://testserver"
+os.environ["LLM_PROVIDER"] = "fake"
+os.environ["RATE_LIMITS_ENABLED"] = "false"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 

@@ -57,6 +57,7 @@ from config import (
     MAX_HISTORY_TURNS,
     MAX_QUESTION_CHARS,
     MAX_UPLOAD_BYTES,
+    RATE_LIMITS_ENABLED,
     REFRESH_TOKEN_DAYS,
     SUPPORTED_EXTS,
     UPLOADS_DIR,
@@ -82,6 +83,7 @@ DEFAULT_MODEL = GROQ_MODEL if LLM_PROVIDER == "groq" else LLM_MODEL
 
 # ── Rate limiter ─────────────────────────────────────────────────────────
 limiter = Limiter(key_func=get_remote_address, default_limits=[])
+limiter.enabled = RATE_LIMITS_ENABLED
 
 
 @asynccontextmanager

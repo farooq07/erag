@@ -11,6 +11,7 @@ RAG pipeline with:
 import json
 import math
 import re
+import os
 from typing import Iterator
 
 from langchain_core.documents import Document
@@ -25,6 +26,9 @@ from config import (
     TOP_K,
 )
 from ingest import get_vectorstore
+
+if LLM_PROVIDER == "fake" and os.getenv("DOCUMIND_ENV") == "production":
+    raise RuntimeError("The fake LLM cannot run in production")
 
 # ── Prompts ─────────────────────────────────────────────────────────────
 
@@ -54,6 +58,9 @@ Answer:"""
 # ── LLM factory ─────────────────────────────────────────────────────────
 
 def _get_llm(model: str = None, streaming: bool = True):
+    if LLM_PROVIDER == "fake":
+        from fake_llm import EchoChatModel
+        return EchoChatModel()
     if LLM_PROVIDER == "groq" and GROQ_API_KEY:
         from langchain_groq import ChatGroq
         return ChatGroq(

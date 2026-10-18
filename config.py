@@ -15,8 +15,9 @@ CHROMA_DIR.mkdir(parents=True, exist_ok=True)
 OLLAMA_BASE_URL = "http://127.0.0.1:11434"
 EMBED_MODEL = "nomic-embed-text"
 
-# LLM provider: "groq" or "ollama"
-LLM_PROVIDER = "groq"
+# LLM provider: "groq", "ollama", or "fake"
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq")
+RATE_LIMITS_ENABLED = os.getenv("RATE_LIMITS_ENABLED", "true").lower() == "true"
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")   # fast + smart
 LLM_MODEL = "qwen2.5:3b"              # fallback if groq off

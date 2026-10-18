@@ -123,15 +123,15 @@ Roadmap items deliberately left for a later plan — don't build them here:
   - Supports `.stream()` (yield the answer word by word through `_stream`).
 - Startup guard: if `LLM_PROVIDER == "fake"` and `os.getenv("DOCUMIND_ENV") == "production"`, raise `RuntimeError("The fake LLM cannot run in production")` at import of `rag`.
 
-- [ ] **Step 1:** Write `tests/test_fake_llm.py`:
+- [x] **Step 1:** Write `tests/test_fake_llm.py`:
   - `test_rewrite_returns_question`: `rag._rewrite_query("How many leave days?") == "How many leave days?"`
   - `test_answer_cites_first_source`: build two `Document`s (`source="HR_Leave_Policy.md"`, content `"HR Leave Policy 2024 › 1. Annual Leave\nAll staff get 25 days. More text."`) and call `rag.generate_answer("q", docs)` → contains `"HR_Leave_Policy.md"` and `"[1]"`
   - `test_no_docs_returns_no_answer`: `rag.generate_answer("q", [])` starts with `rag.NO_ANSWER`
   - `test_stream_yields_multiple_tokens`: `len(list(rag.generate_answer_stream("q", docs))) > 1`
-- [ ] **Step 2:** Run `python -m pytest tests/test_fake_llm.py -v` → FAIL (`ModuleNotFoundError: fake_llm`).
-- [ ] **Step 3:** Implement `EchoChatModel` (fields: none; `_llm_type = "echo"`; `_generate` / `_stream` parse the messages as above). Wire `_get_llm`, the config flags, the limiter flag and the conftest env.
-- [ ] **Step 4 — verify:** `python -m pytest tests -q` → all pass (SSO tests unaffected).
-- [ ] **Step 5:** Commit `test: deterministic fake LLM and switchable rate limits`.
+- [x] **Step 2:** Run `python -m pytest tests/test_fake_llm.py -v` → FAIL (`ModuleNotFoundError: fake_llm`).
+- [x] **Step 3:** Implement `EchoChatModel` (fields: none; `_llm_type = "echo"`; `_generate` / `_stream` parse the messages as above). Wire `_get_llm`, the config flags, the limiter flag and the conftest env.
+- [x] **Step 4 — verify:** `python -m pytest tests -q` → all pass (SSO tests unaffected).
+- [x] **Step 5:** Commit `test: deterministic fake LLM and switchable rate limits`.
 
 ---
 
