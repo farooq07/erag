@@ -51,7 +51,12 @@ prompt, so re-runs only call the model where a prompt changed.
 | Baseline (fixed-size chunks, whitespace BM25) | 92.3% | 94.2% | 5.8% | ~81% | 2.9 | 2.9 s |
 | BM25 tokenises on word characters | 94.2% | 96.2% | 5.8% | — | 2.9 | 3.0 s |
 | One chunk per document section + location prefix | 96.2% | 96.2% | 1.9% | — | 2.9 | 2.6 s |
-| BM25 on question + rewrite; per-retriever pool slots; CRAG on top score; HyDE off | see `baseline.json` | 98.1% | | 7.7% | 1.9 | 2.3 s |
+| BM25 on question + rewrite; per-retriever pool slots; CRAG on top score; HyDE off (**current `baseline.json`**) | **98.1%** | 98.1% | 1.9% | 7.7% | 2.0 | 2.3 s |
+
+Retrieval latency is with a live rewrite call; with every model call served
+from cache it is ~1.1 s. The one remaining failure (`fin-q1-headcount`) asks
+for a figure that only appears in passing, "(Q1: 304)", in the Q2 report's
+headcount line.
 
 Findings that drove these changes:
 

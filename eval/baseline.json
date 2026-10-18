@@ -2,14 +2,15 @@
   "summary": {
     "questions": 58,
     "hit_rate": 0.9808,
-    "mrr": 0.9365,
-    "context_recall": 0.9423,
+    "mrr": 0.9423,
+    "context_recall": 0.9808,
     "scope_leaks": 0,
-    "llm_calls_per_q": 2.931,
-    "retrieval_ms_p50": 2871.3,
-    "answer_acc": 0.9231,
+    "low_conf_rate": 0.0769,
+    "llm_calls_per_q": 1.9655,
+    "retrieval_ms_p50": 1086.1,
+    "answer_acc": 0.9808,
     "refusal_acc": 1.0,
-    "false_refusal": 0.0577,
+    "false_refusal": 0.0192,
     "by_type": {
       "comparison": {
         "n": 2,
@@ -29,12 +30,12 @@
       "keyword": {
         "n": 4,
         "hit_rate": 1.0,
-        "accuracy": 0.75
+        "accuracy": 1.0
       },
       "lookup": {
         "n": 32,
         "hit_rate": 1.0,
-        "accuracy": 0.9375
+        "accuracy": 1.0
       },
       "paraphrase": {
         "n": 6,
@@ -59,7 +60,7 @@
     "model": "openai/gpt-oss-20b",
     "flags": {
       "QUERY_REWRITE_ENABLED": true,
-      "HYDE_ENABLED": true,
+      "HYDE_ENABLED": false,
       "RERANKER_ENABLED": true,
       "CRAG_ENABLED": true
     }
@@ -72,22 +73,20 @@
       "answerable": true,
       "retrieved": [
         "HR_Leave_Policy.md",
-        "HR_Leave_Policy.md",
-        "HR_Leave_Policy.md",
-        "Company_Handbook.md",
-        "Legal_Data_Protection_Policy.md"
+        "HR_Leave_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 3617.8,
+      "low_confidence": false,
+      "retrieval_ms": 1550.2,
+      "top_score": 0.9995,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nFull‑time employees receive **25 days of paid annual leave** per calendar year (HR_Leave_Policy.md).",
+      "answer": "Full‑time employees are entitled to **25 days of paid annual leave** per calendar year【HR_Leave_Policy.md】.",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "hr-sick-cert",
@@ -96,22 +95,20 @@
       "answerable": true,
       "retrieved": [
         "HR_Leave_Policy.md",
-        "HR_Leave_Policy.md",
-        "HR_Leave_Policy.md",
-        "Finance_Travel_Expenses_Policy.md",
-        "Company_Handbook.md"
+        "HR_Leave_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2794.9,
+      "low_confidence": false,
+      "retrieval_ms": 1301.5,
+      "top_score": 0.9995,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nAfter **3 consecutive days** of sick leave, you must provide a doctor’s certificate to HR within 5 working days (HR Leave Policy).",
+      "answer": "After 3 consecutive days of sick leave, you must provide a doctor’s certificate to HR. (HR_Leave_Policy.md)",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "hr-maternity",
@@ -120,22 +117,20 @@
       "answerable": true,
       "retrieved": [
         "HR_Leave_Policy.md",
-        "HR_Leave_Policy.md",
-        "HR_Leave_Policy.md",
-        "HR_Recruitment_and_Onboarding.md",
-        "Legal_Data_Protection_Policy.md"
+        "HR_Leave_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2978.5,
+      "low_confidence": false,
+      "retrieval_ms": 984.3,
+      "top_score": 0.9827,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nPaid maternity leave is **20 weeks** of fully paid leave, and employees must have completed **12 months of continuous service** to qualify (HR_Leave_Policy.md).",
+      "answer": "Paid maternity leave is **20 weeks of fully paid leave**.  \nEmployees must have **at least 12 months of continuous service** to qualify. (HR_Leave_Policy.md)",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "hr-paternity",
@@ -144,22 +139,20 @@
       "answerable": true,
       "retrieved": [
         "HR_Leave_Policy.md",
-        "HR_Leave_Policy.md",
-        "HR_Recruitment_and_Onboarding.md",
-        "HR_Leave_Policy.md",
-        "Company_Handbook.md"
+        "HR_Leave_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2895.4,
+      "low_confidence": false,
+      "retrieval_ms": 1137.5,
+      "top_score": 0.328,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nYou’re entitled to **4 weeks of fully paid paternity leave** (HR_Leave_Policy.md).",
+      "answer": "You’re entitled to **4 weeks of fully paid paternity leave** (HR_Leave_Policy.md).",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "hr-carry-over",
@@ -168,22 +161,20 @@
       "answerable": true,
       "retrieved": [
         "HR_Leave_Policy.md",
-        "HR_Leave_Policy.md",
-        "IT_Acceptable_Use_Policy.md",
-        "Finance_Travel_Expenses_Policy.md",
-        "Legal_Data_Protection_Policy.md"
+        "HR_Leave_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2801.3,
+      "low_confidence": false,
+      "retrieval_ms": 1258.5,
+      "top_score": 0.9941,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nYes. According to the HR Leave Policy, employees may carry over a maximum of **5 unused annual leave days** into the following calendar year. Those carried‑over days must be used by **31 March** of the new year, or they will be forfeited. (Directors and above may carry over up to 10 days with CEO approval.)",
+      "answer": "Yes. Under the HR Leave Policy 2024 you may carry over up to **5 unused annual leave days** into the next calendar year. Those carried‑over days must be taken by **31 March** of that year, or they will be forfeited. (Directors and above can carry over up to 10 days with CEO approval.)",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "hr-bereavement-grandparent",
@@ -192,22 +183,20 @@
       "answerable": true,
       "retrieved": [
         "HR_Leave_Policy.md",
-        "HR_Leave_Policy.md",
-        "HR_Recruitment_and_Onboarding.md",
-        "HR_Leave_Policy.md",
-        "Finance_Travel_Expenses_Policy.md"
+        "HR_Leave_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2722.8,
+      "low_confidence": false,
+      "retrieval_ms": 1231.6,
+      "top_score": 0.2567,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nBereavement leave for a grandparent is **3 working days** (HR_Leave_Policy.md).",
+      "answer": "When a grandparent dies, the employee is entitled to **3 working days** of bereavement leave (HR_Leave_Policy.md).",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "hr-overtime",
@@ -216,22 +205,20 @@
       "answerable": true,
       "retrieved": [
         "HR_Leave_Policy.md",
-        "HR_Leave_Policy.md",
-        "Company_Handbook.md",
-        "Finance_Travel_Expenses_Policy.md",
-        "HR_Recruitment_and_Onboarding.md"
+        "HR_Leave_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2904.5,
+      "low_confidence": false,
+      "retrieval_ms": 950.3,
+      "top_score": 0.9948,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nThe overtime rate after the first 10 hours in a month is **2× the regular hourly rate** (HR_Leave_Policy.md).",
+      "answer": "The overtime rate after the first 10 hours in a month is **2× the hourly rate** (HR_Leave_Policy.md).",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "hr-form-09",
@@ -240,13 +227,11 @@
       "answerable": true,
       "retrieved": [
         "HR_Leave_Policy.md",
-        "HR_Recruitment_and_Onboarding.md",
-        "Legal_NDA_Template.md",
-        "Legal_Data_Protection_Policy.md",
-        "Legal_Data_Protection_Policy.md"
+        "HR_Recruitment_and_Onboarding.md"
       ],
       "low_confidence": true,
-      "retrieval_ms": 2808.2,
+      "retrieval_ms": 1036.9,
+      "top_score": 0.0007,
       "leak": false,
       "hit": true,
       "rr": 1.0,
@@ -255,7 +240,7 @@
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "hr-probation",
@@ -264,22 +249,20 @@
       "answerable": true,
       "retrieved": [
         "HR_Recruitment_and_Onboarding.md",
-        "HR_Leave_Policy.md",
-        "Legal_Data_Protection_Policy.md",
-        "HR_Recruitment_and_Onboarding.md",
-        "HR_Leave_Policy.md"
+        "HR_Recruitment_and_Onboarding.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2780.0,
+      "low_confidence": false,
+      "retrieval_ms": 1273.0,
+      "top_score": 0.9991,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nThe probation period for new starters is **6 months** (HR_Recruitment_and_Onboarding.md).",
+      "answer": "The probation period for new starters is **6 months**.",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "hr-notice-grade6",
@@ -288,27 +271,20 @@
       "answerable": true,
       "retrieved": [
         "HR_Recruitment_and_Onboarding.md",
-        "HR_Leave_Policy.md",
-        "Company_Handbook.md",
-        "Legal_Data_Protection_Policy.md",
-        "Legal_NDA_Template.md"
+        "Legal_Data_Protection_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2867.1,
+      "low_confidence": false,
+      "retrieval_ms": 1473.6,
+      "top_score": 0.6616,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nA Grade 6 employee is entitled to a **2‑month** notice period after probation. (See HR_Recruitment_and_Onboarding.md)",
+      "answer": "A Grade 6 employee is required to give **2 months** notice. (HR Recruitment and Onboarding Guide)",
       "refused": false,
-      "missing_facts": [
-        [
-          "2 months",
-          "two months"
-        ]
-      ],
-      "correct": false,
-      "llm_calls": 3
+      "missing_facts": [],
+      "correct": true,
+      "llm_calls": 2
     },
     {
       "id": "hr-referral",
@@ -317,22 +293,20 @@
       "answerable": true,
       "retrieved": [
         "HR_Recruitment_and_Onboarding.md",
-        "Company_Handbook.md",
-        "Company_Handbook.md",
-        "Company_Handbook.md",
-        "HR_Leave_Policy.md"
+        "Company_Handbook.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2804.8,
+      "low_confidence": false,
+      "retrieval_ms": 1749.0,
+      "top_score": 0.6361,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nYes. According to the **HR_Recruitment_and_Onboarding.md** policy, if a friend you refer is successfully hired you’ll receive a referral bonus of **£2,000** (or **£4,000** if the role is Director‑level). The bonus is paid after the new hire completes 6 months of service.",
+      "answer": "Yes. According to the Recruitment and Onboarding Guide, you’ll receive a **£2,000 referral bonus** once the person you referred completes 6 months of service. If the referral is for a Director‑level role, the bonus is **£4,000**.",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "fin-q3-revenue",
@@ -342,19 +316,22 @@
       "retrieved": [
         "Finance_Q2_2024_Report.md",
         "Finance_Q3_2024_Report.md",
-        "Finance_Q3_2024_Report.md"
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q2_2024_Report.md"
       ],
       "low_confidence": false,
-      "retrieval_ms": 3030.4,
+      "retrieval_ms": 1993.3,
+      "top_score": 0.9918,
       "leak": false,
       "hit": true,
       "rr": 0.5,
       "context_recall": 1.0,
-      "answer": "Total revenue in Q3 2024 was **£18.4 million**【2】.",
+      "answer": "Total revenue in Q3 2024 was **£18.4 million** (Finance_Q3_2024_Report.md).",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "fin-q2-revenue",
@@ -362,20 +339,21 @@
       "question": "What was Acme's total revenue in Q2 2024?",
       "answerable": true,
       "retrieved": [
-        "Finance_Q2_2024_Report.md",
-        "Finance_Q3_2024_Report.md"
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q2_2024_Report.md"
       ],
       "low_confidence": false,
-      "retrieval_ms": 3260.1,
+      "retrieval_ms": 1168.7,
+      "top_score": 0.9972,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "Acme’s total revenue in Q2 2024 was **£16.1 million**【1】.",
+      "answer": "Acme’s total revenue in Q2 2024 was **£16.1 million** (Finance_Q2_2024_Report.md).",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "fin-q2-closing-cash",
@@ -383,23 +361,21 @@
       "question": "What was the closing cash balance at the end of Q2 2024?",
       "answerable": true,
       "retrieved": [
-        "Finance_Q2_2024_Report.md",
         "Finance_Q3_2024_Report.md",
-        "Finance_Q2_2024_Report.md",
-        "Finance_Q3_2024_Report.md",
-        "Company_Handbook.md"
+        "Finance_Q2_2024_Report.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 3455.6,
+      "low_confidence": false,
+      "retrieval_ms": 1157.5,
+      "top_score": 0.9834,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nThe closing cash balance at the end of Q2 2024 was **£8.3 million** (Finance_Q2_2024_Report.md).",
+      "answer": "The closing cash balance at the end of Q2 2024 was **£8.3 million** (Finance_Q2_2024_Report.md).",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "fin-q3-closing-cash",
@@ -411,7 +387,8 @@
         "Finance_Q2_2024_Report.md"
       ],
       "low_confidence": false,
-      "retrieval_ms": 2946.5,
+      "retrieval_ms": 1099.3,
+      "top_score": 0.9995,
       "leak": false,
       "hit": true,
       "rr": 1.0,
@@ -420,7 +397,7 @@
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "fin-q3-cac",
@@ -432,16 +409,17 @@
         "Finance_Q3_2024_Report.md"
       ],
       "low_confidence": false,
-      "retrieval_ms": 3032.3,
+      "retrieval_ms": 935.5,
+      "top_score": 0.9951,
       "leak": false,
       "hit": true,
       "rr": 0.5,
       "context_recall": 1.0,
-      "answer": "The customer acquisition cost in Q3 2024 was **£4,200** (down from £4,800 in Q2)【2】.",
+      "answer": "The customer acquisition cost in Q3 2024 was **£4,200** (down from £4,800 in Q2)【Finance_Q3_2024_Report.md】.",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "fin-q1-headcount",
@@ -450,24 +428,23 @@
       "answerable": true,
       "retrieved": [
         "Company_Handbook.md",
-        "HR_Leave_Policy.md",
-        "Operations_Amsterdam_Office_Guide.md",
-        "Legal_Data_Protection_Policy.md",
-        "HR_Recruitment_and_Onboarding.md"
+        "Finance_Q3_2024_Report.md",
+        "Company_Handbook.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2837.8,
+      "low_confidence": false,
+      "retrieval_ms": 788.7,
+      "top_score": 0.9563,
       "leak": false,
       "hit": false,
       "rr": 0.0,
       "context_recall": 0.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nI couldn't find this in the uploaded documents.",
+      "answer": "I couldn't find this in the uploaded documents.",
       "refused": true,
       "missing_facts": [
         "304"
       ],
       "correct": false,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "fin-ebitda-growth",
@@ -476,22 +453,20 @@
       "answerable": true,
       "retrieved": [
         "Finance_Q2_2024_Report.md",
-        "Finance_Q3_2024_Report.md",
-        "Finance_Travel_Expenses_Policy.md",
-        "Legal_Data_Protection_Policy.md",
-        "Company_Handbook.md"
+        "Finance_Q3_2024_Report.md"
       ],
       "low_confidence": true,
-      "retrieval_ms": 3014.4,
+      "retrieval_ms": 863.0,
+      "top_score": 0.0019,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nEBITDA rose from **£3.5 million in Q2 2024 to £4.2 million in Q3 2024** – an increase of **£0.7 million (about 20 %)**【2】.",
+      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nEBITDA rose from **£3.5 million in Q2 2024 to £4.2 million in Q3 2024** – an increase of **£0.7 million** (about a 20 % jump). This is reported in the Finance_Q2_2024_Report.md and Finance_Q3_2024_Report.md executive summaries.",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "fin-q4-outlook",
@@ -500,19 +475,22 @@
       "answerable": true,
       "retrieved": [
         "Finance_Q3_2024_Report.md",
+        "Finance_Q2_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
         "Finance_Q2_2024_Report.md"
       ],
       "low_confidence": false,
-      "retrieval_ms": 2971.2,
+      "retrieval_ms": 784.0,
+      "top_score": 0.9871,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "Projected Q4 2024 revenue is **£19.5–20.5 million** (Finance_Q3_2024_Report.md).",
+      "answer": "Projected Q4 2024 revenue is **£19.5 – 20.5 million** (Finance_Q3_2024_Report.md).",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "fin-hotel-london",
@@ -521,22 +499,20 @@
       "answerable": true,
       "retrieved": [
         "Finance_Travel_Expenses_Policy.md",
-        "Operations_Amsterdam_Office_Guide.md",
-        "Finance_Travel_Expenses_Policy.md",
-        "HR_Leave_Policy.md",
         "Operations_Amsterdam_Office_Guide.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2873.4,
+      "low_confidence": false,
+      "retrieval_ms": 865.5,
+      "top_score": 0.9983,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nThe maximum nightly hotel rate in London is **£220**【1】.",
+      "answer": "The maximum hotel rate per night in London is **£220** (Finance_Travel_Expenses_Policy.md).",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "fin-mileage",
@@ -545,22 +521,20 @@
       "answerable": true,
       "retrieved": [
         "Finance_Travel_Expenses_Policy.md",
-        "Operations_Amsterdam_Office_Guide.md",
-        "Finance_Travel_Expenses_Policy.md",
-        "Finance_Travel_Expenses_Policy.md",
-        "Company_Handbook.md"
+        "Finance_Travel_Expenses_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2931.3,
+      "low_confidence": false,
+      "retrieval_ms": 900.4,
+      "top_score": 0.9951,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nYou’ll be reimbursed at **45 pence per mile** for the first 10,000 miles you drive in a tax year, and **25 pence per mile** thereafter.  \n*(Finance_Travel_Expenses_Policy.md)*",
+      "answer": "You’ll be reimbursed at **45p per mile** for the first 10,000 miles you drive in a tax year, and **25p per mile** for any mileage beyond that. (Finance_Travel_Expenses_Policy.md)",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "fin-expense-deadline",
@@ -569,22 +543,20 @@
       "answerable": true,
       "retrieved": [
         "Finance_Travel_Expenses_Policy.md",
-        "HR_Leave_Policy.md",
-        "HR_Leave_Policy.md",
-        "Legal_NDA_Template.md",
-        "Legal_Data_Protection_Policy.md"
+        "HR_Leave_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2846.9,
+      "low_confidence": false,
+      "retrieval_ms": 838.8,
+      "top_score": 0.9976,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nYou must submit an expense claim within **30 days** of the expense. Claims older than 90 days will not be reimbursed. (Finance_Travel_Expenses_Policy.md)",
+      "answer": "You must submit an expense claim within **30 days** of the expense. (Finance_Travel_Expenses_Policy.md)",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "fin-business-class",
@@ -593,22 +565,20 @@
       "answerable": true,
       "retrieved": [
         "Finance_Travel_Expenses_Policy.md",
-        "HR_Recruitment_and_Onboarding.md",
-        "IT_Security_Policy.md",
-        "Finance_Travel_Expenses_Policy.md",
-        "Operations_SOPs.md"
+        "HR_Recruitment_and_Onboarding.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2905.1,
+      "low_confidence": false,
+      "retrieval_ms": 922.0,
+      "top_score": 0.3998,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nBusiness‑class flights require **CFO approval** (Finance_Travel_Expenses_Policy.md).",
+      "answer": "Business‑class flights require **CFO approval** (Finance_Travel_Expenses_Policy.md).",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "it-password-length",
@@ -617,22 +587,20 @@
       "answerable": true,
       "retrieved": [
         "IT_Security_Policy.md",
-        "Legal_NDA_Template.md",
-        "IT_Acceptable_Use_Policy.md",
-        "Legal_Data_Protection_Policy.md",
-        "Company_Handbook.md"
+        "IT_Acceptable_Use_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 3092.3,
+      "low_confidence": false,
+      "retrieval_ms": 1216.4,
+      "top_score": 0.9977,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nThe minimum password length is **14 characters** (see IT_Security_Policy.md).",
+      "answer": "The minimum password length is **14 characters**.",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "it-password-expiry",
@@ -641,22 +609,20 @@
       "answerable": true,
       "retrieved": [
         "IT_Security_Policy.md",
-        "IT_Security_Policy.md",
-        "Legal_Data_Protection_Policy.md",
-        "HR_Leave_Policy.md",
-        "Legal_NDA_Template.md"
+        "IT_Acceptable_Use_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2820.9,
+      "low_confidence": false,
+      "retrieval_ms": 1032.3,
+      "top_score": 0.1975,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nYou’ll need to change a normal account password every **90 days** (the maximum password age for standard accounts). This is stated in the IT Security Policy.",
+      "answer": "You’ll need to change your password every **90 days** for a normal account. (IT Security Policy)",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "it-form-14",
@@ -665,22 +631,20 @@
       "answerable": true,
       "retrieved": [
         "IT_Security_Policy.md",
-        "IT_Security_Policy.md",
-        "IT_Acceptable_Use_Policy.md",
-        "HR_Recruitment_and_Onboarding.md",
-        "Operations_SOPs.md"
+        "IT_Acceptable_Use_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 3097.2,
+      "low_confidence": false,
+      "retrieval_ms": 959.9,
+      "top_score": 0.9979,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nUse **Form IT‑14** to submit a new software license request. This is specified in the IT Security Policy.",
+      "answer": "Use **Form IT‑14** (the Software License Request form).",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "it-critical-incident",
@@ -689,22 +653,20 @@
       "answerable": true,
       "retrieved": [
         "IT_Security_Policy.md",
-        "Operations_SOPs.md",
-        "IT_Security_Policy.md",
-        "Legal_Data_Protection_Policy.md",
-        "HR_Recruitment_and_Onboarding.md"
+        "Operations_SOPs.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2782.0,
+      "low_confidence": false,
+      "retrieval_ms": 900.9,
+      "top_score": 0.9993,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nThe initial response time for a critical (active breach) security incident is **15 minutes** (IT_Security_Policy.md).",
+      "answer": "The initial response time for a critical security incident is **15 minutes** (IT_Security_Policy.md).",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "it-vpn",
@@ -713,22 +675,20 @@
       "answerable": true,
       "retrieved": [
         "IT_Security_Policy.md",
-        "IT_Acceptable_Use_Policy.md",
-        "IT_Acceptable_Use_Policy.md",
-        "Company_Handbook.md",
         "IT_Acceptable_Use_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2853.1,
+      "low_confidence": false,
+      "retrieval_ms": 886.4,
+      "top_score": 0.9663,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nThe approved VPN for remote access is the **Zscaler VPN client**【1】.",
+      "answer": "The approved VPN for remote access is the **Zscaler VPN client** (see IT Security Policy).",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "it-screen-lock",
@@ -737,22 +697,20 @@
       "answerable": true,
       "retrieved": [
         "IT_Acceptable_Use_Policy.md",
-        "IT_Acceptable_Use_Policy.md",
-        "Legal_Data_Protection_Policy.md",
-        "IT_Security_Policy.md",
-        "HR_Recruitment_and_Onboarding.md"
+        "IT_Acceptable_Use_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2860.4,
+      "low_confidence": false,
+      "retrieval_ms": 819.9,
+      "top_score": 0.9861,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nA company laptop locks automatically after **5 minutes** of inactivity.",
+      "answer": "The company laptop locks automatically after **5 minutes** of inactivity【1】.",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "it-lost-laptop",
@@ -761,22 +719,20 @@
       "answerable": true,
       "retrieved": [
         "HR_Recruitment_and_Onboarding.md",
-        "IT_Acceptable_Use_Policy.md",
-        "IT_Security_Policy.md",
-        "IT_Acceptable_Use_Policy.md",
-        "Legal_Data_Protection_Policy.md"
+        "IT_Acceptable_Use_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2832.6,
+      "low_confidence": false,
+      "retrieval_ms": 849.4,
+      "top_score": 0.0503,
       "leak": false,
       "hit": true,
       "rr": 0.5,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nYou must report a lost or stolen laptop to the IT Helpdesk within **2 hours** of discovering it (IT Acceptable Use Policy).",
+      "answer": "You must report a lost or stolen laptop to the IT Helpdesk within **2 hours** of discovering it. (IT Acceptable Use Policy)",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "it-ai-tools",
@@ -785,22 +741,20 @@
       "answerable": true,
       "retrieved": [
         "IT_Acceptable_Use_Policy.md",
-        "IT_Acceptable_Use_Policy.md",
-        "IT_Security_Policy.md",
-        "Legal_NDA_Template.md",
-        "Legal_NDA_Template.md"
+        "IT_Acceptable_Use_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2762.9,
+      "low_confidence": false,
+      "retrieval_ms": 871.4,
+      "top_score": 0.9994,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nThe approved AI tools for use with Internal or Confidential data are **DocuMind** and **Microsoft Copilot** (see IT_Acceptable_Use_Policy.md).",
+      "answer": "The approved AI tools for use with confidential data are **DocuMind** and **Microsoft Copilot** (see IT_Acceptable_Use_Policy.md).",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "legal-nda-term",
@@ -810,21 +764,20 @@
       "retrieved": [
         "Legal_NDA_Template.md",
         "Legal_NDA_Template.md",
-        "Legal_NDA_Template.md",
-        "Legal_NDA_Template.md",
-        "Legal_Data_Protection_Policy.md"
+        "Legal_NDA_Template.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 3334.7,
+      "low_confidence": false,
+      "retrieval_ms": 870.9,
+      "top_score": 0.9995,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nThe standard NDA lasts **three (3) years** from the Effective Date, and the confidentiality obligations survive for **five (5) years** from the date of disclosure (Legal_NDA_Template.md).",
+      "answer": "The standard NDA lasts **three (3) years** from the Effective Date, and the confidentiality obligations survive for **five (5) years** after the date of disclosure (Legal_NDA_Template.md).",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "legal-nda-law",
@@ -833,22 +786,20 @@
       "answerable": true,
       "retrieved": [
         "Legal_NDA_Template.md",
-        "Legal_NDA_Template.md",
-        "Legal_NDA_Template.md",
-        "Legal_NDA_Template.md",
-        "Legal_Data_Protection_Policy.md"
+        "Legal_NDA_Template.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 3444.4,
+      "low_confidence": false,
+      "retrieval_ms": 1224.1,
+      "top_score": 0.9988,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nThe NDA is governed by the laws of **England and Wales** (see Legal_NDA_Template.md, section 6).",
+      "answer": "The NDA is governed by the laws of **England and Wales**.",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "legal-dsar",
@@ -857,22 +808,20 @@
       "answerable": true,
       "retrieved": [
         "Legal_Data_Protection_Policy.md",
-        "Legal_Data_Protection_Policy.md",
-        "Company_Handbook.md",
-        "IT_Security_Policy.md",
-        "IT_Security_Policy.md"
+        "Company_Handbook.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2794.9,
+      "low_confidence": false,
+      "retrieval_ms": 1180.5,
+      "top_score": 0.8856,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nWe must respond to a data subject access request within **one calendar month** (see Legal_Data_Protection_Policy.md). For complex requests, this period can be extended by an additional two months.",
+      "answer": "We must respond within **one calendar month** (extendable by an additional two months for complex requests). (Legal_Data_Protection_Policy.md)",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "legal-ico",
@@ -880,20 +829,21 @@
       "question": "Within how many hours must a serious data breach be reported to the ICO?",
       "answerable": true,
       "retrieved": [
-        "Legal_Data_Protection_Policy.md",
-        "Company_Handbook.md"
+        "Company_Handbook.md",
+        "Legal_Data_Protection_Policy.md"
       ],
       "low_confidence": false,
-      "retrieval_ms": 2752.1,
+      "retrieval_ms": 1230.3,
+      "top_score": 0.997,
       "leak": false,
       "hit": true,
-      "rr": 1.0,
+      "rr": 0.5,
       "context_recall": 1.0,
-      "answer": "A serious data breach must be reported to the ICO within **72 hours** of Acme becoming aware of it【Legal_Data_Protection_Policy.md】.",
+      "answer": "A serious breach that could put individuals at risk must be reported to the ICO within **72 hours** of Acme becoming aware of it (Legal_Data_Protection_Policy.md).",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "legal-retention-candidates",
@@ -902,22 +852,20 @@
       "answerable": true,
       "retrieved": [
         "Legal_Data_Protection_Policy.md",
-        "HR_Leave_Policy.md",
-        "HR_Leave_Policy.md",
-        "HR_Recruitment_and_Onboarding.md",
         "HR_Leave_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2869.2,
+      "low_confidence": false,
+      "retrieval_ms": 885.5,
+      "top_score": 0.9954,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nData on unsuccessful job candidates is retained for **6 months after the decision** (Legal_Data_Protection_Policy.md).",
+      "answer": "We keep data about unsuccessful job candidates for **6 months after the decision** (Legal_Data_Protection_Policy.md).",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "legal-dpo-name",
@@ -926,10 +874,14 @@
       "answerable": true,
       "retrieved": [
         "Legal_Data_Protection_Policy.md",
+        "Legal_Data_Protection_Policy.md",
+        "Company_Handbook.md",
+        "Legal_Data_Protection_Policy.md",
         "Legal_Data_Protection_Policy.md"
       ],
       "low_confidence": false,
-      "retrieval_ms": 2729.6,
+      "retrieval_ms": 1052.1,
+      "top_score": 0.9992,
       "leak": false,
       "hit": true,
       "rr": 1.0,
@@ -938,7 +890,7 @@
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "ops-po-threshold",
@@ -950,16 +902,17 @@
         "Operations_SOPs.md"
       ],
       "low_confidence": false,
-      "retrieval_ms": 2875.6,
+      "retrieval_ms": 953.0,
+      "top_score": 0.9995,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "All purchases over **£2,000** require a formal Purchase Order in SAP before commitment (Operations_SOPs.md).",
+      "answer": "All purchases over **£2,000** require a formal Purchase Order in SAP before commitment.",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "ops-approval-cfo",
@@ -968,22 +921,20 @@
       "answerable": true,
       "retrieved": [
         "Operations_SOPs.md",
-        "Finance_Travel_Expenses_Policy.md",
-        "Operations_SOPs.md",
-        "Company_Handbook.md",
-        "IT_Security_Policy.md"
+        "Finance_Travel_Expenses_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2880.4,
+      "low_confidence": false,
+      "retrieval_ms": 1222.9,
+      "top_score": 0.1191,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nThe purchase of £60,000 must be approved by the **Chief Financial Officer (CFO)**, as per the procurement thresholds in Operations_SOPs.md.",
+      "answer": "The purchase of £60,000 must be approved by the **CFO** (Operations_SOPs.md).",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "ops-rto",
@@ -992,22 +943,20 @@
       "answerable": true,
       "retrieved": [
         "Operations_SOPs.md",
-        "IT_Security_Policy.md",
-        "Legal_Data_Protection_Policy.md",
-        "HR_Recruitment_and_Onboarding.md",
-        "Legal_NDA_Template.md"
+        "IT_Security_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2784.4,
+      "low_confidence": false,
+      "retrieval_ms": 951.0,
+      "top_score": 0.999,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nThe Recovery Time Objective (RTO) for critical systems is **4 hours** (see Operations_SOPs.md).",
+      "answer": "The RTO for critical systems is **4 hours** (Operations_SOPs.md).",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "ops-london-hours",
@@ -1016,22 +965,23 @@
       "answerable": true,
       "retrieved": [
         "Operations_SOPs.md",
-        "Operations_Amsterdam_Office_Guide.md",
         "Operations_SOPs.md",
-        "HR_Leave_Policy.md",
-        "HR_Recruitment_and_Onboarding.md"
+        "Operations_SOPs.md",
+        "Operations_SOPs.md",
+        "Operations_SOPs.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 4847.0,
+      "low_confidence": false,
+      "retrieval_ms": 957.7,
+      "top_score": 0.9987,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nThe Operations SOPs state that the office is open **Monday–Friday, 08:00–20:00**【3】.",
+      "answer": "Office hours are Monday–Friday, 08:00 – 20:00.",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "ops-amsterdam-hours",
@@ -1040,22 +990,20 @@
       "answerable": true,
       "retrieved": [
         "Operations_Amsterdam_Office_Guide.md",
-        "Operations_Amsterdam_Office_Guide.md",
-        "Operations_SOPs.md",
-        "Finance_Q2_2024_Report.md",
-        "HR_Leave_Policy.md"
+        "Operations_Amsterdam_Office_Guide.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2916.3,
+      "low_confidence": false,
+      "retrieval_ms": 912.5,
+      "top_score": 0.9983,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nThe Amsterdam office opens at **07:30** and closes at **19:00** (Monday to Friday)【1】.",
+      "answer": "The Amsterdam office opens at **07:30** and closes at **19:00** (Monday to Friday)【1】.",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "ops-amsterdam-tram",
@@ -1067,16 +1015,17 @@
         "Operations_Amsterdam_Office_Guide.md"
       ],
       "low_confidence": false,
-      "retrieval_ms": 2828.0,
+      "retrieval_ms": 1091.7,
+      "top_score": 0.9994,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "The nearest tram stop to the Amsterdam office is **Dam** (lines 2, 12, 13, 17)【Operations_Amsterdam_Office_Guide.md】.",
+      "answer": "The nearest tram stop to the Amsterdam office is **Dam** (lines 2, 12, 13, 17)【1】.",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "ops-net-zero",
@@ -1084,25 +1033,21 @@
       "question": "By what year does Acme aim to be net zero?",
       "answerable": true,
       "retrieved": [
-        "Company_Handbook.md",
-        "Legal_Data_Protection_Policy.md",
-        "IT_Acceptable_Use_Policy.md",
-        "HR_Leave_Policy.md",
-        "Operations_SOPs.md"
+        "Operations_SOPs.md",
+        "IT_Acceptable_Use_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 3246.8,
+      "low_confidence": false,
+      "retrieval_ms": 1040.7,
+      "top_score": 0.061,
       "leak": false,
       "hit": true,
-      "rr": 0.2,
-      "context_recall": 0.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nI couldn't find this in the uploaded documents.",
-      "refused": true,
-      "missing_facts": [
-        "2035"
-      ],
-      "correct": false,
-      "llm_calls": 3
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "answer": "Acme aims to be net‑zero carbon by **2035**【1】.",
+      "refused": false,
+      "missing_facts": [],
+      "correct": true,
+      "llm_calls": 2
     },
     {
       "id": "gen-pension",
@@ -1111,22 +1056,20 @@
       "answerable": true,
       "retrieved": [
         "Company_Handbook.md",
-        "HR_Recruitment_and_Onboarding.md",
-        "Finance_Travel_Expenses_Policy.md",
-        "HR_Leave_Policy.md",
         "HR_Leave_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2825.6,
+      "low_confidence": false,
+      "retrieval_ms": 1790.7,
+      "top_score": 0.7083,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nAcme Corp contributes **6 % of your base salary** to your pension.",
+      "answer": "Acme Corp contributes **6 % of your base salary** to your pension. (Company_Handbook.md)",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "gen-learning-budget",
@@ -1135,22 +1078,20 @@
       "answerable": true,
       "retrieved": [
         "Company_Handbook.md",
-        "HR_Recruitment_and_Onboarding.md",
-        "HR_Leave_Policy.md",
-        "Operations_SOPs.md",
-        "HR_Leave_Policy.md"
+        "HR_Recruitment_and_Onboarding.md"
       ],
       "low_confidence": true,
-      "retrieval_ms": 2819.4,
+      "retrieval_ms": 1115.3,
+      "top_score": 0.0001,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nYes. According to the Company Handbook, each employee is entitled to an **£1,500 L&D budget per year** that can be used for courses, conferences, books, and certifications.",
+      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nYes. According to the Company Handbook, each employee receives an **£1,500 L&D budget per year** that can be used for courses, conferences, books, or certifications.",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "gen-gift-limit",
@@ -1159,22 +1100,20 @@
       "answerable": true,
       "retrieved": [
         "Company_Handbook.md",
-        "Operations_SOPs.md",
-        "Finance_Travel_Expenses_Policy.md",
-        "HR_Leave_Policy.md",
-        "Finance_Travel_Expenses_Policy.md"
+        "IT_Acceptable_Use_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2799.5,
+      "low_confidence": false,
+      "retrieval_ms": 1283.2,
+      "top_score": 0.7632,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nYou can accept gifts or hospitality up to **£50** without needing prior written approval (Company_Handbook.md).",
+      "answer": "You can accept gifts or hospitality up to **£50** without needing prior written approval (Company_Handbook.md).",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "gen-office-days",
@@ -1183,22 +1122,20 @@
       "answerable": true,
       "retrieved": [
         "Company_Handbook.md",
-        "HR_Leave_Policy.md",
-        "HR_Leave_Policy.md",
-        "HR_Leave_Policy.md",
-        "Operations_SOPs.md"
+        "HR_Leave_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2834.3,
+      "low_confidence": false,
+      "retrieval_ms": 1593.6,
+      "top_score": 0.0452,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nYou’re required to be in the office a minimum of **2 days per week** (see the Hybrid Working section of the Company Handbook).",
+      "answer": "You must be in the office at least **2 days per week** (per the Hybrid Working policy in the Company Handbook).",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "gen-esop",
@@ -1207,34 +1144,20 @@
       "answerable": true,
       "retrieved": [
         "Company_Handbook.md",
-        "HR_Leave_Policy.md",
-        "Legal_Data_Protection_Policy.md",
-        "Company_Handbook.md",
-        "Legal_NDA_Template.md"
+        "Company_Handbook.md"
       ],
       "low_confidence": true,
-      "retrieval_ms": 3490.5,
+      "retrieval_ms": 1203.1,
+      "top_score": 0.0013,
       "leak": false,
       "hit": true,
       "rr": 1.0,
-      "context_recall": 0.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nI couldn't find this in the uploaded documents.",
-      "refused": true,
-      "missing_facts": [
-        [
-          "4-year",
-          "4 years",
-          "four years",
-          "four-year"
-        ],
-        [
-          "1-year cliff",
-          "one-year cliff",
-          "1 year cliff"
-        ]
-      ],
-      "correct": false,
-      "llm_calls": 3
+      "context_recall": 1.0,
+      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nThe ESOP has a **4‑year vesting schedule with a 1‑year cliff** (Company_Handbook.md).",
+      "refused": false,
+      "missing_facts": [],
+      "correct": true,
+      "llm_calls": 2
     },
     {
       "id": "multi-breach-two-deadlines",
@@ -1243,22 +1166,20 @@
       "answerable": true,
       "retrieved": [
         "Legal_Data_Protection_Policy.md",
-        "Company_Handbook.md",
-        "Legal_Data_Protection_Policy.md",
-        "Legal_Data_Protection_Policy.md",
-        "IT_Acceptable_Use_Policy.md"
+        "Company_Handbook.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 3298.6,
+      "low_confidence": false,
+      "retrieval_ms": 1080.5,
+      "top_score": 0.9947,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nIf you suspect a personal data breach, you must report it to the Data Protection Officer (DPO) **immediately** (within 1 hour, per the Company Handbook). If the breach is likely to put individuals at risk, the DPO must notify the Information Commissioner’s Office (ICO) **within 72 hours** of Acme becoming aware of it. (See Legal_Data_Protection_Policy.md and Company_Handbook.md.)",
+      "answer": "If you suspect a personal data breach, you must report it to the Data Protection Officer (DPO) **within 1 hour** of becoming aware, using the email address dpo@acmecorp.com【2】. The DPO must then notify the Information Commissioner’s Office (ICO) **within 72 hours** if the breach is likely to put individuals at risk【1】.",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "follow-up-paternity",
@@ -1267,22 +1188,20 @@
       "answerable": true,
       "retrieved": [
         "HR_Leave_Policy.md",
-        "HR_Leave_Policy.md",
-        "HR_Recruitment_and_Onboarding.md",
-        "HR_Leave_Policy.md",
-        "Legal_NDA_Template.md"
+        "HR_Leave_Policy.md"
       ],
-      "low_confidence": true,
-      "retrieval_ms": 2868.6,
+      "low_confidence": false,
+      "retrieval_ms": 1497.9,
+      "top_score": 0.9937,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nPaternity leave is 4 weeks of fully paid leave, to be taken within 3 months of the child’s birth or adoption (HR_Leave_Policy.md).",
+      "answer": "The father is entitled to **4 weeks of fully paid paternity leave** (to be taken within 3 months of the child’s birth or adoption). This is stated in the HR Leave Policy 2024.",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "follow-up-q2",
@@ -1290,22 +1209,24 @@
       "question": "And the quarter before that?",
       "answerable": true,
       "retrieved": [
+        "Finance_Q2_2024_Report.md",
         "Finance_Q3_2024_Report.md",
         "Finance_Q2_2024_Report.md",
         "Finance_Q3_2024_Report.md",
-        "Finance_Q2_2024_Report.md"
+        "Finance_Q3_2024_Report.md"
       ],
       "low_confidence": false,
-      "retrieval_ms": 2998.8,
+      "retrieval_ms": 1335.3,
+      "top_score": 0.9994,
       "leak": false,
       "hit": true,
       "rr": 1.0,
       "context_recall": 1.0,
-      "answer": "Net profit in Q2 2024 was **£1.9 million** (11.8 % margin)【Finance_Q2_2024_Report.md】.",
+      "answer": "Net profit in Q2 2024 was **£1.9 million** (11.8 % margin)【1】.",
       "refused": false,
       "missing_facts": [],
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "unans-pets",
@@ -1313,19 +1234,17 @@
       "question": "Am I allowed to bring my dog to the office?",
       "answerable": false,
       "retrieved": [
-        "HR_Leave_Policy.md",
-        "HR_Leave_Policy.md",
-        "Operations_SOPs.md",
-        "HR_Leave_Policy.md",
-        "Operations_Amsterdam_Office_Guide.md"
+        "IT_Acceptable_Use_Policy.md",
+        "IT_Acceptable_Use_Policy.md"
       ],
       "low_confidence": true,
-      "retrieval_ms": 2841.1,
+      "retrieval_ms": 1190.1,
+      "top_score": 0.0001,
       "leak": false,
       "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nI couldn't find this in the uploaded documents.",
       "refused": true,
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "unans-ceo-salary",
@@ -1334,18 +1253,16 @@
       "answerable": false,
       "retrieved": [
         "Company_Handbook.md",
-        "Finance_Q2_2024_Report.md",
-        "Finance_Q3_2024_Report.md",
-        "HR_Leave_Policy.md",
-        "HR_Leave_Policy.md"
+        "Finance_Q2_2024_Report.md"
       ],
       "low_confidence": true,
-      "retrieval_ms": 2983.3,
+      "retrieval_ms": 1233.3,
+      "top_score": 0.0017,
       "leak": false,
       "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nI couldn't find this in the uploaded documents.",
       "refused": true,
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "unans-q4-actuals",
@@ -1354,15 +1271,19 @@
       "answerable": false,
       "retrieved": [
         "Finance_Q2_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q2_2024_Report.md",
         "Finance_Q3_2024_Report.md"
       ],
       "low_confidence": false,
-      "retrieval_ms": 3107.6,
+      "retrieval_ms": 1347.3,
+      "top_score": 0.945,
       "leak": false,
       "answer": "I couldn't find this in the uploaded documents.",
       "refused": true,
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "unans-singapore-tram",
@@ -1371,18 +1292,16 @@
       "answerable": false,
       "retrieved": [
         "Operations_Amsterdam_Office_Guide.md",
-        "Operations_Amsterdam_Office_Guide.md",
-        "HR_Leave_Policy.md",
-        "Finance_Travel_Expenses_Policy.md",
-        "HR_Leave_Policy.md"
+        "Operations_Amsterdam_Office_Guide.md"
       ],
       "low_confidence": true,
-      "retrieval_ms": 2894.8,
+      "retrieval_ms": 1379.2,
+      "top_score": 0.0002,
       "leak": false,
       "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nI couldn't find this in the uploaded documents.",
       "refused": true,
       "correct": true,
-      "llm_calls": 3
+      "llm_calls": 2
     },
     {
       "id": "scope-hr-in-finance",
@@ -1391,13 +1310,11 @@
       "answerable": false,
       "retrieved": [
         "Finance_Travel_Expenses_Policy.md",
-        "Finance_Travel_Expenses_Policy.md",
-        "Finance_Travel_Expenses_Policy.md",
-        "Finance_Q3_2024_Report.md",
-        "Finance_Q2_2024_Report.md"
+        "Finance_Travel_Expenses_Policy.md"
       ],
       "low_confidence": true,
-      "retrieval_ms": 1149.0,
+      "retrieval_ms": 751.4,
+      "top_score": 0.0002,
       "leak": false,
       "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nI couldn't find this in the uploaded documents.",
       "refused": true,
@@ -1410,14 +1327,12 @@
       "question": "What was total revenue in Q3 2024?",
       "answerable": false,
       "retrieved": [
-        "IT_Acceptable_Use_Policy.md",
         "IT_Security_Policy.md",
-        "IT_Acceptable_Use_Policy.md",
-        "IT_Acceptable_Use_Policy.md",
-        "IT_Security_Policy.md"
+        "IT_Acceptable_Use_Policy.md"
       ],
       "low_confidence": true,
-      "retrieval_ms": 877.0,
+      "retrieval_ms": 612.9,
+      "top_score": 0.0,
       "leak": false,
       "answer": "⚠️ *Low-confidence answer — limited relevant context was found for this question. Please verify against the cited sources.*\n\nI couldn't find this in the uploaded documents.",
       "refused": true,

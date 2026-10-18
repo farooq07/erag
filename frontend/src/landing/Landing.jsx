@@ -12,9 +12,9 @@ import HowItWorks from "./HowItWorks";
 // Measured on the benchmark in eval/ (58 questions over 12 company documents).
 // Update from eval/baseline.json when the pipeline changes.
 const PROOF = [
-  { value: "98%", label: "of questions find the right document in the top five passages" },
+  { value: "98%", label: "of answers contain every expected fact, across 58 policy, finance, IT, legal and operations questions" },
+  { value: "100%", label: "of questions the documents don't answer get a plain “couldn't find this”, not a guess" },
   { value: "0", label: "passages returned from outside the asker's departments, across every scoped test" },
-  { value: "58", label: "real policy, finance, IT, legal and operations questions in the public benchmark" },
 ];
 
 const SECURITY = [

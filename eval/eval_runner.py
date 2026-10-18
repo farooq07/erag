@@ -146,7 +146,7 @@ def _rr(retrieved: list[str], expected: list[str]) -> float:
 
 # ── Run ──────────────────────────────────────────────────────────────────
 
-def _with_rate_limit_wait(fn, max_wait_s: float = 3 * 3600):
+def _with_rate_limit_wait(fn, on_retry=None, max_wait_s: float = 3 * 3600):
     """Call fn, sleeping through provider rate limits (Groq's free tier also has
     a rolling daily token cap that the client's own retries can't outlast)."""
     waited = 0.0
@@ -162,6 +162,8 @@ def _with_rate_limit_wait(fn, max_wait_s: float = 3 * 3600):
             print(f"      rate limited; waiting {delay:.0f}s", flush=True)
             time.sleep(delay)
             waited += delay
+            if on_retry:
+                on_retry()
 
 def run(questions: list[dict], k: int, answers: bool, model: str | None) -> list[dict]:
     import config
@@ -207,8 +209,11 @@ def run(questions: list[dict], k: int, answers: bool, model: str | None) -> list
             r["context_recall"] = sum(_has_fact(context, f) for f in facts) / len(facts) if facts else 1.0
 
         if answers:
-            answer = _with_rate_limit_wait(lambda: rag.generate_answer(
-                q["question"], docs, low_conf, model=model, history=history, department=scope))
+            # Retries after a rate limit aren't extra production calls; don't count them.
+            answer = _with_rate_limit_wait(
+                lambda: rag.generate_answer(q["question"], docs, low_conf, model=model,
+                                            history=history, department=scope),
+                on_retry=lambda: calls.__setitem__("n", calls["n"] - 1))
             r["answer"] = answer
             refused = bool(REFUSAL_RE.search(answer))
             r["refused"] = refused
