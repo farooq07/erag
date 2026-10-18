@@ -72,7 +72,7 @@ export default function AuthScreen({ onAuth }) {
         setNotice(data.message);
       } else if (mode === "reset") {
         await post("/auth/reset-password", { token: resetToken, password: form.password });
-        window.history.replaceState(null, "", "/");
+        window.history.replaceState(null, "", "/login");
         switchMode("login");
         setNotice("Password updated. Sign in with your new password.");
       }
@@ -243,7 +243,7 @@ export default function AuthScreen({ onAuth }) {
           <button
             type="button"
             onClick={() => {
-              if (mode === "reset") window.history.replaceState(null, "", "/");
+              if (mode === "reset") window.history.replaceState(null, "", "/login");
               switchMode(mode === "login" ? "signup" : "login");
             }}
             className="font-medium text-foreground underline-offset-4 hover:underline"

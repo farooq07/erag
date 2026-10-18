@@ -1,0 +1,103 @@
+/* Landing page tokens. Scoped to .landing so the app's theme is untouched;
+   follows the app's light/dark class on <html>. */
+.landing {
+  --paper: #f2f3f1;
+  --surface: #ffffff;
+  --ink: #16181d;
+  --muted: #5d636c;
+  --rule: #dadddf;
+  --accent: #fc3b00;          /* product orange: CTAs and citation markers only */
+  --accent-ink: #ffffff;
+  --highlight: #ffe45c;        /* highlighter, used only on cited passages */
+  --redact: #16181d;
+  --shadow: 0 1px 0 rgba(22, 24, 29, 0.04), 0 18px 40px -24px rgba(22, 24, 29, 0.18);
+
+  --font-display: "Bricolage Grotesque Variable", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Geist Variable", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "Cascadia Code", monospace;
+
+  /* #root is a flex container (for the app); fill it instead of shrinking to content. */
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.dark .landing {
+  --paper: #0f1012;
+  --surface: #17191c;
+  --ink: #ecedea;
+  --muted: #9ba1a8;
+  --rule: #2a2d31;
+  --accent: #ff5a26;
+  --accent-ink: #16181d;
+  --highlight: #e8d24f;
+  --redact: #ecedea;
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.03), 0 18px 40px -24px rgba(0, 0, 0, 0.6);
+}
+
+.landing .font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  letter-spacing: -0.025em;
+}
+.landing .font-mono { font-family: var(--font-mono); }
+
+.landing ::selection { background: var(--highlight); color: #16181d; }
+
+.landing :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* Highlighter mark: draws left-to-right when .is-lit is added. */
+.landing .hl {
+  background-image: linear-gradient(transparent 12%, var(--highlight) 12%, var(--highlight) 88%, transparent 88%);
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+  transition: background-size 520ms cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 2px;
+  padding: 0 1px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.landing .hl.is-lit { background-size: 100% 100%; color: #16181d; }
+
+/* Redaction bar for passages outside the asker's departments. */
+.landing .redacted {
+  background: var(--redact);
+  color: transparent;
+  border-radius: 2px;
+  user-select: none;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.landing .caret::after {
+  content: "";
+  display: inline-block;
+  width: 0.55ch;
+  height: 1.05em;
+  margin-left: 1px;
+  vertical-align: -0.15em;
+  background: var(--accent);
+  animation: landing-blink 1s steps(2, start) infinite;
+}
+@keyframes landing-blink { to { visibility: hidden; } }
+
+/* Lenis smooth scrolling */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-stopped { overflow: hidden; }
+
+@media (prefers-reduced-motion: reduce) {
+  .landing .hl { transition: none; }
+  .landing .caret::after { animation: none; }
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { lazy, Suspense, useState, useEffect, useRef } from "react";
 import Sidebar from "./components/Sidebar";
 import ChatPanel from "./components/ChatPanel";
 import PdfViewer from "./components/PdfViewer";
@@ -8,7 +8,28 @@ import { apiFetch, logout, refreshSession } from "@/lib/session";
 
 const API = "/api";
 
+// Marketing homepage, loaded only for signed-out visitors.
+const Landing = lazy(() => import("./landing/Landing"));
+
+// Tiny path router: "/" (homepage or app), "/login", "/reset-password".
+function usePath() {
+  const [path, setPath] = useState(window.location.pathname);
+  useEffect(() => {
+    const onPop = () => setPath(window.location.pathname);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  const navigate = (to, { replace = false } = {}) => {
+    if (to === window.location.pathname) return;
+    window.history[replace ? "replaceState" : "pushState"](null, "", to);
+    setPath(to);
+    window.scrollTo(0, 0);
+  };
+  return [path, navigate];
+}
+
 export default function App() {
+  const [path, navigate] = usePath();
   const [currentUser, setCurrentUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
 
@@ -62,10 +83,12 @@ export default function App() {
 
   const handleAuth = (user) => {
     setCurrentUser(user);
+    navigate("/", { replace: true });
   };
 
   const handleLogout = async () => {
     await logout().catch(() => {});
+    navigate("/", { replace: true });
     setCurrentUser(null);
     setMessages([]);
     setDocuments([]);
@@ -193,9 +216,18 @@ export default function App() {
   // Auth gate: show nothing until we know if token is valid
   if (!authChecked) return null;
 
+  // Homepage: signed-out visitors at "/", and anyone at "/home".
+  if ((!currentUser && path === "/") || path === "/home") {
+    return (
+      <Suspense fallback={null}>
+        <Landing onSignIn={() => navigate(currentUser ? "/" : "/login")} />
+      </Suspense>
+    );
+  }
+
   // Not authenticated → show login/signup
   // (a reset link always shows the reset form, even with a live session)
-  if (!currentUser || window.location.pathname === "/reset-password") {
+  if (!currentUser || path === "/reset-password") {
     return <AuthScreen onAuth={handleAuth} />;
   }
 
