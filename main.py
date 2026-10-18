@@ -4,10 +4,13 @@ import shutil
 from contextlib import asynccontextmanager
 from datetime import datetime, time, timezone
 from pathlib import Path
+from urllib.parse import urlencode
+
+import httpx
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
@@ -33,8 +36,10 @@ from auth import (
     reset_password,
     revoke_refresh_token,
     rotate_refresh_token,
+    session_for_user,
     user_from_token,
 )
+import sso
 from config import (
     ALLOWED_MODELS,
     ALLOWED_ORIGINS,
@@ -294,6 +299,68 @@ def logout_all(response: Response, user: dict = Depends(get_current_user)):
     _end_session(response)
     _audit("logout_all", user["id"])
     return {"ok": True}
+
+
+SSO_COOKIE = "dm_sso"
+SSO_COOKIE_PATH = "/api/auth/sso"
+
+
+@app.get("/auth/sso/providers")
+def sso_providers():
+    return {"providers": [{"id": p.name, "label": p.label} for p in sso.PROVIDERS.values()]}
+
+
+@app.get("/auth/sso/{provider}/start")
+@limiter.limit("20/minute")
+def sso_start(request: Request, provider: str):
+    p = sso.get_provider(provider)
+    try:
+        url, state_cookie = sso.start(p)
+    except httpx.HTTPError as e:
+        print(f"[sso] {provider} discovery failed: {e!r}")
+        return RedirectResponse(_sso_error_url(f"{p.label} sign-in is unavailable right now."), status_code=302)
+    response = RedirectResponse(url, status_code=302)
+    response.set_cookie(
+        SSO_COOKIE, state_cookie,
+        max_age=sso.STATE_TTL_SECONDS,
+        httponly=True,
+        secure=_cookie_secure(request),
+        samesite="lax",  # must survive the top-level redirect back from the provider
+        path=SSO_COOKIE_PATH,
+    )
+    return response
+
+
+@app.get("/auth/sso/{provider}/callback")
+@limiter.limit("20/minute")
+def sso_callback(request: Request, provider: str, code: str | None = None,
+                 state: str | None = None, error: str | None = None):
+    p = sso.get_provider(provider)
+    try:
+        if error:  # user cancelled, or the provider refused
+            raise sso.SSOError(f"{p.label} sign-in was cancelled.")
+        claims = sso.finish(p, code, state, request.cookies.get(SSO_COOKIE))
+        user_id, how = sso.resolve_user(p, claims)
+        session = session_for_user(user_id, _ua(request))
+    except sso.SSOError as e:
+        _audit("sso_failed", None, {"provider": provider, "reason": str(e)})
+        response = RedirectResponse(_sso_error_url(str(e)), status_code=302)
+        response.delete_cookie(SSO_COOKIE, path=SSO_COOKIE_PATH)
+        return response
+    except httpx.HTTPError as e:
+        print(f"[sso] {provider} callback HTTP error: {e!r}")
+        return RedirectResponse(_sso_error_url(f"Couldn't reach {p.label}. Please try again."), status_code=302)
+
+    _audit("login_sso", user_id, {"provider": provider, "account": how})
+    # The SPA picks the session up from the refresh cookie on load.
+    response = RedirectResponse("/", status_code=302)
+    _start_session(request, response, session)
+    response.delete_cookie(SSO_COOKIE, path=SSO_COOKIE_PATH)
+    return response
+
+
+def _sso_error_url(message: str) -> str:
+    return f"/?{urlencode({'sso_error': message})}"
 
 
 @app.post("/auth/forgot-password")

@@ -218,6 +218,17 @@ def do_login(email: str, password: str, user_agent: str | None = None) -> Sessio
 _DUMMY_HASH = hash_password(secrets.token_urlsafe(16))
 
 
+def session_for_user(user_id: str, user_agent: str | None = None) -> Session:
+    """Start a session for an already-authenticated user (e.g. after SSO)."""
+    with session_scope() as s:
+        user = s.get(User, user_id)
+        if user is None:
+            raise HTTPException(status_code=401, detail="User not found")
+        user.failed_logins = 0
+        session, _ = _new_session(s, user, user_agent)
+    return session
+
+
 def rotate_refresh_token(raw: str | None, user_agent: str | None = None) -> Session:
     """Exchange a refresh token for a new access + refresh token pair."""
     if not raw:

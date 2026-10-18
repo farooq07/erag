@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 ROOT = Path(__file__).parent
-DATA_DIR = ROOT / "data"
+DATA_DIR = Path(os.getenv("DOCUMIND_DATA_DIR", ROOT / "data"))
 UPLOADS_DIR = DATA_DIR / "uploads"
 CHROMA_DIR = DATA_DIR / "chroma_db"
 
@@ -91,6 +91,25 @@ LOCKOUT_MINUTES = 15
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "auto").lower()
 # Public URL of the app, used in password-reset emails.
 APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000").rstrip("/")
+
+# ── Single sign-on (OpenID Connect) ──────────────────────────────────────
+# A provider is enabled when both its client id and secret are set. Register
+# this redirect URI with the provider:
+#   {APP_BASE_URL}/api/auth/sso/<google|microsoft>/callback
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+MICROSOFT_CLIENT_ID = os.getenv("MICROSOFT_CLIENT_ID", "")
+MICROSOFT_CLIENT_SECRET = os.getenv("MICROSOFT_CLIENT_SECRET", "")
+# Your Entra tenant id (recommended: only your org can sign in), or
+# "organizations" / "common" for multi-tenant apps.
+MICROSOFT_TENANT = os.getenv("MICROSOFT_TENANT", "organizations")
+# Comma-separated email domains allowed to sign in with SSO (empty = any).
+SSO_ALLOWED_DOMAINS = {
+    d.strip().lower().lstrip("@") for d in os.getenv("SSO_ALLOWED_DOMAINS", "").split(",") if d.strip()
+}
+# Create an account (Staff, General) on first SSO login. When false, an admin
+# must create the user first and SSO only links to it.
+SSO_AUTO_SIGNUP = os.getenv("SSO_AUTO_SIGNUP", "true").lower() == "true"
 
 # ── Email (password reset) ───────────────────────────────────────────────
 # Without SMTP_HOST, emails are printed to the server log (dev mode).
