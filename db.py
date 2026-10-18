@@ -12,7 +12,18 @@ import json
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, Boolean, DateTime, Integer, String, Text, create_engine, event, select
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    create_engine,
+    event,
+    select,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 from config import AUDIT_LOG_PATH, DATABASE_URL, ROOT, USERS_FILE
@@ -70,6 +81,11 @@ class User(Base):
     departments: Mapped[list] = mapped_column(JSON, default=list)
     can_upload: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    # Bumped on password change/reset or "log out everywhere"; access tokens
+    # carry it, so bumping it invalidates every outstanding token at once.
+    token_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    failed_logins: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     def public(self) -> dict:
         return {
@@ -80,6 +96,30 @@ class User(Base):
             "departments": list(self.departments or []),
             "can_upload": bool(self.can_upload),
         }
+
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)  # sha256 hex
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    replaced_by: Mapped[int | None] = mapped_column(Integer)
+    user_agent: Mapped[str | None] = mapped_column(String(300))
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Document(Base):
@@ -138,12 +178,17 @@ class AuditEvent(Base):
     data: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
+def aware(dt: datetime | None) -> datetime | None:
+    """SQLite drops tzinfo; values are stored as UTC, so re-attach it."""
+    if dt is not None and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 def _iso(dt: datetime | None) -> str | None:
     if dt is None:
         return None
-    if dt.tzinfo is None:  # SQLite drops tzinfo; values are stored as UTC
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.isoformat(timespec="seconds").replace("+00:00", "Z")
+    return aware(dt).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _parse_ts(raw: str | None) -> datetime | None:

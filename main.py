@@ -7,7 +7,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
@@ -22,16 +22,23 @@ from auth import (
     assert_can_access,
     assert_can_upload,
     bearer_scheme,
+    change_password,
     do_login,
     do_signup,
     get_current_user,
     list_users,
+    logout_everywhere,
+    request_password_reset,
     require_admin,
+    reset_password,
+    revoke_refresh_token,
+    rotate_refresh_token,
     user_from_token,
 )
 from config import (
     ALLOWED_MODELS,
     ALLOWED_ORIGINS,
+    COOKIE_SECURE,
     DEFAULT_DEPARTMENT,
     DEMO_CORPUS,
     DEMO_DIR,
@@ -44,6 +51,7 @@ from config import (
     MAX_HISTORY_TURNS,
     MAX_QUESTION_CHARS,
     MAX_UPLOAD_BYTES,
+    REFRESH_TOKEN_DAYS,
     SUPPORTED_EXTS,
     UPLOADS_DIR,
 )
@@ -87,6 +95,7 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
+    allow_credentials=True,  # refresh cookie on cross-origin dev setups
 )
 
 
@@ -155,9 +164,23 @@ class AuthRequest(BaseModel):
 
 
 class SignupRequest(BaseModel):
-    name: str
-    email: str
-    password: str
+    name: str = Field(max_length=200)
+    email: str = Field(max_length=320)
+    password: str = Field(max_length=200)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str = Field(max_length=320)
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(max_length=200)
+    password: str = Field(max_length=200)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(max_length=200)
+    new_password: str = Field(max_length=200)
 
 
 def _check_model(v: str) -> str:
@@ -190,24 +213,114 @@ class UpdateMetaRequest(BaseModel):
 
 # ── Auth endpoints ───────────────────────────────────────────────────────
 
+REFRESH_COOKIE = "dm_refresh"
+# The browser always reaches auth routes under /api (Vite proxy in dev, the
+# _StripApiPrefix middleware in prod), so scope the cookie to just those.
+REFRESH_COOKIE_PATH = "/api/auth"
+
+
+def _cookie_secure(request: Request) -> bool:
+    if COOKIE_SECURE in ("true", "false"):
+        return COOKIE_SECURE == "true"
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+    return proto.split(",")[0].strip() == "https"
+
+
+def _start_session(request: Request, response: Response, session) -> dict:
+    response.set_cookie(
+        REFRESH_COOKIE,
+        session.refresh_token,
+        max_age=REFRESH_TOKEN_DAYS * 24 * 3600,
+        httponly=True,
+        secure=_cookie_secure(request),
+        samesite="strict",
+        path=REFRESH_COOKIE_PATH,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return session.body()
+
+
+def _end_session(response: Response) -> None:
+    response.delete_cookie(REFRESH_COOKIE, path=REFRESH_COOKIE_PATH)
+
+
+def _ua(request: Request) -> str | None:
+    return request.headers.get("user-agent")
+
+
 @app.post("/auth/signup")
 @limiter.limit("5/minute")
-def signup(request: Request, req: SignupRequest):
-    user, token = do_signup(req.name, req.email, req.password)
-    _audit("signup", user.get("id"))
-    return {"token": token, "user": user}
+def signup(request: Request, response: Response, req: SignupRequest):
+    session = do_signup(req.name, req.email, req.password, _ua(request))
+    _audit("signup", session.user["id"])
+    return _start_session(request, response, session)
 
 
 @app.post("/auth/login")
 @limiter.limit("5/minute")
-def login(request: Request, req: AuthRequest):
+def login(request: Request, response: Response, req: AuthRequest):
     try:
-        user, token = do_login(req.email, req.password)
-    except HTTPException:
-        _audit("login_failed", None, {"email": req.email[:120]})
+        session = do_login(req.email, req.password, _ua(request))
+    except HTTPException as e:
+        _audit("login_locked" if e.status_code == 429 else "login_failed", None, {"email": req.email[:120]})
         raise
-    _audit("login", user.get("id"))
-    return {"token": token, "user": user}
+    _audit("login", session.user["id"])
+    return _start_session(request, response, session)
+
+
+@app.post("/auth/refresh")
+@limiter.limit("30/minute")
+def refresh(request: Request, response: Response):
+    try:
+        session = rotate_refresh_token(request.cookies.get(REFRESH_COOKIE), _ua(request))
+    except HTTPException:
+        _end_session(response)
+        raise
+    return _start_session(request, response, session)
+
+
+@app.post("/auth/logout")
+def logout(request: Request, response: Response):
+    uid = revoke_refresh_token(request.cookies.get(REFRESH_COOKIE))
+    _end_session(response)
+    if uid:
+        _audit("logout", uid)
+    return {"ok": True}
+
+
+@app.post("/auth/logout-all")
+def logout_all(response: Response, user: dict = Depends(get_current_user)):
+    logout_everywhere(user["id"])
+    _end_session(response)
+    _audit("logout_all", user["id"])
+    return {"ok": True}
+
+
+@app.post("/auth/forgot-password")
+@limiter.limit("3/minute")
+def forgot_password(request: Request, req: ForgotPasswordRequest):
+    uid = request_password_reset(req.email)
+    _audit("password_reset_requested", uid, {"email": req.email[:120]})
+    # Same answer whether or not the account exists.
+    return {"ok": True, "message": "If that email is registered, a reset link is on its way."}
+
+
+@app.post("/auth/reset-password")
+@limiter.limit("5/minute")
+def do_reset_password(request: Request, req: ResetPasswordRequest):
+    uid = reset_password(req.token, req.password)
+    _audit("password_reset", uid)
+    return {"ok": True}
+
+
+@app.post("/auth/change-password")
+@limiter.limit("5/minute")
+def do_change_password(request: Request, response: Response, req: ChangePasswordRequest,
+                       user: dict = Depends(get_current_user)):
+    change_password(user["id"], req.current_password, req.new_password)
+    _audit("password_changed", user["id"])
+    # Every session was revoked; start a fresh one for this browser.
+    return _start_session(request, response, do_login(user["email"], req.new_password, _ua(request)))
 
 
 @app.get("/auth/me")

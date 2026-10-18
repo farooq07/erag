@@ -3,6 +3,7 @@ import { ArrowUp, Mic, MicOff, Sparkles, FileText, Zap, Shield, RotateCcw, Build
 import Message from "./Message";
 import Dropdown, { DEPT_DOT } from "./Dropdown";
 import ThemeToggle from "./ThemeToggle";
+import AccountMenu from "./AccountMenu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -171,13 +172,7 @@ export default function ChatPanel({
           )}
           {currentUser && (
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 rounded-md border bg-background px-2.5 py-1">
-                <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
-                  {currentUser.name?.[0]?.toUpperCase() ?? "?"}
-                </div>
-                <span className="max-w-[80px] truncate text-[11px] font-medium text-foreground">{currentUser.name}</span>
-                <span className="hidden text-[10px] text-muted-foreground sm:inline">· {currentUser.role}</span>
-              </div>
+              <AccountMenu currentUser={currentUser} onLogout={onLogout} />
               <Button variant="ghost" size="icon" onClick={onLogout} title="Sign out" className="h-7 w-7 text-muted-foreground hover:text-destructive">
                 <LogOut className="h-3.5 w-3.5" />
               </Button>

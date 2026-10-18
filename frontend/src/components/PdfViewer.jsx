@@ -10,6 +10,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { apiFetch, authHeader } from "@/lib/session";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -17,11 +18,6 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 ).toString();
 
 const API = "/api";
-
-function authHeader() {
-  const token = localStorage.getItem("dm_token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
 
 function pickHighlightPhrase(chunk) {
   if (!chunk) return "";
@@ -46,7 +42,7 @@ export default function PdfViewer({ open, source, onClose }) {
   );
 
   const openInNewTab = async () => {
-    const res = await fetch(fileUrl, { headers: authHeader() });
+    const res = await apiFetch(fileUrl);
     if (!res.ok) return;
     const blobUrl = URL.createObjectURL(await res.blob());
     window.open(blobUrl, "_blank");

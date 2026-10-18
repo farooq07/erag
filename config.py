@@ -80,6 +80,26 @@ GROUNDING_CHECK_ENABLED = True
 # Legacy JSONL log; imported into the audit_events table on first start.
 AUDIT_LOG_PATH = DATA_DIR / "audit.jsonl"
 
+# ── Auth / sessions ──────────────────────────────────────────────────────
+ACCESS_TOKEN_MINUTES = int(os.getenv("ACCESS_TOKEN_MINUTES", "15"))
+REFRESH_TOKEN_DAYS = int(os.getenv("REFRESH_TOKEN_DAYS", "14"))
+PASSWORD_RESET_MINUTES = 30
+LOCKOUT_THRESHOLD = 5          # failed logins before the account locks
+LOCKOUT_MINUTES = 15
+# "auto" = Secure cookie only when the request arrived over HTTPS (directly or
+# via X-Forwarded-Proto); force with "true"/"false".
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "auto").lower()
+# Public URL of the app, used in password-reset emails.
+APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000").rstrip("/")
+
+# ── Email (password reset) ───────────────────────────────────────────────
+# Without SMTP_HOST, emails are printed to the server log (dev mode).
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM = os.getenv("SMTP_FROM", "DocuMind <no-reply@localhost>")
+
 # ── Database ─────────────────────────────────────────────────────────────
 # SQLite for zero-setup local dev; set a postgresql+psycopg:// URL in production.
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{(DATA_DIR / 'documind.db').as_posix()}")

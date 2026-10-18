@@ -1,14 +1,14 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import Sidebar from "./components/Sidebar";
 import ChatPanel from "./components/ChatPanel";
 import PdfViewer from "./components/PdfViewer";
 import RagPipelinePanel from "./components/RagPipelinePanel";
 import AuthScreen from "./components/AuthScreen";
+import { apiFetch, logout, refreshSession } from "@/lib/session";
 
 const API = "/api";
 
 export default function App() {
-  const [token, setToken] = useState(() => localStorage.getItem("dm_token") || "");
   const [currentUser, setCurrentUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
 
@@ -28,38 +28,15 @@ export default function App() {
   const pendingSummaries = useRef(new Set());
   const [pipeline, setPipeline] = useState(null);
 
-  // Build auth headers for every request
-  const authHeaders = useCallback(() =>
-    token ? { Authorization: `Bearer ${token}` } : {},
-    [token]);
+  const authedFetch = apiFetch;
 
-  const authedFetch = useCallback(
-    (url, opts = {}) =>
-      fetch(url, {
-        ...opts,
-        headers: { ...(opts.headers || {}), ...authHeaders() },
-      }),
-    [authHeaders],
-  );
-
-  // On mount: verify stored token
+  // On mount: resume the session from the refresh cookie, if there is one.
   useEffect(() => {
-    const storedToken = localStorage.getItem("dm_token");
-    if (!storedToken) { setAuthChecked(true); return; }
-    fetch(`${API}/auth/me`, {
-      headers: { Authorization: `Bearer ${storedToken}` },
-    }).then(async (r) => {
-      if (r.ok) {
-        const d = await r.json();
-        setToken(storedToken);
-        setCurrentUser(d.user);
-      } else {
-        localStorage.removeItem("dm_token");
-        setToken("");
-      }
-    }).catch(() => {
-      setToken("");
-    }).finally(() => setAuthChecked(true));
+    localStorage.removeItem("dm_token"); // tokens used to live here; drop any leftover
+    refreshSession()
+      .then((user) => { if (user) setCurrentUser(user); })
+      .catch(() => {})
+      .finally(() => setAuthChecked(true));
   }, []);
 
   // After user is set: load documents and departments
@@ -83,14 +60,12 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
-  const handleAuth = (user, tok) => {
-    setToken(tok);
+  const handleAuth = (user) => {
     setCurrentUser(user);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("dm_token");
-    setToken("");
+  const handleLogout = async () => {
+    await logout().catch(() => {});
     setCurrentUser(null);
     setMessages([]);
     setDocuments([]);
@@ -219,7 +194,8 @@ export default function App() {
   if (!authChecked) return null;
 
   // Not authenticated → show login/signup
-  if (!currentUser) {
+  // (a reset link always shows the reset form, even with a live session)
+  if (!currentUser || window.location.pathname === "/reset-password") {
     return <AuthScreen onAuth={handleAuth} />;
   }
 

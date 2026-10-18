@@ -4,44 +4,75 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { setAccessToken } from "@/lib/session";
 
 const API = "/api";
 
+// Demo logins reveal real passwords, so keep them out of production builds.
+const SHOW_DEMO_LOGINS = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_LOGINS === "true";
+
+// A password-reset email links to /reset-password?token=…
+function resetTokenFromUrl() {
+  if (window.location.pathname !== "/reset-password") return "";
+  return new URLSearchParams(window.location.search).get("token") || "";
+}
+
 export default function AuthScreen({ onAuth }) {
-  const [mode, setMode] = useState("login");
+  const [resetToken] = useState(resetTokenFromUrl);
+  const [mode, setMode] = useState(resetToken ? "reset" : "login"); // login | signup | forgot | reset
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  async function post(path, body) {
+    const res = await fetch(`${API}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Something went wrong");
+    return data;
+  }
 
   async function submit(e) {
     e.preventDefault();
     setError("");
+    setNotice("");
     setLoading(true);
     try {
-      const path = mode === "login" ? "/auth/login" : "/auth/signup";
-      const body = mode === "login"
-        ? { email: form.email, password: form.password }
-        : { name: form.name, email: form.email, password: form.password };
-      const res = await fetch(`${API}${path}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.detail || "Something went wrong"); return; }
-      localStorage.setItem("dm_token", data.token);
-      onAuth(data.user, data.token);
-    } catch {
-      setError("Network error — is the server running?");
+      if (mode === "login" || mode === "signup") {
+        const data = mode === "login"
+          ? await post("/auth/login", { email: form.email, password: form.password })
+          : await post("/auth/signup", { name: form.name, email: form.email, password: form.password });
+        setAccessToken(data.access_token);
+        onAuth(data.user);
+      } else if (mode === "forgot") {
+        const data = await post("/auth/forgot-password", { email: form.email });
+        setNotice(data.message);
+      } else if (mode === "reset") {
+        await post("/auth/reset-password", { token: resetToken, password: form.password });
+        window.history.replaceState(null, "", "/");
+        switchMode("login");
+        setNotice("Password updated. Sign in with your new password.");
+      }
+    } catch (err) {
+      setError(err instanceof TypeError ? "Network error — is the server running?" : err.message);
     } finally {
       setLoading(false);
     }
   }
 
-  const switchMode = (m) => { setMode(m); setError(""); setForm({ name: "", email: "", password: "" }); };
+  const switchMode = (m) => { setMode(m); setError(""); setNotice(""); setForm({ name: "", email: "", password: "" }); };
+
+  const title = { forgot: "Reset your password", reset: "Choose a new password" }[mode];
+  const submitLabel = { login: "Sign in", signup: "Create account", forgot: "Send reset link", reset: "Set new password" }[mode];
+  const needsPassword = mode !== "forgot";
+  const needsEmail = mode !== "reset";
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-background p-4">
@@ -56,22 +87,26 @@ export default function AuthScreen({ onAuth }) {
         </div>
 
         <Card className="p-6">
-          {/* Tab switcher */}
-          <div className="mb-5 flex gap-1 rounded-xl bg-muted p-1">
-            {[["login", "Sign in"], ["signup", "Create account"]].map(([m, label]) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => switchMode(m)}
-                className={cn(
-                  "flex-1 rounded-lg py-1.5 text-[12px] font-semibold transition-colors",
-                  mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          {title ? (
+            <h2 className="mb-5 text-[14px] font-semibold text-foreground">{title}</h2>
+          ) : (
+            /* Tab switcher */
+            <div className="mb-5 flex gap-1 rounded-xl bg-muted p-1">
+              {[["login", "Sign in"], ["signup", "Create account"]].map(([m, label]) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => switchMode(m)}
+                  className={cn(
+                    "flex-1 rounded-lg py-1.5 text-[12px] font-semibold transition-colors",
+                    mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
 
           <form onSubmit={submit} className="space-y-4">
             {mode === "signup" && (
@@ -80,42 +115,65 @@ export default function AuthScreen({ onAuth }) {
               </Field>
             )}
 
-            <Field label="Email">
-              <Input type="email" required autoComplete="email" value={form.email} onChange={set("email")} placeholder="you@acme.com" />
-            </Field>
+            {needsEmail && (
+              <Field label="Email">
+                <Input type="email" required autoComplete="email" value={form.email} onChange={set("email")} placeholder="you@acme.com" />
+              </Field>
+            )}
 
-            <Field label="Password">
-              <div className="relative">
-                <Input
-                  type={showPw ? "text" : "password"} required
-                  autoComplete={mode === "login" ? "current-password" : "new-password"}
-                  value={form.password} onChange={set("password")}
-                  placeholder={mode === "signup" ? "Min. 8 characters" : "••••••••"}
-                  className="pr-10"
-                />
+            {needsPassword && (
+              <Field label={mode === "reset" ? "New password" : "Password"}>
+                <div className="relative">
+                  <Input
+                    type={showPw ? "text" : "password"} required
+                    autoComplete={mode === "login" ? "current-password" : "new-password"}
+                    minLength={mode === "login" ? undefined : 8}
+                    value={form.password} onChange={set("password")}
+                    placeholder={mode === "login" ? "••••••••" : "Min. 8 characters"}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw((v) => !v)}
+                    aria-label={showPw ? "Hide password" : "Show password"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+              </Field>
+            )}
+
+            {mode === "login" && (
+              <div className="-mt-2 text-right">
                 <button
                   type="button"
-                  onClick={() => setShowPw((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                  onClick={() => switchMode("forgot")}
+                  className="text-[11px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                 >
-                  {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                  Forgot password?
                 </button>
               </div>
-            </Field>
+            )}
 
             {error && (
-              <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-[12px] text-destructive">
+              <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-[12px] text-destructive">
                 {error}
+              </p>
+            )}
+            {notice && (
+              <p role="status" className="rounded-xl border bg-muted px-3 py-2 text-[12px] text-foreground">
+                {notice}
               </p>
             )}
 
             <Button type="submit" disabled={loading} className="mt-1 w-full gap-2">
               {loading && <Loader2 size={14} className="animate-spin" />}
-              {mode === "login" ? "Sign in" : "Create account"}
+              {submitLabel}
             </Button>
           </form>
 
-          {mode === "login" && (
+          {mode === "login" && SHOW_DEMO_LOGINS && (
             <details className="group mt-4">
               <summary className="flex cursor-pointer list-none items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground">
                 <span className="inline-block transition-transform group-open:rotate-90">▶</span>
@@ -143,13 +201,17 @@ export default function AuthScreen({ onAuth }) {
         </Card>
 
         <p className="mt-5 text-center text-[12px] text-muted-foreground">
-          {mode === "login" ? "New to DocuMind? " : "Already have an account? "}
+          {mode === "login" && "New to DocuMind? "}
+          {mode === "signup" && "Already have an account? "}
           <button
             type="button"
-            onClick={() => switchMode(mode === "login" ? "signup" : "login")}
+            onClick={() => {
+              if (mode === "reset") window.history.replaceState(null, "", "/");
+              switchMode(mode === "login" ? "signup" : "login");
+            }}
             className="font-medium text-foreground underline-offset-4 hover:underline"
           >
-            {mode === "login" ? "Create an account" : "Sign in instead"}
+            {mode === "login" ? "Create an account" : mode === "signup" ? "Sign in instead" : "Back to sign in"}
           </button>
         </p>
       </div>
