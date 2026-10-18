@@ -243,7 +243,7 @@ def _verify_id_token(provider: Provider, meta: dict, id_token: str, nonce: str) 
         raise
     except jwt.PyJWTError as e:
         print(f"[sso] {provider.name} id_token rejected: {e}")
-        raise SSOError("The sign-in response couldn't be verified.")
+        raise SSOError("The sign-in response couldn't be verified.") from e
 
     expected_iss = meta["issuer"]
     if provider.issuer_has_tenant_placeholder:

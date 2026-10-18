@@ -13,7 +13,6 @@ from typing import Iterable
 from sqlalchemy import delete, select
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_chroma import Chroma
 from langchain_community.document_loaders import (
     Docx2txtLoader,
     PyMuPDFLoader,
@@ -92,7 +91,7 @@ def _load_xlsx_structured(path: Path) -> list[Document]:
                 cells = row[:n_cols]
                 if not any(c for c in cells):
                     continue
-                pairs = [f"{h}: {v}" for h, v in zip(header, cells) if h or v]
+                pairs = [f"{h}: {v}" for h, v in zip(header, cells, strict=False) if h or v]
                 content = f"[Sheet: {sheet_name}] " + " | ".join(pairs)
                 docs.append(Document(
                     page_content=content,
@@ -140,7 +139,7 @@ def _load_pptx_structured(path: Path) -> list[Document]:
                         continue
                     if has_header:
                         row_str = " | ".join(
-                            f"{h}: {v}" for h, v in zip(header_cells, cells) if h or v
+                            f"{h}: {v}" for h, v in zip(header_cells, cells, strict=False) if h or v
                         )
                     else:
                         row_str = " | ".join(c for c in cells if c)
@@ -281,7 +280,7 @@ def _split_by_sections(doc: Document, title: str, splitter) -> list[Document]:
     starts = [m.start() for m in marks] + [len(text)]
     if marks and marks[0].start() > 0:
         sections.append(([], text[: marks[0].start()]))
-    for m, end in zip(marks, starts[1:]):
+    for m, end in zip(marks, starts[1:], strict=False):
         level = len(m.group(1))
         path = {k: v for k, v in path.items() if k < level}
         path[level] = m.group(2).strip()

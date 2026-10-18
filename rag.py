@@ -414,7 +414,7 @@ def _retrieve_pipeline(
     scores: list[float] | None = None
     if RERANKER_ENABLED:
         scores = _score_pairs(effective_q, docs)
-        ranked = sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)
+        ranked = sorted(zip(docs, scores, strict=True), key=lambda x: x[1], reverse=True)
         docs = [d for d, _ in ranked]
         scores = [s for _, s in ranked]
         for d, s in ranked:
@@ -429,10 +429,10 @@ def _retrieve_pipeline(
     if CRAG_ENABLED:
         if scores is None:
             scores = _score_pairs(effective_q, docs)
-            ranked = sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)
+            ranked = sorted(zip(docs, scores, strict=True), key=lambda x: x[1], reverse=True)
             docs, scores = [d for d, _ in ranked], [s for _, s in ranked]
         low_confidence = bool(scores) and scores[0] < CRAG_LOW_CONFIDENCE
-        kept_docs = [d for i, (d, s) in enumerate(zip(docs, scores))
+        kept_docs = [d for i, (d, s) in enumerate(zip(docs, scores, strict=True))
                      if i < CRAG_MIN_CHUNKS or s >= CRAG_THRESHOLD][:k]
         return kept_docs, low_confidence
 

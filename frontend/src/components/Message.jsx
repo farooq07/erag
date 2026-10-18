@@ -3,7 +3,6 @@ import ReactMarkdown from "react-markdown";
 import { ChevronDown, ChevronUp, FileText, ScanLine, BookOpen, Workflow, ShieldCheck, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 import ThinkingLine from "./ThinkingLine";
 
 export default function Message({ msg, query, onOpenSource, onOpenPipeline }) {

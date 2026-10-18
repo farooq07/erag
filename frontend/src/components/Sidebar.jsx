@@ -1,11 +1,12 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useDropzone } from "react-dropzone";
 import {
   MessageSquare, FolderOpen, Settings, Trash2, Plus, X,
   ChevronRight, FileText, Sparkles, Loader2,
   Search, Tag, Building2, Pencil, Check,
 } from "lucide-react";
-import Dropdown, { DEPT_DOT } from "./Dropdown";
+import Dropdown from "./Dropdown";
+import { DEPT_DOT } from "@/lib/departments";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -47,16 +48,12 @@ export default function Sidebar({
   const [uploadTags, setUploadTags] = useState("");
   const [editingDept, setEditingDept] = useState(null);
 
-  useEffect(() => {
-    if (writableDepartments.length === 0) return;
-    if (!writableDepartments.includes(uploadDept)) {
-      setUploadDept(writableDepartments.includes(defaultDept) ? defaultDept : writableDepartments[0]);
-    }
-    if (filterDept !== "All" && !writableDepartments.includes(filterDept)) {
-      setFilterDept("All");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [writableDepartments.join(",")]);
+  const effectiveUploadDept = (writableDepartments.length > 0 && !writableDepartments.includes(uploadDept))
+    ? (writableDepartments.includes(defaultDept) ? defaultDept : writableDepartments[0])
+    : uploadDept;
+  const effectiveFilterDept = (filterDept !== "All" && writableDepartments.length > 0 && !writableDepartments.includes(filterDept))
+    ? "All"
+    : filterDept;
 
   const handleUpload = useCallback(async (acceptedFiles) => {
     if (!acceptedFiles.length) return;
@@ -64,7 +61,7 @@ export default function Sidebar({
     setUploadMsg("");
     try {
       const tags = uploadTags.split(",").map((t) => t.trim()).filter(Boolean);
-      const stats = await onUpload(acceptedFiles, { department: uploadDept, tags });
+      const stats = await onUpload(acceptedFiles, { department: effectiveUploadDept, tags });
       setUploadMsg(stats.failed?.length
         ? `✗ ${stats.failed.join("; ")}`
         : `✓ ${stats.queued} queued for indexing`);
@@ -72,7 +69,7 @@ export default function Sidebar({
     } catch { setUploadMsg("Upload failed."); }
     setUploading(false);
     setTimeout(() => setUploadMsg(""), 6000);
-  }, [onUpload, uploadDept, uploadTags]);
+  }, [onUpload, effectiveUploadDept, uploadTags]);
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop: handleUpload,
@@ -96,14 +93,14 @@ export default function Sidebar({
   const filteredDocs = useMemo(() => {
     const q = search.trim().toLowerCase();
     return documents.filter((d) => {
-      if (filterDept !== "All" && d.department !== filterDept) return false;
+      if (effectiveFilterDept !== "All" && d.department !== effectiveFilterDept) return false;
       if (!q) return true;
       return (
         d.name.toLowerCase().includes(q) ||
         (d.tags || []).some((t) => t.toLowerCase().includes(q))
       );
     });
-  }, [documents, search, filterDept]);
+  }, [documents, search, effectiveFilterDept]);
 
   const grouped = useMemo(() => {
     const g = {};
@@ -172,7 +169,7 @@ export default function Sidebar({
                     <Building2 size={10} /> Department
                   </label>
                   <Dropdown
-                    value={uploadDept}
+                    value={effectiveUploadDept}
                     onChange={setUploadDept}
                     className="w-full"
                     options={writableDepartments.map((d) => ({ value: d, label: d, dotClass: DEPT_DOT[d] }))}
@@ -197,7 +194,7 @@ export default function Sidebar({
                   >
                     <Plus size={14} className="mx-auto mb-1 text-muted-foreground" />
                     <p className="text-[11px] text-muted-foreground">
-                      {uploading ? "Ingesting…" : isDragActive ? "Drop files here" : <>Drop into <span className="font-medium text-foreground">{uploadDept}</span> or click</>}
+                      {uploading ? "Ingesting…" : isDragActive ? "Drop files here" : <>Drop into <span className="font-medium text-foreground">{effectiveUploadDept}</span> or click</>}
                     </p>
                     {uploading && <Loader2 size={11} className="mx-auto mt-1 animate-spin text-foreground" />}
                     {uploadMsg && <p className="mt-1.5 text-[10.5px] leading-relaxed text-foreground">{uploadMsg}</p>}
@@ -227,7 +224,7 @@ export default function Sidebar({
                       onClick={() => setFilterDept(d)}
                       className={cn(
                         "rounded-full border px-2 py-0.5 text-[10px] transition-colors",
-                        filterDept === d
+                        effectiveFilterDept === d
                           ? d === "All" ? "border-foreground bg-foreground text-background" : deptClass(d)
                           : "border-border bg-background text-muted-foreground hover:text-foreground"
                       )}

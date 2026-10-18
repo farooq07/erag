@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ArrowUp, Mic, MicOff, Sparkles, FileText, Zap, Shield, RotateCcw, Building2, ArrowDown, LogOut } from "lucide-react";
 import Message from "./Message";
-import Dropdown, { DEPT_DOT } from "./Dropdown";
+import Dropdown from "./Dropdown";
+import { DEPT_DOT } from "@/lib/departments";
 import ThemeToggle from "./ThemeToggle";
 import AccountMenu from "./AccountMenu";
 import { Button } from "@/components/ui/button";

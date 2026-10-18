@@ -56,7 +56,7 @@ export default function App() {
     localStorage.removeItem("dm_token"); // tokens used to live here; drop any leftover
     refreshSession()
       .then((user) => { if (user) setCurrentUser(user); })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setAuthChecked(true));
   }, []);
 
@@ -76,9 +76,11 @@ export default function App() {
         if (deptD.allowed) setAllowedDepartments(deptD.allowed);
         if (deptD.default) setDefaultDept(deptD.default);
         if (scopeDept !== "All" && deptD.allowed && !deptD.allowed.includes(scopeDept)) setScopeDept("All");
-      } catch {}
+      } catch (err) {
+        console.warn("Failed to load initial data:", err);
+      }
     })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
   const handleAuth = (user) => {
@@ -87,7 +89,7 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    await logout().catch(() => {});
+    await logout().catch((err) => { console.warn("Logout error:", err); });
     navigate("/", { replace: true });
     setCurrentUser(null);
     setMessages([]);
@@ -99,7 +101,9 @@ export default function App() {
       const r = await authedFetch(`${API}/documents`);
       const d = await r.json();
       setDocuments(d.documents || []);
-    } catch {}
+    } catch (err) {
+      console.warn("Failed to fetch documents:", err);
+    }
   };
 
   const handleUpload = async (files, { department, tags } = {}) => {
@@ -125,7 +129,9 @@ export default function App() {
       });
       const sd = await sr.json();
       if (sr.ok) setSummaries((prev) => ({ ...prev, [name]: sd.summary }));
-    } catch {}
+    } catch (err) {
+      console.warn("Failed to fetch summary:", err);
+    }
   };
 
   // Poll while any document is still being ingested.
@@ -134,16 +140,27 @@ export default function App() {
     if (!ingesting) return;
     const id = setInterval(fetchDocs, 2000);
     return () => clearInterval(id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ingesting]);
 
   useEffect(() => {
+    const readyToSummarize = [];
     for (const doc of documents) {
       if (!pendingSummaries.current.has(doc.name)) continue;
-      if (doc.status === "ready") fetchSummary(doc.name);
-      if (doc.status === "ready" || doc.status === "failed") pendingSummaries.current.delete(doc.name);
+      if (doc.status === "ready") {
+        readyToSummarize.push(doc.name);
+        pendingSummaries.current.delete(doc.name);
+      } else if (doc.status === "failed") {
+        pendingSummaries.current.delete(doc.name);
+      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (readyToSummarize.length > 0) {
+      const timer = setTimeout(() => {
+        readyToSummarize.forEach((name) => fetchSummary(name));
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documents]);
 
   const handleDelete = async (name) => {

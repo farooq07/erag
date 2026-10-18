@@ -29,8 +29,26 @@ function pickHighlightPhrase(chunk) {
 }
 
 export default function PdfViewer({ open, source, onClose }) {
+  if (!source) return null;
+  const p = parseInt(source.page, 10);
+  const initialPage = Number.isFinite(p) && p > 0 ? p : 1;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <PdfViewerBody
+        key={`${source.source}:${initialPage}`}
+        open={open}
+        source={source}
+        initialPage={initialPage}
+        onClose={onClose}
+      />
+    </Dialog>
+  );
+}
+
+function PdfViewerBody({ open, source, initialPage, onClose }) {
   const [numPages, setNumPages] = useState(0);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(initialPage);
   const [scale, setScale] = useState(1.2);
   const [loadError, setLoadError] = useState(null);
 
@@ -50,15 +68,6 @@ export default function PdfViewer({ open, source, onClose }) {
   };
   const isPdf = source?.source?.toLowerCase().endsWith(".pdf");
   const phrase = useMemo(() => pickHighlightPhrase(source?.chunk || source?.preview), [source]);
-
-  useEffect(() => {
-    if (source) {
-      const p = parseInt(source.page, 10);
-      setPage(Number.isFinite(p) && p > 0 ? p : 1);
-      setScale(1.2);
-      setLoadError(null);
-    }
-  }, [source]);
 
   useEffect(() => {
     if (!open) return;
@@ -90,113 +99,110 @@ export default function PdfViewer({ open, source, onClose }) {
   if (!source) return null;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="flex h-[92vh] max-w-5xl flex-col gap-0 overflow-hidden p-0 [&>button]:hidden">
-        {/* Header */}
-        <div className="flex items-center gap-3 border-b px-5 py-3">
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-secondary">
-            <FileText size={14} className="text-secondary-foreground" />
+    <DialogContent className="flex h-[92vh] max-w-5xl flex-col gap-0 overflow-hidden p-0 [&>button]:hidden">
+      {/* Header */}
+      <div className="flex items-center gap-3 border-b px-5 py-3">
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-secondary">
+          <FileText size={14} className="text-secondary-foreground" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-medium text-foreground" title={source.source}>
+            {source.source}
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium text-foreground" title={source.source}>
-              {source.source}
-            </div>
-            <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-              {source.department && <Badge variant="secondary" className="px-1.5 py-0 text-[10px] font-normal">{source.department}</Badge>}
-              {numPages > 0 && <span>Page {page} of {numPages}</span>}
-              {phrase && <span>· highlight active</span>}
-            </div>
-          </div>
-
-          <div className="flex flex-shrink-0 items-center gap-1">
-            <Button variant="ghost" size="icon" className="h-8 w-8" title="Zoom out" onClick={() => setScale((s) => Math.max(0.6, s - 0.2))}>
-              <ZoomOut size={14} />
-            </Button>
-            <span className="w-10 text-center text-[10px] tabular-nums text-muted-foreground">{Math.round(scale * 100)}%</span>
-            <Button variant="ghost" size="icon" className="h-8 w-8" title="Zoom in" onClick={() => setScale((s) => Math.min(2.4, s + 0.2))}>
-              <ZoomIn size={14} />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" title="Reset zoom" onClick={() => setScale(1.2)}>
-              <Maximize2 size={13} />
-            </Button>
-            <div className="mx-1 h-5 w-px bg-border" />
-            <Button variant="ghost" size="icon" className="h-8 w-8" title="Open in new tab" onClick={openInNewTab}>
-              <ExternalLink size={13} />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" title="Close (Esc)" onClick={onClose}>
-              <X size={15} />
-            </Button>
+          <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+            {source.department && <Badge variant="secondary" className="px-1.5 py-0 text-[10px] font-normal">{source.department}</Badge>}
+            {numPages > 0 && <span>Page {page} of {numPages}</span>}
+            {phrase && <span>· highlight active</span>}
           </div>
         </div>
 
-        {/* PDF area */}
-        <div className="custom-scroll flex flex-1 justify-center overflow-auto bg-muted/40 p-6">
-          {!isPdf ? (
-            <NonPdfFallback source={source} />
-          ) : loadError ? (
-            <div className="mt-12 text-center text-muted-foreground">
-              <p className="text-sm">Couldn't load PDF.</p>
-              <p className="mt-1 text-xs">{loadError}</p>
-            </div>
-          ) : (
-            <Document
-              file={pdfFile}
-              onLoadSuccess={({ numPages: n }) => setNumPages(n)}
-              onLoadError={(err) => setLoadError(err.message)}
-              loading={<ViewerLoading />}
-              error={<div className="mt-12 text-sm text-muted-foreground">Failed to load PDF.</div>}
-            >
-              <Page
-                pageNumber={page}
-                scale={scale}
-                customTextRenderer={textRenderer}
-                renderAnnotationLayer={false}
-                className="overflow-hidden rounded-lg shadow-xl"
-              />
-            </Document>
-          )}
+        <div className="flex flex-shrink-0 items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Zoom out" onClick={() => setScale((s) => Math.max(0.6, s - 0.2))}>
+            <ZoomOut size={14} />
+          </Button>
+          <span className="w-10 text-center text-[10px] tabular-nums text-muted-foreground">{Math.round(scale * 100)}%</span>
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Zoom in" onClick={() => setScale((s) => Math.min(2.4, s + 0.2))}>
+            <ZoomIn size={14} />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Reset zoom" onClick={() => setScale(1.2)}>
+            <Maximize2 size={13} />
+          </Button>
+          <div className="mx-1 h-5 w-px bg-border" />
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Open in new tab" onClick={openInNewTab}>
+            <ExternalLink size={13} />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Close (Esc)" onClick={onClose}>
+            <X size={15} />
+          </Button>
         </div>
+      </div>
 
-        {/* Footer: page nav */}
-        {isPdf && numPages > 0 && (
-          <div className="flex items-center justify-center gap-3 border-t bg-card px-5 py-3">
-            <Button variant="ghost" size="icon" className="h-8 w-8" title="Previous page (←)" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
-              <ChevronLeft size={15} />
-            </Button>
-            <Input
-              type="number"
-              min={1}
-              max={numPages}
-              value={page}
-              onChange={(e) => {
-                const v = parseInt(e.target.value, 10);
-                if (Number.isFinite(v)) setPage(Math.min(Math.max(1, v), numPages));
-              }}
-              className="h-8 w-16 text-center text-xs"
+      {/* PDF area */}
+      <div className="custom-scroll flex flex-1 justify-center overflow-auto bg-muted/40 p-6">
+        {!isPdf ? (
+          <NonPdfFallback source={source} />
+        ) : loadError ? (
+          <div className="mt-12 text-center text-muted-foreground">
+            <p className="text-sm">Couldn't load PDF.</p>
+            <p className="mt-1 text-xs">{loadError}</p>
+          </div>
+        ) : (
+          <Document
+            file={pdfFile}
+            onLoadSuccess={({ numPages: n }) => setNumPages(n)}
+            onLoadError={(err) => setLoadError(err.message)}
+            loading={<ViewerLoading />}
+            error={<div className="mt-12 text-sm text-muted-foreground">Failed to load PDF.</div>}
+          >
+            <Page
+              pageNumber={page}
+              scale={scale}
+              customTextRenderer={textRenderer}
+              renderAnnotationLayer={false}
+              className="overflow-hidden rounded-lg shadow-xl"
             />
-            <span className="text-xs text-muted-foreground">/ {numPages}</span>
-            <Button variant="ghost" size="icon" className="h-8 w-8" title="Next page (→)" onClick={() => setPage((p) => Math.min(numPages, p + 1))} disabled={page >= numPages}>
-              <ChevronRight size={15} />
-            </Button>
-          </div>
+          </Document>
         )}
-      </DialogContent>
+      </div>
 
+      {/* Footer: page nav */}
+      {isPdf && numPages > 0 && (
+        <div className="flex items-center justify-center gap-3 border-t bg-card px-5 py-3">
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Previous page (←)" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+            <ChevronLeft size={15} />
+          </Button>
+          <Input
+            type="number"
+            min={1}
+            max={numPages}
+            value={page}
+            onChange={(e) => {
+              const v = parseInt(e.target.value, 10);
+              if (Number.isFinite(v)) setPage(Math.min(Math.max(1, v), numPages));
+            }}
+            className="h-8 w-16 text-center text-xs"
+          />
+          <span className="text-xs text-muted-foreground">/ {numPages}</span>
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Next page (→)" onClick={() => setPage((p) => Math.min(numPages, p + 1))} disabled={page >= numPages}>
+            <ChevronRight size={15} />
+          </Button>
+        </div>
+      )}
       <style>{`
-        .pdf-highlight {
-          background: rgba(250, 204, 21, 0.55);
-          color: transparent;
-          border-radius: 2px;
-          box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.3);
-          padding: 0 1px;
-          animation: hl-pulse 1.4s ease-out;
-        }
-        @keyframes hl-pulse {
-          0%   { background: rgba(250, 204, 21, 0.9); box-shadow: 0 0 0 6px rgba(250, 204, 21, 0.4); }
-          100% { background: rgba(250, 204, 21, 0.55); box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.3); }
-        }
-      `}</style>
-    </Dialog>
+          .pdf-highlight {
+            background: rgba(250, 204, 21, 0.55);
+            color: transparent;
+            border-radius: 2px;
+            box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.3);
+            padding: 0 1px;
+            animation: hl-pulse 1.4s ease-out;
+          }
+          @keyframes hl-pulse {
+            0%   { background: rgba(250, 204, 21, 0.9); box-shadow: 0 0 0 6px rgba(250, 204, 21, 0.4); }
+            100% { background: rgba(250, 204, 21, 0.55); box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.3); }
+          }
+        `}</style>
+    </DialogContent>
   );
 }
 

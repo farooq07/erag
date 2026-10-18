@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { FileText, Lock } from "lucide-react";
 
@@ -89,29 +89,33 @@ export default function HeroDemo() {
   const role = ROLES.find((r) => r.id === roleId);
   const question = QUESTIONS.find((x) => x.id === qId);
   const allowed = question.sources.every((s) => role.depts.includes(s.dept));
-  const tokens = useMemo(
-    () => (allowed ? tokenize(question.answer) : tokenize([REFUSAL])),
-    [allowed, question],
-  );
+  const tokens = allowed ? tokenize(question.answer) : tokenize([REFUSAL]);
+
+  const [activeKey, setActiveKey] = useState(`${roleId}:${qId}`);
+  const currentKey = `${roleId}:${qId}`;
+  if (currentKey !== activeKey) {
+    setActiveKey(currentKey);
+    setShown(0);
+    setFocusCite(null);
+  }
 
   // Stream the answer word by word; restart whenever role or question changes.
   useEffect(() => {
-    clearInterval(timer.current);
-    setFocusCite(null);
-    if (reduce) { setShown(tokens.length); return undefined; }
-    setShown(0);
+    if (reduce) return;
+    const len = tokens.length;
     timer.current = setInterval(() => {
       setShown((n) => {
-        if (n >= tokens.length) { clearInterval(timer.current); return n; }
+        if (n >= len) { clearInterval(timer.current); return n; }
         return n + 1;
       });
     }, 38);
     return () => clearInterval(timer.current);
-  }, [tokens, reduce]);
+  }, [roleId, qId, reduce, tokens.length]);
 
-  const streaming = shown < tokens.length;
+  const effectiveShown = reduce ? tokens.length : shown;
+  const streaming = !reduce && effectiveShown < tokens.length;
   // A source lights up once the stream reaches its first citation marker.
-  const citedSoFar = new Set(tokens.slice(0, shown).filter((t) => t.cite).map((t) => t.cite));
+  const citedSoFar = new Set(tokens.slice(0, effectiveShown).filter((t) => t.cite).map((t) => t.cite));
 
   return (
     <div
@@ -158,7 +162,7 @@ export default function HeroDemo() {
           aria-live="polite"
           aria-busy={streaming}
         >
-          {tokens.slice(0, shown).map((t, i) =>
+          {tokens.slice(0, effectiveShown).map((t, i) =>
             t.cite ? (
               <button
                 key={i}

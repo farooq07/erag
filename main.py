@@ -163,7 +163,7 @@ def readyz():
         with session_scope() as s:
             s.execute(text("SELECT 1"))
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"database unavailable: {e.__class__.__name__}")
+        raise HTTPException(status_code=503, detail=f"database unavailable: {e.__class__.__name__}") from e
     return {"status": "ready"}
 
 
@@ -559,10 +559,10 @@ def patch_document(name: str, req: UpdateMetaRequest, user: dict = Depends(get_c
         allowed = set(allowed_departments(user))
         visible = [d for d in list_indexed() if d.get("department") in allowed]
         return {"documents": visible}
-    except KeyError:
-        raise HTTPException(status_code=404, detail=f"Document not found: {name}")
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=f"Document not found: {name}") from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.delete("/documents/{name}")
@@ -580,7 +580,7 @@ def delete_document(name: str, user: dict = Depends(get_current_user)):
         visible = [d for d in list_indexed() if d.get("department") in allowed]
         return {"documents": visible}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/clear")
@@ -608,7 +608,7 @@ async def summarize(req: SummaryRequest, user: dict = Depends(get_current_user))
         _audit("summary", user.get("id"), {"file": req.filename})
         return {"filename": req.filename, "summary": summary}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── Chat (SSE streaming) ─────────────────────────────────────────────────

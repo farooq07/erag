@@ -83,8 +83,8 @@ def decode_token(token: str) -> dict:
         if data.get("exp", 0) < time.time() or data.get("typ") != "access":
             raise ValueError("expired or wrong type")
         return data
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Invalid or expired token") from e
 
 
 # ── Password helpers ─────────────────────────────────────────────────────

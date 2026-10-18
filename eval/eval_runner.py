@@ -211,8 +211,9 @@ def run(questions: list[dict], k: int, answers: bool, model: str | None) -> list
         if answers:
             # Retries after a rate limit aren't extra production calls; don't count them.
             answer = _with_rate_limit_wait(
-                lambda: rag.generate_answer(q["question"], docs, low_conf, model=model,
-                                            history=history, department=scope),
+                lambda _q=q["question"], _d=docs, _lc=low_conf, _m=model, _h=history, _s=scope: rag.generate_answer(
+                    _q, _d, _lc, model=_m, history=_h, department=_s
+                ),
                 on_retry=lambda: calls.__setitem__("n", calls["n"] - 1))
             r["answer"] = answer
             refused = bool(REFUSAL_RE.search(answer))
