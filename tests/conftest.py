@@ -38,6 +38,15 @@ def client(app):
         yield c
 
 
+@pytest.fixture(scope="session")
+def indexed_demo(app):
+    import jobs
+
+    with TestClient(app) as _:
+        while jobs.run_one():
+            pass
+
+
 def pytest_sessionfinish(session, exitstatus):
     from db import engine
 
