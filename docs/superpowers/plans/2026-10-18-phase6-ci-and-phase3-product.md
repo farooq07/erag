@@ -1,6 +1,6 @@
 # Phase 6 (CI, tests, deployment) + Phase 3 (product features) Implementation Plan
 
-> **For the implementing agent:** Work through the tasks in order, one at a time. Each step is a checkbox (`- [ ]`); tick it when its check passes. Read "How to work in this repo" before Task A1 — it is part of every task's requirements.
+> **For the implementing agent:** Work through the tasks in order, one at a time. Each step is a checkbox (`- [x]`); tick it when its check passes. Read "How to work in this repo" before Task A1 — it is part of every task's requirements.
 
 **Goal:** Make DocuMind deployable with confidence (automated tests, CI quality gates, a verified Docker deploy) and then add the features a buyer expects: saved chat history, answer feedback, an admin console, and Google Drive / SharePoint connectors.
 
@@ -145,7 +145,7 @@ Roadmap items deliberately left for a later plan — don't build them here:
 - Consumes: A2 fake LLM; `client` fixture; demo users.
 - Produces: `tests/helpers.py`: `login(client, email: str, password: str) -> str` (returns the access token), `auth(token) -> dict` (headers), `read_sse(response) -> list[dict]` (parses `data:` lines).
 
-- [ ] **Step 1:** Write the tests (all must pass without network LLM calls):
+- [x] **Step 1:** Write the tests (all must pass without network LLM calls):
   - `test_protected_routes_require_token`: for `GET /api/departments`, `/api/documents`, `/api/stats`, `/api/users`, `/api/files/x.md`, and `POST /api/chat {"question":"hi"}` → 401.
   - `test_x_user_header_is_ignored`: `GET /api/departments` with `X-User: admin` and no token → 401.
   - `test_users_admin_only`: HR token → 403; admin token → 200 with 7+ users.
@@ -158,9 +158,9 @@ Roadmap items deliberately left for a later plan — don't build them here:
   - `test_chat_respects_scope` (`indexed_demo`): HR token asks "What was total revenue in Q3 2024?" → no source has department `Finance`.
   - `test_chat_rate_limit_message`: monkeypatch `main.generate_answer_stream` to raise an exception with `status_code = 429` and message `"... try again in 3m6.6s ..."` → an `error` event whose message contains `"usage limit"` and `"3 minutes"`.
   - `test_login_lockout_after_five_failures`: create a user, 5 wrong logins → the 5th returns 429; the right password → still 429.
-- [ ] **Step 2:** Run → the new tests that touch unimplemented helpers fail; implement `tests/helpers.py` and the `indexed_demo` fixture.
-- [ ] **Step 3 — verify:** `python -m pytest tests -q` → all pass. Note the first run downloads the ONNX embedding model (~80 MB) and the cross-encoder; that is expected.
-- [ ] **Step 4:** Commit `test: API tests for auth, RBAC, uploads, chat`.
+- [x] **Step 2:** Run → the new tests that touch unimplemented helpers fail; implement `tests/helpers.py` and the `indexed_demo` fixture.
+- [x] **Step 3 — verify:** `python -m pytest tests -q` → all pass. Note the first run downloads the ONNX embedding model (~80 MB) and the cross-encoder; that is expected.
+- [x] **Step 4:** Commit `test: API tests for auth, RBAC, uploads, chat`.
 
 ---
 
@@ -174,10 +174,10 @@ Roadmap items deliberately left for a later plan — don't build them here:
 **Interfaces:**
 - Produces: CLI flags `--baseline PATH` (default `eval/baseline.json`; used for compare, `--check` and `--save-baseline`) and `--offline` (implies `--retrieval-only`, `QUERY_REWRITE_ENABLED=false`, `HYDE_ENABLED=false`; after the run, exit 1 with `"offline run made N model calls"` if `llm_calls_per_q > 0`).
 
-- [ ] **Step 1:** Add the flags (argparse block near line 333).
-- [ ] **Step 2:** Generate the CI baseline: `python eval/eval_runner.py --offline --baseline eval/baseline_ci.json --save-baseline`. Expected summary: `llm_calls_per_q 0`, `scope_leaks 0`, hit rate ≈ 96%.
-- [ ] **Step 3 — verify:** `python eval/eval_runner.py --offline --baseline eval/baseline_ci.json --check` → "No regressions." Run it again with `GROQ_API_KEY` unset in the shell → same result.
-- [ ] **Step 4:** Commit `ci: offline eval gate with its own baseline`.
+- [x] **Step 1:** Add the flags (argparse block near line 333).
+- [x] **Step 2:** Generate the CI baseline: `python eval/eval_runner.py --offline --baseline eval/baseline_ci.json --save-baseline`. Expected summary: `llm_calls_per_q 0`, `scope_leaks 0`, hit rate ≈ 96%.
+- [x] **Step 3 — verify:** `python eval/eval_runner.py --offline --baseline eval/baseline_ci.json --check` → "No regressions." Run it again with `GROQ_API_KEY` unset in the shell → same result.
+- [x] **Step 4:** Commit `ci: offline eval gate with its own baseline`.
 
 ---
 
@@ -187,13 +187,13 @@ Roadmap items deliberately left for a later plan — don't build them here:
 - Modify: `frontend/package.json` (devDeps `vitest`, `@testing-library/react`, `@testing-library/jest-dom`, `jsdom`; script `"test": "vitest run"`), `frontend/vite.config.js` (`test: { environment: "jsdom", setupFiles: "./src/test-setup.js" }`)
 - Create: `frontend/src/test-setup.js` (jest-dom; `window.matchMedia` stub returning `matches: true` for `prefers-reduced-motion`), `frontend/src/lib/session.test.js`, `frontend/src/landing/HeroDemo.test.jsx`
 
-- [ ] **Step 1:** Write the tests:
+- [x] **Step 1:** Write the tests:
   - `refreshSession dedupes concurrent calls`: mock `fetch` resolving `{ ok: true, json: () => ({ access_token: "t", user: {id: "u"} }) }`; `await Promise.all([refreshSession(), refreshSession()])` → `fetch` called once; `getAccessToken() === "t"`.
   - `apiFetch retries once after 401`: first call 401, refresh ok, second call 200 → final status 200, `fetch` called 3 times.
   - `apiFetch does not refresh for /auth/ urls`: 401 on `/api/auth/me` → returned as-is, `fetch` called once.
   - `HeroDemo redacts sources outside the role`: render, click radio "What was revenue in Q3 2024?" → shows `"I couldn't find this in the documents you can access."` and `"Withheld · Finance only"`; click "Finance Director" → shows `"£18.4 million"`.
-- [ ] **Step 2:** `npm test` → passes (reduced motion makes the demo render instantly).
-- [ ] **Step 3:** Commit `test: vitest for session handling and hero demo`.
+- [x] **Step 2:** `npm test` → passes (reduced motion makes the demo render instantly).
+- [x] **Step 3:** Commit `test: vitest for session handling and hero demo`.
 
 ---
 
@@ -207,12 +207,12 @@ Roadmap items deliberately left for a later plan — don't build them here:
 - Consumes: A2 (`LLM_PROVIDER=fake`, `RATE_LIMITS_ENABLED=false`), built `frontend/dist`.
 - `playwright.config.js` `webServer`: command `python -m uvicorn main:app --port 8001` with `cwd: ".."` and env `LLM_PROVIDER=fake`, `RATE_LIMITS_ENABLED=false`, `JWT_SECRET=e2e`, `DOCUMIND_DATA_DIR` and `DATABASE_URL` pointing at a fresh temp dir; `url: "http://localhost:8001/readyz"`; `baseURL: "http://localhost:8001"`; timeout 180s. Projects: Desktop Chrome and a 390×844 viewport.
 
-- [ ] **Step 1:** Write the specs:
+- [x] **Step 1:** Write the specs:
   - homepage: `/` shows heading "Answers from your documents, with the page they came from."; choose "Finance Director" then "What was revenue in Q3 2024?" → "£18.4 million" visible; at 390px, `document.documentElement.scrollWidth <= window.innerWidth`.
   - auth: "Open DocuMind" → `/login`; wrong password → alert "Invalid email or password"; `admin@acme.com / Admin123!` → app header shows "Alex Admin"; sign out → back at `/`.
   - chat: log in as admin; wait (≤120s, polling the sidebar) until "HR_Leave_Policy.md" shows no "Queued"/"Indexing…" badge; ask "How many days of annual leave do full-time employees get?" → a source card "HR_Leave_Policy.md" appears and the answer contains "[1]". Then log in as `hr@acme.com / Demo123!`, ask "What was total revenue in Q3 2024?" → no source card containing "Finance_".
-- [ ] **Step 2 — verify:** `npm run build && npx playwright install chromium && npm run e2e` → all pass on both projects.
-- [ ] **Step 3:** Commit `test: playwright e2e for homepage, auth, chat and permissions`.
+- [x] **Step 2 — verify:** `npm run build && npx playwright install chromium && npm run e2e` → all pass on both projects.
+- [x] **Step 3:** Commit `test: playwright e2e for homepage, auth, chat and permissions`.
 
 ---
 
@@ -231,9 +231,9 @@ Roadmap items deliberately left for a later plan — don't build them here:
 - `eval-full.yml`: `workflow_dispatch` only; uses secret `GROQ_API_KEY`; runs `python eval/eval_runner.py --check`; uploads results. Header comment: "Uses ~100k Groq tokens — run manually after retrieval or prompt changes."
 - `dependabot.yml`: weekly for `pip` (`/`), `npm` (`/frontend`), `github-actions`.
 
-- [ ] **Step 1:** Write the three files.
-- [ ] **Step 2 — verify locally:** `python -c "import yaml,sys; [yaml.safe_load(open(f)) for f in sys.argv[1:]]" .github/workflows/*.yml .github/dependabot.yml` (install `pyyaml` if missing); run each job's commands locally once.
-- [ ] **Step 3:** Commit `ci: github actions for lint, tests, eval gate, e2e, docker`. Then **ask the user** to push the branch so the workflow runs; watch it with `gh run watch` and fix failures at their root cause.
+- [x] **Step 1:** Write the three files.
+- [x] **Step 2 — verify locally:** `python -c "import yaml,sys; [yaml.safe_load(open(f)) for f in sys.argv[1:]]" .github/workflows/*.yml .github/dependabot.yml` (install `pyyaml` if missing); run each job's commands locally once.
+- [x] **Step 3:** Commit `ci: github actions for lint, tests, eval gate, e2e, docker`. Then **ask the user** to push the branch so the workflow runs; watch it with `gh run watch` and fix failures at their root cause.
 
 ---
 
@@ -246,10 +246,10 @@ Roadmap items deliberately left for a later plan — don't build them here:
 **Interfaces:**
 - `scripts/smoke_test.py BASE_URL`: polls `GET /readyz` for up to 180s; logs in as admin via `POST /api/auth/login`; asserts `GET /api/documents` is 200 and `GET /` returns HTML containing `<div id="root">`; exits 0 on success and non-zero with the failing step printed.
 
-- [ ] **Step 1:** Write the smoke test and the CI override.
-- [ ] **Step 2 — verify:** `docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --build && python scripts/smoke_test.py http://localhost:8000; docker compose logs app | tail -50; docker compose down -v` → smoke test prints "OK". If Docker isn't available locally, say so and rely on the CI `docker` job.
-- [ ] **Step 3:** Add the compose smoke test to the CI `docker` job (A7).
-- [ ] **Step 4:** Commit `ci: compose smoke test and writable data volume`.
+- [x] **Step 1:** Write the smoke test and the CI override.
+- [x] **Step 2 — verify:** `docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --build && python scripts/smoke_test.py http://localhost:8000; docker compose logs app | tail -50; docker compose down -v` → smoke test prints "OK". If Docker isn't available locally, say so and rely on the CI `docker` job.
+- [x] **Step 3:** Add the compose smoke test to the CI `docker` job (A7).
+- [x] **Step 4:** Commit `ci: compose smoke test and writable data volume`.
 
 ---
 
@@ -263,10 +263,10 @@ Roadmap items deliberately left for a later plan — don't build them here:
 - Produces: `config.normalize_database_url(url: str) -> str`.
 - `render.yaml`: one `web` service (`runtime: docker`, `healthCheckPath: /readyz`, `numInstances: 1`, disk `data` at `/app/data` 5 GB); env `DATABASE_URL` from the database `connectionString`, `JWT_SECRET` `generateValue: true`, `GROQ_API_KEY` `sync: false`, `COOKIE_SECURE=true`, `APP_BASE_URL` and `ALLOWED_ORIGINS` `sync: false`, `DOCUMIND_ENV=production`; one Postgres database `documind-db`.
 
-- [ ] **Step 1:** Tests: `normalize_database_url("postgres://u:p@h/db") == "postgresql+psycopg://u:p@h/db"`; the same for `postgresql://…`; `postgresql+psycopg://…` and `sqlite:///x.db` unchanged.
-- [ ] **Step 2:** Implement, run `python -m pytest tests/test_config.py -v` → PASS.
-- [ ] **Step 3:** Write `render.yaml` and `docs/DEPLOY.md`. The doc covers: deploy steps; why it's **one instance** (in-process ingest worker and Chroma on the disk); backups (Render Postgres daily backups on paid plans + disk snapshots; restore steps); a staging environment as a second blueprint instance with its own database; `python ingest.py --reindex` after chunking changes; the Groq quota warning; registering the SSO redirect URIs for the public URL.
-- [ ] **Step 4:** Commit `feat: render deployment blueprint and guide`. **Ask the user** to create the Render blueprint from their account; you can't verify the deploy without it.
+- [x] **Step 1:** Tests: `normalize_database_url("postgres://u:p@h/db") == "postgresql+psycopg://u:p@h/db"`; the same for `postgresql://…`; `postgresql+psycopg://…` and `sqlite:///x.db` unchanged.
+- [x] **Step 2:** Implement, run `python -m pytest tests/test_config.py -v` → PASS.
+- [x] **Step 3:** Write `render.yaml` and `docs/DEPLOY.md`. The doc covers: deploy steps; why it's **one instance** (in-process ingest worker and Chroma on the disk); backups (Render Postgres daily backups on paid plans + disk snapshots; restore steps); a staging environment as a second blueprint instance with its own database; `python ingest.py --reindex` after chunking changes; the Groq quota warning; registering the SSO redirect URIs for the public URL.
+- [x] **Step 4:** Commit `feat: render deployment blueprint and guide`. **Ask the user** to create the Render blueprint from their account; you can't verify the deploy without it.
 
 ---
 

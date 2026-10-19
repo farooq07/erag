@@ -36,7 +36,7 @@ FastAPI + LangChain + Chroma backend, React + Tailwind + shadcn/ui frontend, Gro
 | 3 · Product features (chat history, feedback, connectors, admin console) | ⬜ Not started |
 | 4 · Frontend polish | 🟡 Partly done — homepage, shadcn/ui, auth screens; routing, bundle splitting, a11y audit pending |
 | 5 · Observability & security operations | 🟡 Partly done — audit log, health checks; Sentry, tracing, security headers pending |
-| 6 · Testing, CI/CD, deployment | 🟡 Partly done — 28 tests, eval gate, Docker files; CI and a tested deploy pending |
+| 6 · Testing, CI/CD, deployment | ✅ Built — 51 backend + 7 frontend + 14 end-to-end tests, offline eval gate, GitHub Actions, Docker smoke test, Render blueprint ([deploy guide](docs/DEPLOY.md)); first CI run and live deploy pending |
 | 7 · SaaS business layer | ⬜ Not started |
 
 ---
@@ -312,11 +312,16 @@ Everything except `/auth/*` (other than `me`, `logout-all`, `change-password`) a
 
 ```bash
 pip install -r requirements-dev.txt
-python -m pytest tests                  # 28 tests: SSO flows, tokeniser, chunking
-python eval/eval_runner.py --check      # answer-quality regression gate
+ruff check .                                                          # Python lint
+python -m pytest tests                                                # 51 tests: API, auth, RBAC, SSO, retrieval
+python eval/eval_runner.py --offline --baseline eval/baseline_ci.json --check   # quality gate, no model calls
+
+cd frontend
+npm run lint && npm test                                              # ESLint + 7 Vitest tests
+npm run build && npm run e2e                                          # 14 Playwright tests (desktop + mobile)
 ```
 
-Tests use a throwaway data directory and database, so they never touch `data/`.
+Tests use a throwaway data directory and database and a deterministic fake LLM (`LLM_PROVIDER=fake`), so they never touch `data/` or spend Groq quota. CI (`.github/workflows/ci.yml`) runs all of the above on every push and pull request, plus a Docker build, Trivy scan and a compose smoke test. The full answer-quality eval (uses Groq) runs manually via the *Full eval* workflow.
 
 ---
 
