@@ -1,0 +1,9 @@
+# CI override for the compose smoke test: no real model, no secrets.
+#   docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --build
+services:
+  app:
+    environment:
+      LLM_PROVIDER: fake
+      DOCUMIND_ENV: ci
+      JWT_SECRET: ci-only-secret
+      RATE_LIMITS_ENABLED: "false"

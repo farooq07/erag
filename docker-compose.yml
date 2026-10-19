@@ -5,8 +5,12 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./data:/app/data
-    env_file: .env
+      # Named volumes: the app runs as uid 10001 and can't write a host-owned bind mount.
+      - appdata:/app/data
+      - models:/home/documind/.cache   # embedding + reranker models, downloaded once
+    env_file:
+      - path: .env
+        required: false
     environment:
       DATABASE_URL: postgresql+psycopg://documind:${POSTGRES_PASSWORD:-documind}@postgres:5432/documind
     depends_on:
@@ -46,5 +50,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  appdata:
+  models:
   pgdata:
   ollama_models:

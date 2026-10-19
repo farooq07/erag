@@ -134,3 +134,18 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: "1"
+      - name: Start the stack (app + Postgres)
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Smoke test
+        run: |
+          pip install httpx
+          python scripts/smoke_test.py http://localhost:8000 --timeout 300
+      - name: App logs
+        if: always()
+        run: docker compose logs app | tail -100
+      - name: Stop the stack
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v
