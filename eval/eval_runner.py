@@ -340,8 +340,18 @@ def main() -> None:
     ap.add_argument("--save-baseline", action="store_true")
     ap.add_argument("--check", action="store_true", help="exit 1 on regression vs baseline")
     ap.add_argument("--no-cache", action="store_true", help="don't cache model outputs")
+    ap.add_argument("--baseline", type=Path, default=BASELINE,
+                    help="baseline file for comparison, --check and --save-baseline")
+    ap.add_argument("--offline", action="store_true",
+                    help="CI mode: retrieval only, no rewrite/HyDE, fails if any model call is made")
     args = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
+    if args.offline:
+        args.retrieval_only = True
+        args.no_cache = True
+        args.set += ["QUERY_REWRITE_ENABLED=false", "HYDE_ENABLED=false"]
+        # Belt and braces: anything that still reaches a model gets the fake one, and is counted.
+        os.environ["LLM_PROVIDER"] = "fake"
 
     data_dir = _setup_env(_index_key())
     sys.path.insert(0, str(ROOT))
@@ -376,13 +386,20 @@ def main() -> None:
     LATEST.parent.mkdir(exist_ok=True)
     LATEST.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    baseline = json.loads(BASELINE.read_text(encoding="utf-8")) if BASELINE.exists() else None
+    baseline_path = args.baseline.resolve()
+    baseline = json.loads(baseline_path.read_text(encoding="utf-8")) if baseline_path.exists() else None
     print_report(summary, baseline, results, answers)
     print(f"\nFull results: {LATEST.relative_to(ROOT)}")
 
+    if args.offline and summary["llm_calls_per_q"]:
+        print(f"\nOFFLINE VIOLATION: offline run made {summary['llm_calls_per_q'] * len(results):.0f} model calls")
+        sys.exit(1)
     if args.save_baseline:
-        BASELINE.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
-        print(f"Saved baseline: {BASELINE.relative_to(ROOT)}")
+        baseline_path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"Saved baseline: {baseline_path.relative_to(ROOT)}")
+    if args.check and baseline is None and not args.save_baseline:
+        print(f"\nNo baseline at {baseline_path}; run with --save-baseline first.")
+        sys.exit(1)
     if args.check and baseline:
         bad = regressions(summary, baseline)
         if bad:

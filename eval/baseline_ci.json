@@ -1,0 +1,1118 @@
+{
+  "summary": {
+    "questions": 58,
+    "hit_rate": 0.9615,
+    "mrr": 0.9327,
+    "context_recall": 0.9615,
+    "scope_leaks": 0,
+    "low_conf_rate": 0.1346,
+    "llm_calls_per_q": 0.0,
+    "retrieval_ms_p50": 3297.8,
+    "by_type": {
+      "comparison": {
+        "n": 2,
+        "hit_rate": 1.0
+      },
+      "distractor": {
+        "n": 6,
+        "hit_rate": 1.0
+      },
+      "follow-up": {
+        "n": 2,
+        "hit_rate": 1.0
+      },
+      "keyword": {
+        "n": 4,
+        "hit_rate": 1.0
+      },
+      "lookup": {
+        "n": 32,
+        "hit_rate": 0.9375
+      },
+      "paraphrase": {
+        "n": 6,
+        "hit_rate": 1.0
+      },
+      "scope": {
+        "n": 2,
+        "hit_rate": null
+      },
+      "unanswerable": {
+        "n": 4,
+        "hit_rate": null
+      }
+    }
+  },
+  "config": {
+    "k": 5,
+    "overrides": [
+      "QUERY_REWRITE_ENABLED=false",
+      "HYDE_ENABLED=false"
+    ],
+    "model": "openai/gpt-oss-20b",
+    "flags": {
+      "QUERY_REWRITE_ENABLED": false,
+      "HYDE_ENABLED": false,
+      "RERANKER_ENABLED": true,
+      "CRAG_ENABLED": true
+    }
+  },
+  "results": [
+    {
+      "id": "hr-annual-leave",
+      "type": "lookup",
+      "question": "How many days of annual leave do full-time employees get?",
+      "answerable": true,
+      "retrieved": [
+        "HR_Leave_Policy.md",
+        "HR_Leave_Policy.md",
+        "HR_Leave_Policy.md",
+        "HR_Leave_Policy.md",
+        "HR_Leave_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3875.1,
+      "top_score": 0.9997,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "hr-sick-cert",
+      "type": "lookup",
+      "question": "After how many days off sick do I need a doctor's certificate?",
+      "answerable": true,
+      "retrieved": [
+        "HR_Leave_Policy.md",
+        "HR_Leave_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3440.3,
+      "top_score": 0.9948,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "hr-maternity",
+      "type": "lookup",
+      "question": "How long is paid maternity leave and what is the service requirement?",
+      "answerable": true,
+      "retrieved": [
+        "HR_Leave_Policy.md",
+        "HR_Leave_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3164.4,
+      "top_score": 0.9976,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "hr-paternity",
+      "type": "paraphrase",
+      "question": "My partner is having a baby next month. How much paid time off do I get as the father?",
+      "answerable": true,
+      "retrieved": [
+        "HR_Leave_Policy.md",
+        "HR_Leave_Policy.md"
+      ],
+      "low_confidence": true,
+      "retrieval_ms": 2981.8,
+      "top_score": 0.0076,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "hr-carry-over",
+      "type": "lookup",
+      "question": "Can I carry unused holiday into next year, and by when must I use it?",
+      "answerable": true,
+      "retrieved": [
+        "HR_Leave_Policy.md",
+        "Finance_Travel_Expenses_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 2691.7,
+      "top_score": 0.9768,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "hr-bereavement-grandparent",
+      "type": "lookup",
+      "question": "How much bereavement leave is given when a grandparent dies?",
+      "answerable": true,
+      "retrieved": [
+        "HR_Leave_Policy.md",
+        "HR_Leave_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3553.8,
+      "top_score": 0.5075,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "hr-overtime",
+      "type": "lookup",
+      "question": "What is the overtime rate after the first 10 hours in a month?",
+      "answerable": true,
+      "retrieved": [
+        "HR_Leave_Policy.md",
+        "HR_Leave_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3402.3,
+      "top_score": 0.9954,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "hr-form-09",
+      "type": "keyword",
+      "question": "What is form HR-09 used for?",
+      "answerable": true,
+      "retrieved": [
+        "HR_Leave_Policy.md",
+        "HR_Recruitment_and_Onboarding.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3086.7,
+      "top_score": 0.6532,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "hr-probation",
+      "type": "lookup",
+      "question": "How long is the probation period for new starters?",
+      "answerable": true,
+      "retrieved": [
+        "HR_Recruitment_and_Onboarding.md",
+        "HR_Recruitment_and_Onboarding.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 2820.7,
+      "top_score": 0.9897,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "hr-notice-grade6",
+      "type": "lookup",
+      "question": "What notice period applies to a Grade 6 employee?",
+      "answerable": true,
+      "retrieved": [
+        "HR_Recruitment_and_Onboarding.md",
+        "Company_Handbook.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3383.4,
+      "top_score": 0.9665,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "hr-referral",
+      "type": "paraphrase",
+      "question": "Do I get anything if a friend I recommended gets hired?",
+      "answerable": true,
+      "retrieved": [
+        "HR_Recruitment_and_Onboarding.md",
+        "HR_Recruitment_and_Onboarding.md"
+      ],
+      "low_confidence": true,
+      "retrieval_ms": 3367.8,
+      "top_score": 0.0001,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "fin-q3-revenue",
+      "type": "lookup",
+      "question": "What was total revenue in Q3 2024?",
+      "answerable": true,
+      "retrieved": [
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q2_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q3_2024_Report.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3155.8,
+      "top_score": 0.9998,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "fin-q2-revenue",
+      "type": "distractor",
+      "question": "What was Acme's total revenue in Q2 2024?",
+      "answerable": true,
+      "retrieved": [
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q2_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q2_2024_Report.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3209.9,
+      "top_score": 0.9999,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "fin-q2-closing-cash",
+      "type": "distractor",
+      "question": "What was the closing cash balance at the end of Q2 2024?",
+      "answerable": true,
+      "retrieved": [
+        "Finance_Q2_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q2_2024_Report.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 2961.3,
+      "top_score": 0.9987,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "fin-q3-closing-cash",
+      "type": "distractor",
+      "question": "What was the closing cash balance on 30 September 2024?",
+      "answerable": true,
+      "retrieved": [
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q2_2024_Report.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3190.5,
+      "top_score": 0.9996,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "fin-q3-cac",
+      "type": "lookup",
+      "question": "What was customer acquisition cost in Q3 2024?",
+      "answerable": true,
+      "retrieved": [
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q2_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q2_2024_Report.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3470.9,
+      "top_score": 0.9996,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "fin-q1-headcount",
+      "type": "distractor",
+      "question": "How many employees did Acme have at the end of Q1 2024?",
+      "answerable": true,
+      "retrieved": [
+        "Company_Handbook.md",
+        "Finance_Q2_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
+        "Company_Handbook.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 2865.1,
+      "top_score": 0.989,
+      "leak": false,
+      "hit": true,
+      "rr": 0.5,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "fin-ebitda-growth",
+      "type": "comparison",
+      "question": "How did EBITDA change between Q2 and Q3 2024?",
+      "answerable": true,
+      "retrieved": [
+        "Finance_Q2_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q2_2024_Report.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3766.2,
+      "top_score": 0.9913,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "fin-q4-outlook",
+      "type": "lookup",
+      "question": "What revenue is projected for Q4 2024?",
+      "answerable": true,
+      "retrieved": [
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q2_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q2_2024_Report.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3399.3,
+      "top_score": 0.9999,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "fin-hotel-london",
+      "type": "lookup",
+      "question": "What is the maximum hotel rate per night in London?",
+      "answerable": true,
+      "retrieved": [
+        "Finance_Travel_Expenses_Policy.md",
+        "Finance_Travel_Expenses_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3485.9,
+      "top_score": 0.9992,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "fin-mileage",
+      "type": "paraphrase",
+      "question": "I drove my own car to a client site. How much do I get back per mile?",
+      "answerable": true,
+      "retrieved": [
+        "Finance_Travel_Expenses_Policy.md",
+        "Finance_Travel_Expenses_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3433.5,
+      "top_score": 0.0382,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "fin-expense-deadline",
+      "type": "lookup",
+      "question": "How long do I have to submit an expense claim?",
+      "answerable": true,
+      "retrieved": [
+        "Finance_Travel_Expenses_Policy.md",
+        "HR_Leave_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 2831.5,
+      "top_score": 0.9996,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "fin-business-class",
+      "type": "lookup",
+      "question": "Who has to approve business class flights?",
+      "answerable": true,
+      "retrieved": [
+        "Finance_Travel_Expenses_Policy.md",
+        "IT_Security_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3067.1,
+      "top_score": 0.9282,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "it-password-length",
+      "type": "lookup",
+      "question": "What is the minimum password length?",
+      "answerable": true,
+      "retrieved": [
+        "IT_Security_Policy.md",
+        "Legal_NDA_Template.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3655.8,
+      "top_score": 0.9985,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "it-password-expiry",
+      "type": "paraphrase",
+      "question": "How often will I be forced to change my password on a normal account?",
+      "answerable": true,
+      "retrieved": [
+        "IT_Security_Policy.md",
+        "IT_Acceptable_Use_Policy.md"
+      ],
+      "low_confidence": true,
+      "retrieval_ms": 3295.7,
+      "top_score": 0.016,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "it-form-14",
+      "type": "keyword",
+      "question": "Which form do I use to request a new software license?",
+      "answerable": true,
+      "retrieved": [
+        "IT_Security_Policy.md",
+        "IT_Acceptable_Use_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3019.5,
+      "top_score": 0.9989,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "it-critical-incident",
+      "type": "lookup",
+      "question": "What is the initial response time for a critical security incident?",
+      "answerable": true,
+      "retrieved": [
+        "IT_Security_Policy.md",
+        "Operations_SOPs.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3232.9,
+      "top_score": 0.9993,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "it-vpn",
+      "type": "lookup",
+      "question": "Which VPN must be used for remote access?",
+      "answerable": true,
+      "retrieved": [
+        "IT_Security_Policy.md",
+        "IT_Acceptable_Use_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3367.4,
+      "top_score": 0.9993,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "it-screen-lock",
+      "type": "lookup",
+      "question": "After how long does a company laptop lock itself?",
+      "answerable": true,
+      "retrieved": [
+        "IT_Acceptable_Use_Policy.md",
+        "IT_Acceptable_Use_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 2801.9,
+      "top_score": 0.9993,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "it-lost-laptop",
+      "type": "paraphrase",
+      "question": "I left my work laptop on the train. How quickly must I tell someone?",
+      "answerable": true,
+      "retrieved": [
+        "HR_Recruitment_and_Onboarding.md",
+        "IT_Acceptable_Use_Policy.md"
+      ],
+      "low_confidence": true,
+      "retrieval_ms": 2768.6,
+      "top_score": 0.0025,
+      "leak": false,
+      "hit": true,
+      "rr": 0.5,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "it-ai-tools",
+      "type": "lookup",
+      "question": "Which AI tools are approved for use with confidential data?",
+      "answerable": true,
+      "retrieved": [
+        "IT_Acceptable_Use_Policy.md",
+        "IT_Acceptable_Use_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3363.4,
+      "top_score": 0.9999,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "legal-nda-term",
+      "type": "lookup",
+      "question": "How long does the standard NDA last, and how long do confidentiality obligations survive?",
+      "answerable": true,
+      "retrieved": [
+        "Legal_NDA_Template.md",
+        "Legal_NDA_Template.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3391.0,
+      "top_score": 0.9993,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "legal-nda-law",
+      "type": "lookup",
+      "question": "Which country's law governs our NDA?",
+      "answerable": true,
+      "retrieved": [
+        "Legal_NDA_Template.md",
+        "Legal_NDA_Template.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3435.6,
+      "top_score": 0.0206,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "legal-dsar",
+      "type": "lookup",
+      "question": "How long do we have to respond to a data subject access request?",
+      "answerable": true,
+      "retrieved": [
+        "Legal_Data_Protection_Policy.md",
+        "Legal_Data_Protection_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3698.7,
+      "top_score": 0.9991,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "legal-ico",
+      "type": "lookup",
+      "question": "Within how many hours must a serious data breach be reported to the ICO?",
+      "answerable": true,
+      "retrieved": [
+        "Legal_Data_Protection_Policy.md",
+        "Company_Handbook.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 2893.2,
+      "top_score": 0.9994,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "legal-retention-candidates",
+      "type": "lookup",
+      "question": "How long do we keep data about unsuccessful job candidates?",
+      "answerable": true,
+      "retrieved": [
+        "Legal_Data_Protection_Policy.md",
+        "HR_Recruitment_and_Onboarding.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 2818.9,
+      "top_score": 0.9984,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "legal-dpo-name",
+      "type": "lookup",
+      "question": "Who is the Data Protection Officer?",
+      "answerable": true,
+      "retrieved": [
+        "Legal_Data_Protection_Policy.md",
+        "Legal_Data_Protection_Policy.md",
+        "Company_Handbook.md",
+        "Legal_Data_Protection_Policy.md",
+        "Legal_Data_Protection_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3028.0,
+      "top_score": 0.999,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "ops-po-threshold",
+      "type": "lookup",
+      "question": "Above what amount does a purchase need a formal purchase order in SAP?",
+      "answerable": true,
+      "retrieved": [
+        "Operations_SOPs.md",
+        "Operations_SOPs.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3411.5,
+      "top_score": 0.9973,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "ops-approval-cfo",
+      "type": "lookup",
+      "question": "Who needs to approve a purchase of £60,000?",
+      "answerable": true,
+      "retrieved": [
+        "Operations_SOPs.md",
+        "Finance_Travel_Expenses_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3468.5,
+      "top_score": 0.6557,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "ops-rto",
+      "type": "keyword",
+      "question": "What is the RTO for critical systems?",
+      "answerable": true,
+      "retrieved": [
+        "Operations_SOPs.md",
+        "IT_Security_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 2919.7,
+      "top_score": 0.9978,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "ops-london-hours",
+      "type": "distractor",
+      "question": "What are the office opening hours set out in the Operations SOPs?",
+      "answerable": true,
+      "retrieved": [
+        "Operations_SOPs.md",
+        "Operations_SOPs.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3299.9,
+      "top_score": 0.8343,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "ops-amsterdam-hours",
+      "type": "distractor",
+      "question": "What time does the Amsterdam office open and close?",
+      "answerable": true,
+      "retrieved": [
+        "Operations_Amsterdam_Office_Guide.md",
+        "Operations_Amsterdam_Office_Guide.md",
+        "Operations_Amsterdam_Office_Guide.md",
+        "Operations_Amsterdam_Office_Guide.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 2455.5,
+      "top_score": 0.9994,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "ops-amsterdam-tram",
+      "type": "lookup",
+      "question": "What's the nearest tram stop to the Amsterdam office?",
+      "answerable": true,
+      "retrieved": [
+        "Operations_Amsterdam_Office_Guide.md",
+        "Operations_Amsterdam_Office_Guide.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3039.1,
+      "top_score": 0.9998,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "ops-net-zero",
+      "type": "lookup",
+      "question": "By what year does Acme aim to be net zero?",
+      "answerable": true,
+      "retrieved": [
+        "Finance_Q3_2024_Report.md",
+        "IT_Security_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3072.8,
+      "top_score": 0.0748,
+      "leak": false,
+      "hit": false,
+      "rr": 0.0,
+      "context_recall": 0.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "gen-pension",
+      "type": "lookup",
+      "question": "How much does the company contribute to my pension?",
+      "answerable": true,
+      "retrieved": [
+        "Company_Handbook.md",
+        "HR_Recruitment_and_Onboarding.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3428.8,
+      "top_score": 0.5689,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "gen-learning-budget",
+      "type": "paraphrase",
+      "question": "Is there money available for me to take a course or go to a conference?",
+      "answerable": true,
+      "retrieved": [
+        "Company_Handbook.md",
+        "Operations_Amsterdam_Office_Guide.md"
+      ],
+      "low_confidence": true,
+      "retrieval_ms": 3714.6,
+      "top_score": 0.0001,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "gen-gift-limit",
+      "type": "lookup",
+      "question": "What is the limit on gifts I can accept without approval?",
+      "answerable": true,
+      "retrieved": [
+        "Company_Handbook.md",
+        "IT_Acceptable_Use_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3576.3,
+      "top_score": 0.7762,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "gen-office-days",
+      "type": "lookup",
+      "question": "How many days a week do I have to be in the office?",
+      "answerable": true,
+      "retrieved": [
+        "HR_Leave_Policy.md",
+        "HR_Leave_Policy.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3237.1,
+      "top_score": 0.0237,
+      "leak": false,
+      "hit": false,
+      "rr": 0.0,
+      "context_recall": 0.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "gen-esop",
+      "type": "keyword",
+      "question": "What is the ESOP vesting schedule?",
+      "answerable": true,
+      "retrieved": [
+        "Company_Handbook.md",
+        "HR_Recruitment_and_Onboarding.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3477.0,
+      "top_score": 0.1095,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "multi-breach-two-deadlines",
+      "type": "comparison",
+      "question": "If I suspect a personal data breach, who do I tell and how quickly, and when does the regulator need to hear about it?",
+      "answerable": true,
+      "retrieved": [
+        "Legal_Data_Protection_Policy.md",
+        "Company_Handbook.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 2872.9,
+      "top_score": 0.9324,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "follow-up-paternity",
+      "type": "follow-up",
+      "question": "And what about the father?",
+      "answerable": true,
+      "retrieved": [
+        "HR_Leave_Policy.md",
+        "HR_Leave_Policy.md"
+      ],
+      "low_confidence": true,
+      "retrieval_ms": 3353.0,
+      "top_score": 0.0,
+      "leak": false,
+      "hit": true,
+      "rr": 1.0,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "follow-up-q2",
+      "type": "follow-up",
+      "question": "And the quarter before that?",
+      "answerable": true,
+      "retrieved": [
+        "HR_Leave_Policy.md",
+        "Finance_Q2_2024_Report.md"
+      ],
+      "low_confidence": true,
+      "retrieval_ms": 3360.4,
+      "top_score": 0.0001,
+      "leak": false,
+      "hit": true,
+      "rr": 0.5,
+      "context_recall": 1.0,
+      "llm_calls": 0
+    },
+    {
+      "id": "unans-pets",
+      "type": "unanswerable",
+      "question": "Am I allowed to bring my dog to the office?",
+      "answerable": false,
+      "retrieved": [
+        "IT_Acceptable_Use_Policy.md",
+        "Operations_Amsterdam_Office_Guide.md"
+      ],
+      "low_confidence": true,
+      "retrieval_ms": 3586.6,
+      "top_score": 0.0,
+      "leak": false,
+      "llm_calls": 0
+    },
+    {
+      "id": "unans-ceo-salary",
+      "type": "unanswerable",
+      "question": "What is the CEO's salary?",
+      "answerable": false,
+      "retrieved": [
+        "Finance_Q2_2024_Report.md",
+        "Operations_SOPs.md"
+      ],
+      "low_confidence": true,
+      "retrieval_ms": 3452.7,
+      "top_score": 0.002,
+      "leak": false,
+      "llm_calls": 0
+    },
+    {
+      "id": "unans-q4-actuals",
+      "type": "unanswerable",
+      "question": "What was the actual revenue for Q4 2024?",
+      "answerable": false,
+      "retrieved": [
+        "Finance_Q2_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q3_2024_Report.md",
+        "Finance_Q3_2024_Report.md"
+      ],
+      "low_confidence": false,
+      "retrieval_ms": 3275.1,
+      "top_score": 0.9994,
+      "leak": false,
+      "llm_calls": 0
+    },
+    {
+      "id": "unans-singapore-tram",
+      "type": "unanswerable",
+      "question": "What is the nearest MRT station to the Singapore office?",
+      "answerable": false,
+      "retrieved": [
+        "Operations_Amsterdam_Office_Guide.md",
+        "Company_Handbook.md"
+      ],
+      "low_confidence": true,
+      "retrieval_ms": 3578.2,
+      "top_score": 0.0,
+      "leak": false,
+      "llm_calls": 0
+    },
+    {
+      "id": "scope-hr-in-finance",
+      "type": "scope",
+      "question": "How many days of annual leave do full-time employees get?",
+      "answerable": false,
+      "retrieved": [
+        "Finance_Travel_Expenses_Policy.md",
+        "Finance_Travel_Expenses_Policy.md"
+      ],
+      "low_confidence": true,
+      "retrieval_ms": 3153.3,
+      "top_score": 0.0016,
+      "leak": false,
+      "llm_calls": 0
+    },
+    {
+      "id": "scope-finance-in-it",
+      "type": "scope",
+      "question": "What was total revenue in Q3 2024?",
+      "answerable": false,
+      "retrieved": [
+        "IT_Acceptable_Use_Policy.md",
+        "IT_Security_Policy.md"
+      ],
+      "low_confidence": true,
+      "retrieval_ms": 2769.5,
+      "top_score": 0.0,
+      "leak": false,
+      "llm_calls": 0
+    }
+  ]
+}

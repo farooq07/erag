@@ -9,7 +9,16 @@ python eval/eval_runner.py                    # full run with answers
 python eval/eval_runner.py --check            # exit 1 on regression vs baseline.json (CI)
 python eval/eval_runner.py --save-baseline    # accept this run as the new baseline
 python eval/eval_runner.py --set HYDE_ENABLED=true --retrieval-only   # ablate a flag
+python eval/eval_runner.py --offline --baseline eval/baseline_ci.json --check   # CI gate
 ```
+
+**CI mode (`--offline`)** runs retrieval only with query rewriting and HyDE
+off, so it makes **no model calls** and needs no API key; it fails if any
+call is made. It compares against its own baseline, `baseline_ci.json`
+(hit rate 96.2%, context recall 96.2%, 0 scope leaks), because turning the
+rewrite off changes the numbers. Regenerate it with `--save-baseline` after
+an intentional retrieval change. `--check` fails when the baseline file is
+missing, so a deleted baseline can't pass silently.
 
 ## What's in it
 
