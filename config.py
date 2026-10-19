@@ -129,7 +129,17 @@ SMTP_FROM = os.getenv("SMTP_FROM", "DocuMind <no-reply@localhost>")
 
 # ── Database ─────────────────────────────────────────────────────────────
 # SQLite for zero-setup local dev; set a postgresql+psycopg:// URL in production.
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{(DATA_DIR / 'documind.db').as_posix()}")
+def normalize_database_url(url: str) -> str:
+    """Hosts (Render, Heroku) hand out postgres:// URLs; SQLAlchemy needs a driver."""
+    for bare in ("postgres://", "postgresql://"):
+        if url.startswith(bare):
+            return "postgresql+psycopg://" + url[len(bare):]
+    return url
+
+
+DATABASE_URL = normalize_database_url(
+    os.getenv("DATABASE_URL", f"sqlite:///{(DATA_DIR / 'documind.db').as_posix()}")
+)
 
 # ── Background ingestion ─────────────────────────────────────────────────
 # Run the ingest worker inside the API process. Set to false when running

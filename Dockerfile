@@ -22,4 +22,6 @@ RUN useradd --create-home --uid 10001 documind \
 USER documind
 EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Hosts like Render set $PORT; trust X-Forwarded-* from the platform's proxy so
+# the app sees HTTPS (Secure cookies) and the real client IP (rate limits).
+CMD ["sh", "-c", "exec python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]
