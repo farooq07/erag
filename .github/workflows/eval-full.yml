@@ -1,0 +1,36 @@
+# Full answer-quality eval against the real model.
+# Uses ~100k Groq tokens (half the free tier's daily limit): run it manually
+# after changing retrieval, chunking or prompts, not on every push.
+name: Full eval (manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+      - name: Run eval
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: python eval/eval_runner.py --check
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-full-results
+          path: eval/results/latest.json
+          if-no-files-found: ignore
