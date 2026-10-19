@@ -149,14 +149,18 @@ export default function App() {
       if (!pendingSummaries.current.has(doc.name)) continue;
       if (doc.status === "ready") {
         readyToSummarize.push(doc.name);
-        pendingSummaries.current.delete(doc.name);
       } else if (doc.status === "failed") {
         pendingSummaries.current.delete(doc.name);
       }
     }
     if (readyToSummarize.length > 0) {
+      // Only drop a name from the pending set once its fetch actually starts:
+      // if this effect is cleaned up first, the next run must still see it.
       const timer = setTimeout(() => {
-        readyToSummarize.forEach((name) => fetchSummary(name));
+        readyToSummarize.forEach((name) => {
+          if (!pendingSummaries.current.delete(name)) return;
+          fetchSummary(name);
+        });
       }, 0);
       return () => clearTimeout(timer);
     }
