@@ -247,7 +247,12 @@ export default function HeroDemo() {
 }
 
 function RedactedPassage({ passage, reduce }) {
-  const text = passage.map((p) => (Array.isArray(p) ? p[0] : p)).join("");
+  // Never put the withheld words in the page (they'd be selectable and searchable
+  // under the bar); same-length filler keeps the bars' line breaks realistic.
+  const text = passage
+    .map((p) => (Array.isArray(p) ? p[0] : p))
+    .join("")
+    .replace(/\S/g, "x");
   // The clip animates on a block wrapper; the inline span inside draws one bar per line.
   return (
     <motion.span
