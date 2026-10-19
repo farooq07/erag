@@ -147,21 +147,22 @@ export default function AuthScreen({ onAuth }) {
 
           <form onSubmit={submit} className="space-y-4">
             {mode === "signup" && (
-              <Field label="Full name">
-                <Input type="text" required autoComplete="name" value={form.name} onChange={set("name")} placeholder="Jane Smith" />
+              <Field label="Full name" htmlFor="auth-name">
+                <Input id="auth-name" type="text" required autoComplete="name" value={form.name} onChange={set("name")} placeholder="Jane Smith" />
               </Field>
             )}
 
             {needsEmail && (
-              <Field label="Email">
-                <Input type="email" required autoComplete="email" value={form.email} onChange={set("email")} placeholder="you@acme.com" />
+              <Field label="Email" htmlFor="auth-email">
+                <Input id="auth-email" type="email" required autoComplete="email" value={form.email} onChange={set("email")} placeholder="you@acme.com" />
               </Field>
             )}
 
             {needsPassword && (
-              <Field label={mode === "reset" ? "New password" : "Password"}>
+              <Field label={mode === "reset" ? "New password" : "Password"} htmlFor="auth-password">
                 <div className="relative">
                   <Input
+                    id="auth-password"
                     type={showPw ? "text" : "password"} required
                     autoComplete={mode === "login" ? "current-password" : "new-password"}
                     minLength={mode === "login" ? undefined : 8}
@@ -282,10 +283,10 @@ function ProviderIcon({ id }) {
   return null;
 }
 
-function Field({ label, children }) {
+function Field({ label, htmlFor, children }) {
   return (
     <div>
-      <label className="mb-1.5 block text-[11px] font-medium text-muted-foreground">{label}</label>
+      <label htmlFor={htmlFor} className="mb-1.5 block text-[11px] font-medium text-muted-foreground">{label}</label>
       {children}
     </div>
   );

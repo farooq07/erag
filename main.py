@@ -2,6 +2,7 @@ import asyncio
 import json
 import re
 import shutil
+import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, time, timezone
 from pathlib import Path
@@ -80,6 +81,12 @@ from rag import (
 )
 
 DEFAULT_MODEL = GROQ_MODEL if LLM_PROVIDER == "groq" else LLM_MODEL
+
+# A Windows console or pipe often uses cp1252; printing a filename or "→" there
+# raised UnicodeEncodeError and stopped startup. Escape what can't be encoded.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(errors="backslashreplace")
 
 # ── Rate limiter ─────────────────────────────────────────────────────────
 limiter = Limiter(key_func=get_remote_address, default_limits=[])

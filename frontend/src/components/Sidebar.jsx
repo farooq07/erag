@@ -420,8 +420,12 @@ function DocCard({
 function NavIcon({ icon, label, active, onClick, badge, danger }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       title={label}
+      // Icon-only: without this the accessible name was just the badge ("6").
+      aria-label={label}
+      aria-pressed={onClick ? active : undefined}
       className={cn(
         "relative flex h-9 w-9 items-center justify-center rounded-xl transition-colors",
         danger ? "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
