@@ -6,22 +6,22 @@ import { FileSpreadsheet, FileText, Presentation, ScanText, Search, ShieldCheck 
 const STEPS = [
   {
     title: "Add your documents",
-    body: "Upload PDFs, Word, Excel, PowerPoint, Markdown or text. Scanned PDFs are read with OCR. Each file is filed under a department, and indexing runs in the background while you keep working.",
+    body: "Upload any office file, scans included. Each one is filed under a department.",
     Visual: UploadVisual,
   },
   {
     title: "Every passage gets filed",
-    body: "Documents are split into passages that keep table rows and slides whole, then indexed twice: once for exact words like form numbers and codes, once for meaning.",
+    body: "Files are split into passages and indexed twice: by exact words and by meaning.",
     Visual: IndexVisual,
   },
   {
     title: "Questions search both ways",
-    body: "Your question is rewritten to stand on its own, so a follow-up like “and the quarter before?” still works. It's searched by keyword and by meaning, the results are merged, and a second model re-reads each passage to rank them. Only departments you can access are searched.",
+    body: "Both indexes are searched, then a second model ranks the best passages. Only your departments are searched.",
     Visual: SearchVisual,
   },
   {
     title: "Answers cite their sources",
-    body: "The answer is written only from those passages, with every claim numbered to its source. When the documents don't cover something, it says so instead of guessing, and a final check flags any sentence the sources don't support.",
+    body: "The answer uses only those passages, numbered to their sources. No source, no answer.",
     Visual: AnswerVisual,
   },
 ];

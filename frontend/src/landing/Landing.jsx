@@ -1,28 +1,29 @@
 import { useEffect, useRef } from "react";
 import Lenis from "lenis";
 import { MotionConfig, motion, useReducedMotion, useScroll, useTransform } from "motion/react";
-import { ArrowDown, ArrowRight, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowRight, KeyRound, LogOut, ScrollText, Server, ShieldCheck, Sparkles } from "lucide-react";
 import "@fontsource-variable/bricolage-grotesque";
 import "@fontsource-variable/geist";
 import "@fontsource-variable/geist-mono";
 import "./landing.css";
 import HeroDemo from "./HeroDemo";
 import HowItWorks from "./HowItWorks";
+import Features from "./Features";
 
 // Measured on the benchmark in eval/ (58 questions over 12 company documents).
 // Update from eval/baseline.json when the pipeline changes.
 const PROOF = [
-  { value: "98%", label: "of answers contain every expected fact, across 58 policy, finance, IT, legal and operations questions" },
-  { value: "100%", label: "of questions the documents don't answer get a plain “couldn't find this”, not a guess" },
-  { value: "0", label: "passages returned from outside the asker's departments, across every scoped test" },
+  { value: "98%", label: "of answers contain every expected fact (58 test questions)" },
+  { value: "100%", label: "of unanswerable questions get “not found”, not a guess" },
+  { value: "0", label: "passages leaked across departments" },
 ];
 
 const SECURITY = [
-  ["Runs on your servers", "Documents, the search index and the audit log stay on infrastructure you control. Only the few passages that match a question are sent to the language model, and you can run that model locally with Ollama."],
-  ["Permissions enforced in search", "Each document belongs to a department. Restricted passages are filtered out before ranking, so they can't leak into an answer, a citation or a summary."],
-  ["Sign in the way you already do", "Google and Microsoft Entra single sign-on, or email and password with account lockout. Restrict sign-in to your company's domain."],
-  ["Sessions you can revoke", "Short-lived access tokens, rotating refresh tokens and one-click sign out of every device. A password change ends every other session."],
-  ["Every action on the record", "Logins, uploads, edits, deletions and questions are written to an audit log you can query."],
+  [Server, "Self-hosted", "Your files never leave your servers. Run the model locally too, if you like."],
+  [ShieldCheck, "Permissions in search", "Restricted passages are removed before ranking, so they can't leak."],
+  [KeyRound, "Single sign-on", "Google and Microsoft sign-in, limited to your company's domain."],
+  [LogOut, "Revocable sessions", "Short-lived tokens and sign out of every device in one click."],
+  [ScrollText, "Audit log", "Every login, upload and question is on the record."],
 ];
 
 const FORMATS = ["PDF", "Scanned PDF (OCR)", "Word", "Excel", "PowerPoint", "Markdown", "Plain text"];
@@ -80,6 +81,7 @@ export default function Landing({ onSignIn }) {
         <main id="main">
           <Hero onSignIn={onSignIn} />
           <Problem />
+          <Features />
           <HowItWorks />
           <Proof />
           <Security />
@@ -111,6 +113,7 @@ function Nav({ onSignIn }) {
         <nav aria-label="Main" className="mx-auto flex h-16 max-w-[1200px] items-center gap-6 px-4 sm:px-8">
           <a href="#main" aria-label="DocuMind home"><Wordmark /></a>
           <div className="ml-6 hidden items-center gap-6 text-[14px] md:flex" style={{ color: "var(--muted)" }}>
+            <a href="#features" className="transition-colors hover:text-[color:var(--ink)]">Features</a>
             <a href="#how" className="transition-colors hover:text-[color:var(--ink)]">How it works</a>
             <a href="#proof" className="transition-colors hover:text-[color:var(--ink)]">Accuracy</a>
             <a href="#security" className="transition-colors hover:text-[color:var(--ink)]">Security</a>
@@ -155,8 +158,7 @@ function Hero({ onSignIn }) {
             Answers from your documents, with the page they came from.
           </h1>
           <p className="mt-6 max-w-[48ch] text-[17px] leading-[1.7]" style={{ color: "var(--muted)" }}>
-            DocuMind reads your policies, reports and contracts, then answers questions in plain language.
-            Every claim points to its source, and each person only gets answers from documents they're allowed to see.
+            Ask in plain language. Get a cited answer from your company's files, limited to what you're allowed to see.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <PrimaryButton large onClick={onSignIn}>Open DocuMind</PrimaryButton>
@@ -180,9 +182,9 @@ function Hero({ onSignIn }) {
 
 function Problem() {
   const asks = [
-    ["“How many days can I carry over?”", "asked in a team chat, answered from memory, wrong by five days."],
-    ["“Which VPN are we meant to use?”", "a ticket to IT that waits two days for a one-line answer."],
-    ["“What did we report for Q3?”", "three versions of the deck, none of them clearly final."],
+    ["“How many days can I carry over?”", "answered from memory, wrong by five days."],
+    ["“Which VPN are we meant to use?”", "two days in the IT queue."],
+    ["“What did we report for Q3?”", "three decks, none clearly final."],
   ];
   return (
     <section aria-labelledby="problem-title" className="border-y" style={{ borderColor: "var(--rule)", background: "var(--surface)" }}>
@@ -193,8 +195,7 @@ function Problem() {
             The answer is already written down. Nobody can find it.
           </h2>
           <p className="mt-5 max-w-[46ch] text-[16.5px] leading-[1.7]" style={{ color: "var(--muted)" }}>
-            Policies live in shared drives, numbers in reports, rules in contracts. So people ask a colleague,
-            wait for a ticket, or guess. DocuMind gives the same question the same sourced answer, every time.
+            So people ask around, wait on tickets, or guess. DocuMind answers in seconds, with the source.
           </p>
         </motion.div>
         <ul className="divide-y self-center" style={{ borderColor: "var(--rule)" }}>
@@ -221,8 +222,7 @@ function Proof() {
             Measured on every change, not promised.
           </h2>
           <p className="mt-5 text-[16.5px] leading-[1.7]" style={{ color: "var(--muted)" }}>
-            DocuMind ships with a benchmark of real questions, including look-alike documents, follow-ups,
-            questions it should refuse, and questions asked from the wrong department. Changes that make it worse don't ship.
+            A built-in benchmark runs on every change. If quality drops, the change doesn't ship.
           </p>
         </motion.div>
         <dl className="mt-14 grid gap-x-12 gap-y-10 border-t pt-10 md:grid-cols-[1.3fr_1fr_1fr]" style={{ borderColor: "var(--rule)" }}>
@@ -253,7 +253,7 @@ function Security() {
             Built to pass the IT review.
           </h2>
           <p className="mt-5 max-w-[40ch] text-[16.5px] leading-[1.7]" style={{ color: "var(--muted)" }}>
-            The questions your security team will ask, answered before the first meeting.
+            What your security team will ask, answered up front.
           </p>
           <div className="mt-8 flex flex-wrap gap-2">
             {FORMATS.map((f) => (
@@ -262,10 +262,13 @@ function Security() {
           </div>
         </motion.div>
         <dl className="divide-y border-y" style={{ borderColor: "var(--rule)" }}>
-          {SECURITY.map(([title, body], i) => (
+          {SECURITY.map(([Icon, title, body], i) => (
             <motion.div key={title} {...reveal} transition={{ ...reveal.transition, delay: i * 0.04 }}
                         className="grid gap-2 py-7 sm:grid-cols-[minmax(0,0.85fr)_minmax(0,1.4fr)] sm:gap-8" style={{ borderColor: "var(--rule)" }}>
-              <dt className="font-display text-[19px] font-semibold leading-snug">{title}</dt>
+              <dt className="font-display flex items-center gap-3 text-[19px] font-semibold leading-snug">
+                <Icon size={22} strokeWidth={1} aria-hidden="true" className="flex-none" />
+                {title}
+              </dt>
               <dd className="text-[15.5px] leading-[1.7]" style={{ color: "var(--muted)" }}>{body}</dd>
             </motion.div>
           ))}
@@ -292,8 +295,7 @@ function Closing({ onSignIn }) {
           . Check every answer.
         </h2>
         <p className="mt-6 max-w-[52ch] text-[16.5px] leading-[1.7]" style={{ opacity: 0.72 }}>
-          Sign in with the demo accounts to try it on sample HR, finance, IT, legal and operations documents,
-          or upload your own.
+          Try the demo accounts on sample documents, or upload your own.
         </p>
         <div className="mt-9"><PrimaryButton large onClick={onSignIn}>Open DocuMind</PrimaryButton></div>
       </div>
