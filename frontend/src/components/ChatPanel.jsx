@@ -1,20 +1,21 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ArrowUp, Mic, MicOff, Sparkles, FileText, Zap, Shield, RotateCcw, Building2, ArrowDown, LogOut } from "lucide-react";
+import { useDropzone } from "react-dropzone";
+import {
+  ArrowDown, SquarePen, ScrollText, CalendarDays, BarChart3, Clock, UploadCloud, FileUp,
+} from "lucide-react";
 import Message from "./Message";
-import Dropdown from "./Dropdown";
-import { DEPT_DOT } from "@/lib/departments";
+import Composer from "./Composer";
 import ThemeToggle from "./ThemeToggle";
 import AccountMenu from "./AccountMenu";
+import { DEPT_DOT } from "@/lib/departments";
+import { UPLOAD_ACCEPT, effectiveUploadDept } from "@/lib/uploads";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
 
 const SUGGESTIONS = [
-  { icon: "📋", chip: "Summarize policies", text: "Summarize the key policies in all documents" },
-  { icon: "🔍", chip: "Leave entitlements", text: "What are the leave entitlements?" },
-  { icon: "📊", chip: "Key figures", text: "List all important numbers and figures mentioned" },
-  { icon: "⚡", chip: "Working hours", text: "What are working hours and overtime rules?" },
+  { Icon: ScrollText, title: "Summarize policies", text: "Summarize the key policies in all documents" },
+  { Icon: CalendarDays, title: "Leave entitlements", text: "What are the leave entitlements?" },
+  { Icon: BarChart3, title: "Key figures", text: "List all important numbers and figures mentioned" },
+  { Icon: Clock, title: "Working hours", text: "What are working hours and overtime rules?" },
 ];
 
 function greetingWord() {
@@ -24,24 +25,31 @@ function greetingWord() {
   return "Good evening";
 }
 
+// Maps a document's ingest status to the composer chip's state.
+const chipState = (doc) => {
+  if (!doc) return "indexing";
+  if (doc.status === "ready") return "ready";
+  if (doc.status === "failed") return "failed";
+  return "indexing";
+};
+
 export default function ChatPanel({
-  messages, onSend, loading, hasDocs, onClearChat,
+  messages, onSend, loading, documents = [], onClearChat,
   departments = [], scopeDept = "All", onScopeChange, onOpenSource, onOpenPipeline,
   currentUser, onLogout,
+  canUpload, defaultDept, onUpload, onOpenFiles,
 }) {
-  const [input, setInput] = useState("");
-  const [listening, setListening] = useState(false);
   const [pinnedToBottom, setPinnedToBottom] = useState(true);
+  const [uploadChoice, setUploadChoice] = useState(defaultDept || "General");
+  const [attachments, setAttachments] = useState([]);
   const bottomRef = useRef(null);
   const scrollRef = useRef(null);
-  const textareaRef = useRef(null);
-  const recognitionRef = useRef(null);
+  const uploadDept = effectiveUploadDept(uploadChoice, departments, defaultDept);
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-    setPinnedToBottom(distance < 80);
+    setPinnedToBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80);
   }, []);
 
   useEffect(() => {
@@ -54,178 +62,134 @@ export default function ChatPanel({
     setPinnedToBottom(true);
   };
 
-  useEffect(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    ta.style.height = "auto";
-    ta.style.height = Math.min(ta.scrollHeight, 144) + "px";
-  }, [input]);
+  const attach = useCallback(async (files) => {
+    if (!files.length || !canUpload) return;
+    const batch = `b${Date.now()}`;
+    setAttachments((a) => [...a, ...files.map((f, i) => ({ key: `${batch}-${i}`, name: f.name, state: "uploading", batch }))]);
+    let result;
+    try { result = await onUpload(files, { department: uploadDept, tags: [] }); }
+    catch { result = { names: [], failed: ["Upload failed"] }; }
+    setAttachments((a) => {
+      const rest = a.filter((x) => x.batch !== batch);
+      if (result.failed?.length) {
+        return [...rest, ...files.map((f, i) => ({ key: `${batch}-${i}`, name: f.name, state: "failed", error: result.failed.join("; ") }))];
+      }
+      // The server may rename files (sanitising), so chips follow its names.
+      return [...rest, ...(result.names || []).map((name) => ({ key: `${batch}-${name}`, name, doc: name }))];
+    });
+  }, [canUpload, onUpload, uploadDept]);
 
-  const handleSubmit = () => {
-    const q = input.trim();
-    if (!q || loading) return;
-    setInput("");
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
+    onDrop: attach, accept: UPLOAD_ACCEPT, multiple: true, noClick: true, noKeyboard: true, disabled: !canUpload,
+  });
+
+  // Chips for uploaded files take their state from the live document list.
+  const shownAttachments = attachments.map((a) =>
+    a.doc ? { ...a, state: chipState(documents.find((d) => d.name === a.doc)), error: documents.find((d) => d.name === a.doc)?.error } : a);
+
+  const send = (q) => {
+    // Sent files have done their job; keep the ones still indexing in view.
+    setAttachments((a) => a.filter((x) => x.doc && chipState(documents.find((d) => d.name === x.doc)) === "indexing"));
     onSend(q);
   };
 
-  const handleKey = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
-  };
+  const scopeOptions = [
+    { value: "All", label: "All departments", dotClass: DEPT_DOT.All },
+    ...departments.map((d) => ({ value: d, label: d, dotClass: DEPT_DOT[d] })),
+  ];
 
-  const toggleVoice = useCallback(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { alert("Voice input requires Chrome or Edge browser."); return; }
-    if (listening) { recognitionRef.current?.stop(); setListening(false); return; }
-
-    const rec = new SR();
-    rec.lang = "en-US";
-    rec.continuous = false;
-    rec.interimResults = true;
-    rec.onresult = (e) => {
-      const transcript = Array.from(e.results).map((r) => r[0].transcript).join("");
-      setInput(transcript);
-      if (e.results[e.results.length - 1].isFinal) setListening(false);
-    };
-    rec.onend = () => setListening(false);
-    rec.onerror = () => setListening(false);
-    recognitionRef.current = rec;
-    rec.start();
-    setListening(true);
-  }, [listening]);
-
-  const firstName = currentUser?.name?.split(" ")[0] || "there";
-
-  // The composer lives in two places: centered in the empty state (Claude-style)
-  // and pinned to the bottom once a conversation is underway.
-  const composerBox = (
-    <div
-      className={cn(
-        "relative flex items-end rounded-2xl border bg-card shadow-[0_8px_28px_-12px_rgba(0,0,0,0.18)] transition-all duration-200",
-        listening
-          ? "border-primary ring-2 ring-primary/25"
-          : "border-border/80 focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15"
-      )}
-    >
-      <textarea
-        ref={textareaRef}
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={handleKey}
-        placeholder={listening ? "Listening…" : "Ask a question about your documents…  (⇧↵ for new line)"}
-        rows={1}
-        disabled={loading}
-        className="max-h-36 flex-1 resize-none bg-transparent px-5 py-4 pr-28 text-[15px] leading-relaxed text-foreground placeholder:text-muted-foreground/70 focus:outline-none disabled:opacity-50"
-        style={{ scrollbarWidth: "none" }}
-      />
-
-      <Button
-        variant={listening ? "destructive" : "ghost"}
-        size="icon"
-        onClick={toggleVoice}
-        title={listening ? "Stop listening" : "Voice input"}
-        className={cn("absolute bottom-2.5 right-14 h-9 w-9 text-muted-foreground", listening && "animate-pulse")}
-      >
-        {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-      </Button>
-
-      <Button
-        size="icon"
-        onClick={handleSubmit}
-        disabled={!input.trim() || loading}
-        className="absolute bottom-2.5 right-2.5 h-9 w-9"
-      >
-        <ArrowUp className="h-4 w-4" />
-      </Button>
-    </div>
+  const composer = (
+    <Composer
+      onSend={send}
+      loading={loading}
+      autoFocus={messages.length === 0}
+      scopeDept={scopeDept}
+      scopeOptions={scopeOptions}
+      onScopeChange={onScopeChange}
+      canUpload={canUpload}
+      uploadDept={uploadDept}
+      uploadDepartments={departments}
+      onUploadDeptChange={setUploadChoice}
+      onPickFiles={open}
+      onOpenFiles={onOpenFiles}
+      attachments={shownAttachments}
+      onRemoveAttachment={(key) => setAttachments((a) => a.filter((x) => x.key !== key))}
+    />
   );
 
+  const firstName = currentUser?.name?.split(" ")[0] || "there";
+  const hasDocs = documents.length > 0;
+
   return (
-    <div className="relative flex h-full flex-1 flex-col overflow-hidden">
+    <div {...getRootProps({ className: "relative flex h-full min-w-0 flex-1 flex-col overflow-hidden" })}>
+      <input {...getInputProps()} />
+
       {/* Top bar */}
-      <div className="flex items-center justify-between gap-3 border-b px-6 py-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground">Scope</span>
-          <Dropdown
-            value={scopeDept}
-            onChange={onScopeChange}
-            disabled={loading}
-            icon={<Building2 className="h-3 w-3" />}
-            options={[
-              { value: "All", label: "All departments", dotClass: DEPT_DOT.All },
-              ...departments.map((d) => ({ value: d, label: d, dotClass: DEPT_DOT[d] })),
-            ]}
-          />
-          {scopeDept !== "All" && (
-            <Badge variant="secondary" className="text-[10px] font-normal">filtered</Badge>
+      <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
+        <div className="min-w-0">
+          {messages.length > 0 && (
+            <Button variant="ghost" size="sm" onClick={onClearChat} className="h-8 gap-2 rounded-full px-3 text-[12.5px] text-muted-foreground">
+              <SquarePen className="h-3.5 w-3.5" strokeWidth={1.75} /> New chat
+            </Button>
           )}
         </div>
-        <div className="flex flex-shrink-0 items-center gap-3">
-          {messages.length > 0 && (
-            <>
-              <span className="hidden text-[11px] tabular-nums text-muted-foreground sm:inline">
-                {messages.filter((m) => m.role === "user").length} questions
-              </span>
-              <Button variant="ghost" size="sm" onClick={onClearChat} className="h-7 gap-1.5 px-2 text-[11px] text-muted-foreground">
-                <RotateCcw className="h-3 w-3" /> New chat
-              </Button>
-              <Separator orientation="vertical" className="h-5" />
-            </>
-          )}
-          {currentUser && (
-            <div className="flex items-center gap-2">
-              <AccountMenu currentUser={currentUser} onLogout={onLogout} />
-              <Button variant="ghost" size="icon" onClick={onLogout} title="Sign out" className="h-7 w-7 text-muted-foreground hover:text-destructive">
-                <LogOut className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          )}
+        <div className="flex flex-shrink-0 items-center gap-2">
+          {currentUser && <AccountMenu currentUser={currentUser} onLogout={onLogout} />}
           <ThemeToggle />
         </div>
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} onScroll={handleScroll} className="relative flex-1 overflow-y-auto scroll-smooth">
+      <div ref={scrollRef} onScroll={handleScroll} className="relative flex-1 overflow-y-auto">
         {messages.length === 0 ? (
-          <div className="flex min-h-full flex-col items-center justify-center px-6 py-10">
-            <div className="w-full max-w-2xl">
-              {/* Greeting */}
-              <div className="rise rise-1 mb-8 flex items-center justify-center gap-3">
-                <Sparkles className="h-7 w-7 flex-shrink-0 text-primary" strokeWidth={1.5} />
-                <h1 className="font-display text-[clamp(1.7rem,4vw,2.5rem)] tracking-tight text-foreground">
+          <div className="flex min-h-full flex-col items-center justify-center px-4 pb-16 pt-6 sm:px-6">
+            <div className="w-full max-w-[720px]">
+              <div className="rise rise-1 mb-8 text-center">
+                <h1 className="font-display text-[clamp(1.8rem,4.2vw,2.6rem)] tracking-tight text-foreground">
                   {greetingWord()}, <span className="text-primary">{firstName}</span>
                 </h1>
+                <p className="mt-2 text-[14.5px] text-muted-foreground">
+                  {hasDocs
+                    ? `Ask anything. Answers come from ${documents.length} document${documents.length === 1 ? "" : "s"}, with sources.`
+                    : "Add a document, then ask anything about it."}
+                </p>
               </div>
 
-              {/* Composer — centered, the single focal point */}
-              <div className="rise rise-2">{composerBox}</div>
+              <div className="rise rise-2">{composer}</div>
 
-              {/* Quick-action chips */}
               {hasDocs ? (
-                <div className="rise rise-3 mt-4 flex flex-wrap justify-center gap-2">
-                  {SUGGESTIONS.map((s) => (
+                <div className="rise rise-3 mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                  {SUGGESTIONS.map(({ Icon, title, text }) => (
                     <button
-                      key={s.text}
-                      onClick={() => onSend(s.text)}
-                      className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-2 text-[12.5px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                      key={text}
+                      type="button"
+                      onClick={() => send(text)}
+                      className="group flex flex-col items-start gap-3 rounded-2xl border border-border/70 bg-card/60 p-3.5 text-left transition-colors hover:border-foreground/20 hover:bg-card"
                     >
-                      <span className="opacity-80">{s.icon}</span>
-                      {s.chip}
+                      <Icon className="h-[18px] w-[18px] text-muted-foreground transition-colors group-hover:text-primary" strokeWidth={1.25} />
+                      <span className="text-[13px] font-medium leading-snug text-foreground">{title}</span>
                     </button>
                   ))}
                 </div>
+              ) : canUpload ? (
+                <button
+                  type="button"
+                  onClick={open}
+                  className="rise rise-3 mt-5 flex w-full items-center gap-4 rounded-2xl border border-dashed border-border p-5 text-left transition-colors hover:border-foreground/30 hover:bg-card"
+                >
+                  <FileUp className="h-6 w-6 flex-none text-muted-foreground" strokeWidth={1.25} />
+                  <span>
+                    <span className="block text-[14px] font-medium text-foreground">Upload your first document</span>
+                    <span className="block text-[12.5px] text-muted-foreground">Or drop files anywhere here. PDF, Word, Excel, PowerPoint, text.</span>
+                  </span>
+                </button>
               ) : (
-                <div className="rise rise-3 mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] text-muted-foreground">
-                  <span className="flex items-center gap-1.5"><FileText className="h-3 w-3" /> PDF · Word · Excel · PPT</span>
-                  <span className="opacity-40">·</span>
-                  <span className="flex items-center gap-1.5"><Zap className="h-3 w-3" /> Groq-powered</span>
-                  <span className="opacity-40">·</span>
-                  <span className="flex items-center gap-1.5"><Shield className="h-3 w-3" /> Local embeddings</span>
-                </div>
+                <p className="rise rise-3 mt-5 text-center text-[13px] text-muted-foreground">No documents yet. Ask someone who can upload to add some.</p>
               )}
             </div>
           </div>
         ) : (
-          <div className="mx-auto w-full max-w-3xl space-y-1 px-4 py-8">
+          <div className="mx-auto w-full max-w-3xl space-y-1 px-4 py-6">
             {messages.map((msg, i) => (
               <Message
                 key={i}
@@ -240,25 +204,32 @@ export default function ChatPanel({
         )}
       </div>
 
-      {/* Jump to bottom */}
       {!pinnedToBottom && messages.length > 0 && (
         <Button
           variant="outline"
           size="sm"
           onClick={jumpToBottom}
-          className="msg-in absolute bottom-28 left-1/2 z-10 h-8 -translate-x-1/2 gap-1.5 rounded-full text-[11px] shadow-lg"
+          className="msg-in absolute bottom-36 left-1/2 z-10 h-8 -translate-x-1/2 gap-1.5 rounded-full text-[11px] shadow-lg"
         >
           <ArrowDown className="h-3 w-3" /> Jump to latest
         </Button>
       )}
 
-      {/* Composer — pinned to the bottom once a conversation is underway */}
       {messages.length > 0 && (
-        <div className="relative mx-auto w-full max-w-3xl px-4 pb-6 pt-3">
-          {composerBox}
-          <p className="mt-3 text-center text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/45">
-            Hybrid&nbsp;BM25&nbsp;+&nbsp;Vector · Multi-turn&nbsp;memory · Groq&nbsp;LLM · Local&nbsp;embeddings
+        <div className="mx-auto w-full max-w-3xl px-4 pb-4 pt-2">
+          {composer}
+          <p className="mt-2.5 text-center text-[11px] text-muted-foreground/70">
+            Answers come only from your documents. Check the cited sources.
           </p>
+        </div>
+      )}
+
+      {/* Drop overlay */}
+      {isDragActive && (
+        <div className="pointer-events-none absolute inset-3 z-30 flex flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-primary/60 bg-background/85 backdrop-blur-sm">
+          <UploadCloud className="h-10 w-10 text-primary" strokeWidth={1.25} />
+          <p className="text-[15px] font-medium text-foreground">Drop to add to <span className="text-primary">{uploadDept}</span></p>
+          <p className="text-[12.5px] text-muted-foreground">PDF, Word, Excel, PowerPoint, Markdown or text</p>
         </div>
       )}
     </div>

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ADMIN, HR, ask, signIn, waitForIndexing } from "./helpers";
+import { ADMIN, HR, ask, signIn, signOut, waitForIndexing } from "./helpers";
 
 // The first question after startup loads the embedding and reranker models
 // (tens of seconds on a laptop CPU), so these tests get a generous budget.
@@ -20,7 +20,7 @@ test("ask a question and get a cited answer", async ({ page }) => {
 test("a user only gets sources from their departments", async ({ page }) => {
   await signIn(page, ADMIN);
   await waitForIndexing(page); // make sure the corpus is ready before switching user
-  await page.getByRole("button", { name: "Sign out" }).click();
+  await signOut(page);
 
   await signIn(page, HR);
   await ask(page, "What was total revenue in Q3 2024?");

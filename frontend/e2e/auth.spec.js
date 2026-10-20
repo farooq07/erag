@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ADMIN, signIn } from "./helpers";
+import { ADMIN, signIn, signOut } from "./helpers";
 
 test("wrong password shows an error", async ({ page }) => {
   await page.goto("/login");
@@ -16,7 +16,7 @@ test("sign in, reload keeps the session, sign out returns home", async ({ page }
   await page.reload(); // access token is in memory only; the refresh cookie restores it
   await expect(page.getByRole("button", { name: "Account menu" })).toContainText(ADMIN.name);
 
-  await page.getByRole("button", { name: "Sign out" }).click();
+  await signOut(page);
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });

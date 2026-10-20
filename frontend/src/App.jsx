@@ -48,6 +48,7 @@ export default function App() {
   const [viewerSource, setViewerSource] = useState(null);
   const pendingSummaries = useRef(new Set());
   const [pipeline, setPipeline] = useState(null);
+  const [sidePanel, setSidePanel] = useState(null);
 
   const authedFetch = apiFetch;
 
@@ -117,7 +118,7 @@ export default function App() {
     setDocuments(d.documents || []);
     // Ingestion runs in the background; summarise each file once it's ready.
     pendingSummaries.current = new Set([...pendingSummaries.current, ...(d.queued || [])]);
-    return { queued: (d.queued || []).length, failed: [] };
+    return { queued: (d.queued || []).length, names: d.queued || [], failed: [] };
   };
 
   const fetchSummary = async (name) => {
@@ -268,13 +269,19 @@ export default function App() {
         onClear={handleClear}
         model={model}
         onModelChange={setModel}
-        onLogout={handleLogout}
+        activePanel={sidePanel}
+        onPanelChange={setSidePanel}
+        onNewChat={() => setMessages([])}
       />
       <ChatPanel
         messages={messages}
         onSend={handleSend}
         loading={loading}
-        hasDocs={documents.length > 0}
+        documents={documents}
+        canUpload={!!currentUser?.can_upload}
+        defaultDept={defaultDept}
+        onUpload={handleUpload}
+        onOpenFiles={() => setSidePanel("files")}
         onClearChat={() => setMessages([])}
         departments={allowedDepartments}
         scopeDept={scopeDept}

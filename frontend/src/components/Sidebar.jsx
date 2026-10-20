@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { useDropzone } from "react-dropzone";
 import {
-  MessageSquare, FolderOpen, Settings, Trash2, Plus, X,
+  MessageSquare, FolderOpen, Settings, Trash2, Plus, X, SquarePen,
   ChevronRight, FileText, Sparkles, Loader2,
   Search, Tag, Building2, Pencil, Check,
 } from "lucide-react";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { UPLOAD_ACCEPT, effectiveUploadDept as pickUploadDept } from "@/lib/uploads";
 
 const DEPT_COLORS = {
   HR:          "bg-pink-500/15 text-pink-600 dark:text-pink-300 border-pink-500/30",
@@ -35,10 +36,10 @@ export default function Sidebar({
   documents, departments, allowedDepartments = [], canUpload = true, canClear = true,
   defaultDept, summaries,
   onUpload, onDelete, onUpdateMeta, onClear, model, onModelChange,
+  activePanel = null, onPanelChange, onNewChat,
 }) {
   const writableDepartments = (allowedDepartments.length ? allowedDepartments : departments);
-  const [expanded, setExpanded] = useState(false);
-  const [activePanel, setActivePanel] = useState(null);
+  const expanded = activePanel !== null;
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState("");
   const [openSummary, setOpenSummary] = useState(null);
@@ -48,9 +49,7 @@ export default function Sidebar({
   const [uploadTags, setUploadTags] = useState("");
   const [editingDept, setEditingDept] = useState(null);
 
-  const effectiveUploadDept = (writableDepartments.length > 0 && !writableDepartments.includes(uploadDept))
-    ? (writableDepartments.includes(defaultDept) ? defaultDept : writableDepartments[0])
-    : uploadDept;
+  const effectiveUploadDept = pickUploadDept(uploadDept, writableDepartments, defaultDept);
   const effectiveFilterDept = (filterDept !== "All" && writableDepartments.length > 0 && !writableDepartments.includes(filterDept))
     ? "All"
     : filterDept;
@@ -74,21 +73,11 @@ export default function Sidebar({
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop: handleUpload,
     noClick: true, noKeyboard: true,
-    accept: {
-      "application/pdf": [".pdf"],
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
-      "application/msword": [".doc"],
-      "text/plain": [".txt", ".md"],
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
-      "application/vnd.openxmlformats-officedocument.presentationml.presentation": [".pptx"],
-    },
+    accept: UPLOAD_ACCEPT,
     multiple: true,
   });
 
-  const togglePanel = (panel) => {
-    if (activePanel === panel) { setActivePanel(null); setExpanded(false); }
-    else { setActivePanel(panel); setExpanded(true); }
-  };
+  const togglePanel = (panel) => onPanelChange(activePanel === panel ? null : panel);
 
   const filteredDocs = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -123,23 +112,14 @@ export default function Sidebar({
 
       {/* Icon rail */}
       <div className="z-10 flex h-full w-14 flex-col items-center gap-1 border-r bg-card py-4">
-        <div title="Office RAG" className="mb-4 flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-          <MessageSquare size={15} strokeWidth={1.75} />
+        <div title="DocuMind" className="mb-4 flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+          <Sparkles size={15} strokeWidth={1.75} />
         </div>
 
-        <NavIcon icon={<MessageSquare size={16} />} label="Chat" active={!expanded} onClick={() => { setActivePanel(null); setExpanded(false); }} />
-        <NavIcon icon={<FolderOpen size={16} />} label={`Files (${documents.length})`} active={activePanel === "files"} onClick={() => togglePanel("files")} badge={documents.length} />
-        <NavIcon icon={<Settings size={16} />} label="Settings" active={activePanel === "settings"} onClick={() => togglePanel("settings")} />
-
-        <div className="flex-1" />
-        {canUpload && (
-          <Button onClick={open} title="Upload document" size="icon" className="mb-1 h-9 w-9 rounded-xl">
-            <Plus size={16} strokeWidth={2} />
-          </Button>
-        )}
-        {canClear && (
-          <NavIcon icon={<Trash2 size={15} />} label="Clear all" onClick={() => { if (confirm("Clear all documents and chat?")) onClear(); }} danger />
-        )}
+        <NavIcon icon={<SquarePen size={16} strokeWidth={1.5} />} label="New chat" onClick={() => { onNewChat(); onPanelChange(null); }} />
+        <NavIcon icon={<MessageSquare size={16} strokeWidth={1.5} />} label="Chat" active={!expanded} onClick={() => onPanelChange(null)} />
+        <NavIcon icon={<FolderOpen size={16} strokeWidth={1.5} />} label={`Files (${documents.length})`} active={activePanel === "files"} onClick={() => togglePanel("files")} badge={documents.length} />
+        <NavIcon icon={<Settings size={16} strokeWidth={1.5} />} label="Settings" active={activePanel === "settings"} onClick={() => togglePanel("settings")} />
       </div>
 
       {/* Expandable panel */}
@@ -152,7 +132,7 @@ export default function Sidebar({
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => { setExpanded(false); setActivePanel(null); }}
+              onClick={() => onPanelChange(null)}
               title="Close panel"
               className="h-7 w-7"
             >
@@ -304,6 +284,16 @@ export default function Sidebar({
                   Documents stay on your machine. Only matched text chunks (~500 words) are sent to Groq per query.
                 </p>
               </div>
+
+              {canClear && (
+                <div className="border-t pt-3">
+                  <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.2em] text-destructive">Danger zone</label>
+                  <Button variant="outline" size="sm" className="w-full gap-2 border-destructive/40 text-[12px] text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => { if (confirm("Delete every document and clear the chat? This can't be undone.")) onClear(); }}>
+                    <Trash2 size={13} /> Delete all documents
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>
